@@ -22,10 +22,12 @@ data class Board(
 )
 
 data class ThreadsPage(
+    /** Номер страницы с нуля, как в UI. */
     val currentPage: Int,
     val isIndex: Boolean,
     val threads: List<ThreadSummary>,
     val threadsPerPage: Int,
+    val maxPages: Int,
 )
 
 data class ThreadSummary(
@@ -41,7 +43,8 @@ data class ThreadSummary(
     val views: Int,
     val isSticky: Boolean,
     val isClosed: Boolean,
-    val thumbnailUrl: String?,
+    /** Все вложения ОП-поста: в превью треда показываем каждое. */
+    val attachments: List<Attachment>,
     val replies: List<Post>,
 )
 

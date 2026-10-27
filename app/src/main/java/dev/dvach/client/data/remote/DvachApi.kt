@@ -2,7 +2,6 @@ package dev.dvach.client.data.remote
 
 import retrofit2.http.GET
 import retrofit2.http.Path
-import retrofit2.http.Query
 import dev.dvach.client.data.remote.dto.BoardDto
 import dev.dvach.client.data.remote.dto.ThreadsPageDto
 
@@ -19,10 +18,19 @@ interface DvachApi {
     @GET("api/mobile/v2/boards")
     suspend fun boards(): List<BoardDto>
 
+    /**
+     * Первая страница доски. `?page=N` движок больше не понимает: параметр
+     * игнорируется и всегда отдаётся первая страница, поэтому страницы
+     * запрашиваются путём `/{board}/{N}.json` (см. [indexPage]).
+     */
     @GET("{board}/index.json")
-    suspend fun index(
+    suspend fun index(@Path("board") board: String): ThreadsPageDto
+
+    /** Страница доски, `page` — с единицы, как в вебе: `/b/2.json`. */
+    @GET("{board}/{page}.json")
+    suspend fun indexPage(
         @Path("board") board: String,
-        @Query("page") page: Int = 0,
+        @Path("page") page: Int,
     ): ThreadsPageDto
 
     @GET("{board}/res/{thread}.json")

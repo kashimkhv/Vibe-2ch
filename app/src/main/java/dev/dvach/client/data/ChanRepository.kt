@@ -12,6 +12,7 @@ import dev.dvach.client.domain.model.Board
 import dev.dvach.client.domain.model.Post
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.domain.model.ThreadsPage
+import dev.dvach.client.util.attachmentFileName
 import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
@@ -35,7 +36,8 @@ class NetworkChanRepository @Inject constructor(
             .sortedWith(compareBy({ it.category }, { it.name }))
 
     override suspend fun index(boardId: String, page: Int): ThreadsPage =
-        api.index(boardId, page).toDomain(boardId)
+        // В приложении страницы с нуля, в API — с единицы.
+        api.indexPage(boardId, page + 1).toDomain(boardId)
 
     override suspend fun thread(boardId: String, threadNum: Int): List<Post> =
         api.thread(boardId, threadNum)
@@ -47,10 +49,11 @@ class NetworkChanRepository @Inject constructor(
 }
 
 private fun ThreadsPageDto.toDomain(boardId: String) = ThreadsPage(
-    currentPage = currentPage,
+    currentPage = (currentPage - 1).coerceAtLeast(0),
     isIndex = isIndex,
     threads = threads.mapNotNull { it.toDomain(boardId) },
     threadsPerPage = board?.threadsPerPage?.takeIf { it > 0 } ?: 20,
+    maxPages = board?.maxPages?.takeIf { it > 0 } ?: Int.MAX_VALUE,
 )
 
 private fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
@@ -68,7 +71,7 @@ private fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
         views = views,
         isSticky = sticky == 1,
         isClosed = closed == 1,
-        thumbnailUrl = op.files.firstOrNull()?.let { it.thumbnailPath.ifBlank { it.path } }?.absoluteUrl(),
+        attachments = op.files.map { it.toDomain() },
         replies = posts.drop(1).takeLast(3).map { it.toDomain(boardId) },
     )
 }
@@ -96,7 +99,7 @@ private fun FileDto.toDomain(): Attachment = Attachment(
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
         .absoluteUrl(),
-    name = displayFileName(path),
+    name = attachmentFileName(fullName, displayname, name, path),
     sizeBytes = kilobytesToBytes(size),
     width = width,
     height = height,
@@ -141,12 +144,5 @@ private fun String.absoluteUrl(): String = when {
  * Имя файла для показа. `fullname` — исходное имя, но у части постов оно бывает
  * без расширения (`image`), а `displayname` приходит обрезанным (`1793000[...].mp4`).
  */
-private fun FileDto.displayFileName(path: String): String {
-    val raw = fullName.ifBlank { displayname }.ifBlank { name }
-    val cleaned = raw.replace("[...]", "").trim()
-    val ext = path.substringAfterLast('.', "")
-    if (ext.isEmpty()) return cleaned
-    return if (cleaned.contains('.')) cleaned else "$cleaned.$ext"
-}
 
 private val VIDEO_EXTENSIONS = listOf(".webm", ".mp4", ".mov", ".mkv")

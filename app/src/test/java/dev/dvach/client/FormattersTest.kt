@@ -3,6 +3,7 @@ package dev.dvach.client
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import dev.dvach.client.ui.thread.plainText
+import dev.dvach.client.util.attachmentFileName
 import dev.dvach.client.util.decodeHtmlEntities
 import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.plural
@@ -50,6 +51,31 @@ class FormattersTest {
         assertEquals("постов", plural(11, "пост", "поста", "постов"))
         assertEquals("постов", plural(25, "пост", "поста", "постов"))
         assertEquals("пост", plural(21, "пост", "поста", "постов"))
+    }
+
+    @Test
+    fun `attachment name falls back to server name`() {
+        val path = "/media/src/1170867/17917395327230382621.webm"
+        // Файл загрузили без имени: движок отдаёт одно расширение.
+        assertEquals(
+            "17917395327230382621.webm",
+            attachmentFileName(fullName = ".webm", displayName = ".webm", name = "17917395327230382621.webm", path = path),
+        )
+        // Имя без расширения — дописываем из пути.
+        assertEquals(
+            "image.png",
+            attachmentFileName(fullName = "image", displayName = "image", name = "1791.png", path = "/b/src/1/1791.png"),
+        )
+        // Обрезанный displayname чистим от «[...]», если fullname пустой.
+        assertEquals(
+            "179300057599200.mp4",
+            attachmentFileName("", "179300057599200[...].mp4", "1793.mp4", "/b/src/1/1793.mp4"),
+        )
+        // Обычный случай — исходное имя как есть.
+        assertEquals(
+            "кот.jpg",
+            attachmentFileName("кот.jpg", "кот.jpg", "1791.jpg", "/b/src/1/1791.jpg"),
+        )
     }
 
     @Test

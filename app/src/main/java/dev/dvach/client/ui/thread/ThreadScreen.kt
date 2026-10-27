@@ -1,9 +1,5 @@
 package dev.dvach.client.ui.thread
 
-import android.content.ClipData
-import android.content.ClipboardManager
-import android.content.Context
-import android.widget.Toast
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
@@ -38,7 +34,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
@@ -68,7 +63,6 @@ fun ThreadScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
     val uriHandler = LocalUriHandler.current
-    val context = LocalContext.current
     var highlighted by remember { mutableIntStateOf(-1) }
     var appliedInitialHighlight by remember { mutableStateOf(false) }
     val initialHighlight = viewModel.route.highlight
@@ -163,12 +157,6 @@ fun ThreadScreen(
                                 }
                             },
                             onOpenAttachment = onOpenMedia,
-                            onCopyLink = { p ->
-                                copyToClipboard(context, postUrl(boardId, threadNum, p.num))
-                            },
-                            onOpenInBrowser = { p ->
-                                uriHandler.runCatching { openUri(postUrl(boardId, threadNum, p.num)) }
-                            },
                         )
                         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                     }
@@ -180,9 +168,3 @@ fun ThreadScreen(
 
 /** Сколько подсвечивается пост, к которому перешли по цитате. */
 private const val HIGHLIGHT_MS = 1500L
-
-private fun copyToClipboard(context: Context, text: String) {
-    val clipboard = context.getSystemService(ClipboardManager::class.java) ?: return
-    clipboard.setPrimaryClip(ClipData.newPlainText("Ссылка", text))
-    Toast.makeText(context, "Ссылка скопирована", Toast.LENGTH_SHORT).show()
-}

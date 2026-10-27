@@ -43,8 +43,6 @@ fun PostCard(
     isHighlighted: Boolean,
     onPostClick: (postNum: Int, threadNum: Int?) -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
-    onCopyLink: (Post) -> Unit,
-    onOpenInBrowser: (Post) -> Unit,
     showThumbnails: Boolean = true,
 ) {
     val plainComment = remember(post.commentHtml) { stripHtml(post.commentHtml) }
@@ -91,6 +89,17 @@ fun PostCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            if (showThumbnails && post.files.isNotEmpty()) {
+                Column(
+                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                    modifier = Modifier.padding(top = 6.dp),
+                ) {
+                    post.files.forEach { file ->
+                        AttachmentView(file = file, onOpen = { onOpenAttachment(file) })
+                    }
+                }
+            }
+
             if (showSubject) {
                 Text(
                     text = subject,
@@ -100,11 +109,13 @@ fun PostCard(
                 )
             }
 
-            HtmlText(
-                html = post.commentHtml,
-                onPostClick = onPostClick,
-                modifier = Modifier.padding(top = 4.dp),
-            )
+            if (plainComment.isNotBlank()) {
+                HtmlText(
+                    html = post.commentHtml,
+                    onPostClick = onPostClick,
+                    modifier = Modifier.padding(top = 4.dp),
+                )
+            }
 
             if (post.isBanned) {
                 Text(
@@ -115,59 +126,10 @@ fun PostCard(
                 )
             }
 
-            if (showThumbnails && post.files.isNotEmpty()) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
-                    modifier = Modifier.padding(top = 8.dp),
-                ) {
-                    post.files.forEach { file ->
-                        AttachmentView(file = file, onOpen = { onOpenAttachment(file) })
-                    }
-                }
-            }
-
-            Row(
-                horizontalArrangement = Arrangement.spacedBy(16.dp),
-                verticalAlignment = Alignment.CenterVertically,
-                modifier = Modifier.padding(top = 6.dp),
-            ) {
-                ActionLabel(icon = Icons.Default.ContentCopy, text = "ссылка", onClick = { onCopyLink(post) })
-                ActionLabel(
-                    icon = Icons.Default.OpenInBrowser,
-                    text = "в браузере",
-                    onClick = { onOpenInBrowser(post) },
-                )
-            }
-
             if (!post.isOp) {
                 HorizontalDivider(modifier = Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
             }
         }
-    }
-}
-
-@Composable
-private fun ActionLabel(
-    icon: androidx.compose.ui.graphics.vector.ImageVector,
-    text: String,
-    onClick: () -> Unit,
-) {
-    Row(
-        verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
-        modifier = Modifier.clickable(onClick = onClick),
-    ) {
-        Icon(
-            imageVector = icon,
-            contentDescription = null,
-            tint = MaterialTheme.colorScheme.onSurfaceVariant,
-            modifier = Modifier.padding(2.dp),
-        )
-        Text(
-            text = text,
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-        )
     }
 }
 

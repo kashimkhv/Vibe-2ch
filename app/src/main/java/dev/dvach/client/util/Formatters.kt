@@ -18,6 +18,25 @@ fun formatTimestamp(seconds: Long): String =
     }
 
 /**
+ * Имя вложения для показа. `fullname` — исходное имя, но у части постов оно
+ * приходит без расширения (`image`) или вообще пустое (`""`, `".webm"` — если
+ * файл загрузили без имени), а `displayname` бывает обрезанным (`1793000[...].mp4`).
+ * В последнем случае берём серверное имя из `name`.
+ *
+ * @param path путь файла: из него достаём расширение.
+ */
+fun attachmentFileName(fullName: String, displayName: String, name: String, path: String): String {
+    val ext = path.substringAfterLast('.', "")
+    val candidates = listOf(fullName, displayName, name)
+        .map { it.replace("[...]", "").trim() }
+        .filter { it.isNotEmpty() }
+        .map { candidate -> if (ext.isEmpty() || candidate.contains('.')) candidate else "$candidate.$ext" }
+    return candidates.firstOrNull { it.substringBeforeLast('.').isNotEmpty() }
+        ?: candidates.firstOrNull()
+        .orEmpty()
+}
+
+/**
  * Makaba отдаёт размер файла в килобайтах (632 для картинки на 610 КБ),
  * поэтому в байты переводим сами.
  */

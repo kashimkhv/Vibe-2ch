@@ -4,6 +4,8 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.ExperimentalLayoutApi
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -51,7 +53,7 @@ import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.postsLabel
 import dev.dvach.client.util.stripHtml
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ThreadsScreen(
     onBack: () -> Unit,
@@ -127,25 +129,14 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
     val subject = thread.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
 
-    Row(
+    Column(
         modifier = Modifier
             .fillMaxWidth()
             .clickable(onClick = onClick)
             .padding(12.dp),
-        horizontalArrangement = Arrangement.spacedBy(12.dp),
+        verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        val thumbnail = thread.thumbnailUrl
-        if (!thumbnail.isNullOrBlank()) {
-            AsyncImage(
-                model = thumbnail,
-                contentDescription = null,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .size(84.dp)
-                    .clip(RoundedCornerShape(10.dp)),
-            )
-        }
-        Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (showSubject) {
                 Text(
                     text = thread.subject.ifBlank { "Без темы" },
@@ -193,6 +184,26 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
                         text = "закрыт",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
+                    )
+                }
+            }
+        }
+
+        // У ОП-поста бывает несколько файлов — показываем превью каждого.
+        val thumbnails = thread.attachments.map { it.thumbnailUrl }.filter { it.isNotBlank() }
+        if (thumbnails.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                thumbnails.forEach { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(76.dp)
+                            .clip(RoundedCornerShape(10.dp)),
                     )
                 }
             }

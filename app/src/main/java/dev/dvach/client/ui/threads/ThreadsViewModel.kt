@@ -53,7 +53,9 @@ class ThreadsViewModel @Inject constructor(
                             error = null,
                             threads = result.threads,
                             page = result.currentPage,
-                            canGoNext = result.threads.size >= result.threadsPerPage,
+                            // Страница заполнена целиком и лимит страниц доски не достигнут.
+                            canGoNext = result.threads.size >= result.threadsPerPage &&
+                                result.currentPage + 1 < result.maxPages,
                         )
                     }
                 }
