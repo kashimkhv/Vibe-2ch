@@ -95,12 +95,13 @@ private fun FileDto.toDomain(): Attachment = Attachment(
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
         .absoluteUrl(),
-    name = fullName.ifBlank { displayname.ifBlank { name } },
+    name = displayFileName(path),
     sizeBytes = size,
     width = width,
     height = height,
     duration = duration.takeIf { it.isNotBlank() && it != "00:00:00" },
     isVideo = VIDEO_EXTENSIONS.any { path.endsWith(it, ignoreCase = true) },
+    extension = path.substringAfterLast('.', "").takeIf { '.' in path && it.length in 2..4 }.orEmpty(),
 )
 
 private fun BoardDto.toDomain() = Board(
@@ -133,6 +134,18 @@ private fun String.absoluteUrl(): String = when {
     startsWith("//") -> "https:$this"
     startsWith("/") -> BASE_URL.trimEnd('/') + this
     else -> BASE_URL.trimEnd('/') + "/" + this
+}
+
+/**
+ * Имя файла для показа. `fullname` — исходное имя, но у части постов оно бывает
+ * без расширения (`image`), а `displayname` приходит обрезанным (`1793000[...].mp4`).
+ */
+private fun FileDto.displayFileName(path: String): String {
+    val raw = fullName.ifBlank { displayname }.ifBlank { name }
+    val cleaned = raw.replace("[...]", "").trim()
+    val ext = path.substringAfterLast('.', "")
+    if (ext.isEmpty()) return cleaned
+    return if (cleaned.contains('.')) cleaned else "$cleaned.$ext"
 }
 
 private val VIDEO_EXTENSIONS = listOf(".webm", ".mp4", ".mov", ".mkv")

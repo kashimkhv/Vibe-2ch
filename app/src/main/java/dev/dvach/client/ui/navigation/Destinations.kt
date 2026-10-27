@@ -10,7 +10,13 @@ data object BoardsRoute
 data class ThreadsRoute(val boardId: String, val boardName: String)
 
 @Serializable
-data class ThreadRoute(val boardId: String, val boardName: String, val threadNum: Int)
+data class ThreadRoute(
+    val boardId: String,
+    val boardName: String,
+    val threadNum: Int,
+    /** Номер поста, на который надо прокрутить при открытии (переход по цитате из другого треда). */
+    val highlight: Int = 0,
+)
 
 @Serializable
 data object BookmarksRoute

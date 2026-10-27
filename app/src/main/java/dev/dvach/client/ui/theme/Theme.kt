@@ -52,17 +52,24 @@ private val DarkColors = darkColorScheme(
     outline = Color(0xFF92918A),
 )
 
+/**
+ * Единая точка правды о том, тёмная ли тема: приложению важно не только
+ * для палитры, но и для цвета системных баров, когда тема выбрана вручную.
+ */
+@Composable
+fun rememberDarkTheme(themeMode: ThemeMode): Boolean = when (themeMode) {
+    ThemeMode.SYSTEM -> isSystemInDarkTheme()
+    ThemeMode.LIGHT -> false
+    ThemeMode.DARK -> true
+}
+
 @Composable
 fun DvachTheme(
     themeMode: ThemeMode = ThemeMode.SYSTEM,
     dynamicColor: Boolean = true,
     content: @Composable () -> Unit,
 ) {
-    val dark = when (themeMode) {
-        ThemeMode.SYSTEM -> isSystemInDarkTheme()
-        ThemeMode.LIGHT -> false
-        ThemeMode.DARK -> true
-    }
+    val dark = rememberDarkTheme(themeMode)
     val context = LocalContext.current
     val scheme = when {
         dynamicColor && Build.VERSION.SDK_INT >= Build.VERSION_CODES.S ->

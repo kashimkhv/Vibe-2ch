@@ -73,4 +73,6 @@ data class Attachment(
     val height: Int,
     val duration: String? = null,
     val isVideo: Boolean,
+    /** Расширение файла из `path` — у видео это webm, mp4, mov; в метке показываем его. */
+    val extension: String = "",
 )

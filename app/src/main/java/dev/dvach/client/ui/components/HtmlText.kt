@@ -41,14 +41,21 @@ fun HtmlText(
     maxLines: Int = Int.MAX_VALUE,
     overflow: TextOverflow = TextOverflow.Clip,
     color: Color = Color.Unspecified,
-    onPostClick: ((Int) -> Unit)? = null,
+    /**
+     * В списках (превью треда) ссылки должны быть обычным текстом, иначе тап
+     * по тексту уводит в браузер вместо открытия треда.
+     */
+    linksEnabled: Boolean = true,
+    /** Клик по цитате: номер поста и тред, в котором он лежит (null — текущий). */
+    onPostClick: ((postNum: Int, threadNum: Int?) -> Unit)? = null,
 ) {
     var revealedSpoilers by remember(html) { mutableStateOf<Set<Int>>(emptySet()) }
     val scheme = MaterialTheme.colorScheme
 
-    val annotated: AnnotatedString = remember(html, revealedSpoilers, scheme.primary, color) {
+    val annotated: AnnotatedString = remember(html, revealedSpoilers, scheme.primary, color, linksEnabled) {
         renderDvachHtml(
             html = html,
+            linksEnabled = linksEnabled,
             linkColor = scheme.primary,
             baseColor = color,
             revealedSpoilers = revealedSpoilers,
@@ -84,6 +91,7 @@ private class Run(
     val style: SpanStyle,
     val href: String? = null,
     val postRef: Int? = null,
+    val postThread: Int? = null,
     val spoilerIndex: Int? = null,
 )
 
@@ -92,21 +100,26 @@ private class OpenTag(
     val style: SpanStyle = SpanStyle(),
     val href: String? = null,
     val spoilerIndex: Int? = null,
+    /** Для `<a class="post-reply-link" data-num="...">` — ссылка на пост внутри треда. */
+    val postRef: Int? = null,
+    val postThread: Int? = null,
 )
 
 @Suppress("LongParameterList")
 private fun renderDvachHtml(
     html: String,
+    linksEnabled: Boolean,
     linkColor: Color,
     baseColor: Color,
     revealedSpoilers: Set<Int>,
     spoilerBackground: Color,
     spoilerRevealedColor: Color,
     onSpoilerClick: (Int) -> Unit,
-    onPostClick: ((Int) -> Unit)?,
+    onPostClick: ((postNum: Int, threadNum: Int?) -> Unit)?,
 ): AnnotatedString {
     val runs = tokenizeDvachHtml(
         html = html,
+        linksEnabled = linksEnabled,
         linkColor = linkColor,
         baseColor = baseColor,
         revealedSpoilers = revealedSpoilers,
@@ -128,6 +141,7 @@ private fun renderDvachHtml(
 
             val href = run.href
             val postRef = run.postRef
+            val postThread = run.postThread
             val spoiler = run.spoilerIndex
             when {
                 href != null -> addLink(LinkAnnotation.Url(href, linkStyles), start, end)
@@ -135,7 +149,7 @@ private fun renderDvachHtml(
                     LinkAnnotation.Clickable(
                         tag = "post:$postRef",
                         styles = quoteStyles,
-                        linkInteractionListener = { onPostClick.invoke(postRef) },
+                        linkInteractionListener = { onPostClick.invoke(postRef, postThread) },
                     ),
                     start,
                     end,
@@ -157,6 +171,7 @@ private fun renderDvachHtml(
 @Suppress("LongParameterList", "CyclomaticComplexMethod")
 private fun tokenizeDvachHtml(
     html: String,
+    linksEnabled: Boolean,
     linkColor: Color,
     baseColor: Color,
     revealedSpoilers: Set<Int>,
@@ -174,6 +189,8 @@ private fun tokenizeDvachHtml(
 
     fun currentSpoiler(): Int? = stack.lastOrNull { it.spoilerIndex != null }?.spoilerIndex
 
+    fun currentRef(): OpenTag? = stack.lastOrNull { it.postRef != null }
+
     fun appendText(raw: String) {
         val text = decodeHtmlEntities(raw)
         if (text.isEmpty()) return
@@ -181,10 +198,16 @@ private fun tokenizeDvachHtml(
         val style = mergedStyle().let { if (baseColor == Color.Unspecified) it else it.merge(SpanStyle(color = baseColor)) }
         val href = currentHref()
         val spoiler = currentSpoiler()
+        val ref = currentRef()
 
         if (href != null) {
             // внутри ссылки цитаты не размечаем
             runs += Run(text, style, href = href)
+            return
+        }
+        if (ref != null) {
+            // цитата вида <a data-num="123">>>123</a> — ведём на пост внутри приложения
+            runs += Run(text, style, postRef = ref.postRef, postThread = ref.postThread, spoilerIndex = spoiler)
             return
         }
 
@@ -231,7 +254,28 @@ private fun tokenizeDvachHtml(
             "code", "pre" -> stack += OpenTag(name, SpanStyle(fontFamily = FontFamily.Monospace))
             "sub" -> stack += OpenTag(name, SpanStyle(baselineShift = BaselineShift.Subscript))
             "sup" -> stack += OpenTag(name, SpanStyle(baselineShift = BaselineShift.Superscript))
-            "a" -> stack += OpenTag(name, SpanStyle(color = linkColor), href = HREF_ATTR.find(attrs)?.groupValues?.get(1))
+            "a" -> {
+                val postRef = POST_NUM_ATTR.find(attrs)?.groupValues?.get(1)?.toIntOrNull()
+                val postThread = THREAD_NUM_ATTR.find(attrs)?.groupValues?.get(1)?.toIntOrNull()
+                val isPostLink = postRef != null && attrs.contains("post-reply", ignoreCase = true)
+                val href = HREF_ATTR.find(attrs)?.groupValues?.get(1)
+                stack += when {
+                    isPostLink -> OpenTag(
+                        name = name,
+                        style = SpanStyle(color = if (linksEnabled) linkColor else Color.Unspecified),
+                        postRef = postRef,
+                        postThread = postThread,
+                    )
+                    else -> OpenTag(
+                        name = name,
+                        style = SpanStyle(
+                            color = if (linksEnabled) linkColor else Color.Unspecified,
+                            textDecoration = if (linksEnabled) TextDecoration.Underline else null,
+                        ),
+                        href = if (linksEnabled) href else null,
+                    )
+                }
+            }
             "span", "font" -> {
                 val isSpoiler = attrs.contains("spoiler", ignoreCase = true) ||
                     attrs.contains("color: transparent", ignoreCase = true)
@@ -264,6 +308,8 @@ private val TAG_REGEX = Regex("""<\s*(/?)\s*([a-zA-Z][a-zA-Z0-9]*)([^>]*?)/?\s*>
 private val QUOTE_REGEX = Regex(""">>(\d+)""")
 private val COLOR_ATTR = Regex("""color\s*:\s*(rgb\([^)]*\)|#[0-9a-fA-F]{3,8}|[a-zA-Z]+)""")
 private val HREF_ATTR = Regex("""href\s*=\s*["']([^"']*)["']""")
+private val POST_NUM_ATTR = Regex("""data-num\s*=\s*["'](\d+)["']""")
+private val THREAD_NUM_ATTR = Regex("""data-thread\s*=\s*["'](\d+)["']""")
 private const val SPOILER_TAG = "__spoiler__"
 
 private fun parseColor(value: String): Color? {

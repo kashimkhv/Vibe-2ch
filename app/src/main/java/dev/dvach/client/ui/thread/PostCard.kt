@@ -41,7 +41,7 @@ import dev.dvach.client.util.formatTimestamp
 fun PostCard(
     post: Post,
     isHighlighted: Boolean,
-    onPostClick: (Int) -> Unit,
+    onPostClick: (postNum: Int, threadNum: Int?) -> Unit,
     onOpenAttachment: (String) -> Unit,
     onCopyLink: (Post) -> Unit,
     onOpenInBrowser: (Post) -> Unit,
@@ -210,7 +210,10 @@ private fun AttachmentView(file: Attachment, onOpen: () -> Unit) {
                 if (file.sizeBytes > 0) append("  ${formatFileSize(file.sizeBytes)}")
                 file.duration?.let { append("  $it") }
                 if (file.width > 0 && file.height > 0) append("  ${file.width}×${file.height}")
-                if (file.isVideo) append("  WEBM")
+                if (file.isVideo) {
+                    append("  ")
+                    append(file.extension.ifBlank { "webm" }.uppercase())
+                }
             },
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,

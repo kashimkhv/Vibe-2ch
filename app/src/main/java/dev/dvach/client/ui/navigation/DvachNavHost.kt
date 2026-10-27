@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.navigation.NavHostController
+import androidx.navigation.toRoute
 import androidx.navigation.compose.NavHost
 import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
@@ -56,7 +57,15 @@ fun DvachNavHost(
         }
 
         composable<ThreadRoute> {
-            ThreadScreen(onBack = navController::popBackStack)
+            ThreadScreen(
+                onBack = navController::popBackStack,
+                onOpenThread = { threadNum, highlight ->
+                    val route = it.toRoute<ThreadRoute>()
+                    navController.navigate(
+                        ThreadRoute(route.boardId, route.boardName, threadNum, highlight),
+                    )
+                },
+            )
         }
 
         composable<BookmarksRoute> {

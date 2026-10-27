@@ -38,7 +38,7 @@ import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import androidx.hilt.navigation.compose.hiltViewModel
+import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.dvach.client.domain.model.ThreadSummary
@@ -159,6 +159,7 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
                 style = MaterialTheme.typography.bodySmall,
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
+                linksEnabled = false,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(

@@ -13,3 +13,7 @@ local.properties
 *.keystore
 !debug.keystore
 /app/build
+
+# локальные дампы uiautomator
+ui*.xml
+u*.xml
