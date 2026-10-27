@@ -18,6 +18,14 @@ data class ThreadRoute(
     val highlight: Int = 0,
 )
 
+/** Полноэкранный просмотр вложения: картинка с зумом или видео-плеер. */
+@Serializable
+data class MediaRoute(
+    val url: String,
+    val name: String,
+    val isVideo: Boolean,
+)
+
 @Serializable
 data object BookmarksRoute
 

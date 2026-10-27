@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.dvach.client.ui.bookmarks.BookmarksScreen
 import dev.dvach.client.ui.boards.BoardsScreen
+import dev.dvach.client.ui.media.MediaScreen
 import dev.dvach.client.ui.settings.SettingsScreen
 import dev.dvach.client.ui.thread.ThreadScreen
 import dev.dvach.client.ui.threads.ThreadsScreen
@@ -59,6 +60,9 @@ fun DvachNavHost(
         composable<ThreadRoute> {
             ThreadScreen(
                 onBack = navController::popBackStack,
+                onOpenMedia = { file ->
+                    navController.navigate(MediaRoute(file.url, file.name, file.isVideo))
+                },
                 onOpenThread = { threadNum, highlight ->
                     val route = it.toRoute<ThreadRoute>()
                     navController.navigate(
@@ -66,6 +70,10 @@ fun DvachNavHost(
                     )
                 },
             )
+        }
+
+        composable<MediaRoute> {
+            MediaScreen(onBack = navController::popBackStack)
         }
 
         composable<BookmarksRoute> {

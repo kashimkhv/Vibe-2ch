@@ -17,6 +17,12 @@ fun formatTimestamp(seconds: Long): String =
         }.getOrDefault("")
     }
 
+/**
+ * Makaba отдаёт размер файла в килобайтах (632 для картинки на 610 КБ),
+ * поэтому в байты переводим сами.
+ */
+fun kilobytesToBytes(kilobytes: Long): Long = kilobytes * 1024L
+
 fun formatFileSize(bytes: Long): String {
     if (bytes <= 0) return ""
     val units = listOf("Б", "КБ", "МБ", "ГБ")

@@ -75,6 +75,35 @@ object NetworkModule {
             .build()
     }
 
+    /**
+     * Тот же UA (Cloudflare), но без общего callTimeout и без дискового кэша:
+     * видео и скачивания идут потоком, а не целиком в память.
+     */
+    @Provides
+    @Singleton
+    @MediaClient
+    fun provideMediaOkHttp(): OkHttpClient = OkHttpClient.Builder()
+        .addInterceptor { chain ->
+            chain.proceed(
+                chain.request().newBuilder()
+                    .header("User-Agent", USER_AGENT)
+                    .header("Accept", "*/*")
+                    .build(),
+            )
+        }
+        .addInterceptor(
+            HttpLoggingInterceptor().apply {
+                level = if (BuildConfig.DEBUG) {
+                    HttpLoggingInterceptor.Level.BASIC
+                } else {
+                    HttpLoggingInterceptor.Level.NONE
+                }
+            },
+        )
+        .connectTimeout(20, TimeUnit.SECONDS)
+        .readTimeout(60, TimeUnit.SECONDS)
+        .build()
+
     @Provides
     @Singleton
     fun provideRetrofit(client: OkHttpClient, json: Json): Retrofit = Retrofit.Builder()

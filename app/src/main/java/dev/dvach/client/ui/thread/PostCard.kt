@@ -42,7 +42,7 @@ fun PostCard(
     post: Post,
     isHighlighted: Boolean,
     onPostClick: (postNum: Int, threadNum: Int?) -> Unit,
-    onOpenAttachment: (String) -> Unit,
+    onOpenAttachment: (Attachment) -> Unit,
     onCopyLink: (Post) -> Unit,
     onOpenInBrowser: (Post) -> Unit,
     showThumbnails: Boolean = true,
@@ -121,7 +121,7 @@ fun PostCard(
                     modifier = Modifier.padding(top = 8.dp),
                 ) {
                     post.files.forEach { file ->
-                        AttachmentView(file = file, onOpen = { onOpenAttachment(file.url) })
+                        AttachmentView(file = file, onOpen = { onOpenAttachment(file) })
                     }
                 }
             }

@@ -46,6 +46,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
+import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
@@ -57,6 +58,7 @@ import dev.dvach.client.util.postsLabel
 fun ThreadScreen(
     onBack: () -> Unit,
     onOpenThread: (threadNum: Int, highlight: Int) -> Unit = { _, _ -> },
+    onOpenMedia: (Attachment) -> Unit = {},
     viewModel: ThreadViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -160,9 +162,7 @@ fun ThreadScreen(
                                     }
                                 }
                             },
-                            onOpenAttachment = { url ->
-                                uriHandler.runCatching { openUri(url) }
-                            },
+                            onOpenAttachment = onOpenMedia,
                             onCopyLink = { p ->
                                 copyToClipboard(context, postUrl(boardId, threadNum, p.num))
                             },

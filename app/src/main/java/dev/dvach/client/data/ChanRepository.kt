@@ -12,6 +12,7 @@ import dev.dvach.client.domain.model.Board
 import dev.dvach.client.domain.model.Post
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.domain.model.ThreadsPage
+import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
 import javax.inject.Singleton
@@ -96,7 +97,7 @@ private fun FileDto.toDomain(): Attachment = Attachment(
         .orEmpty()
         .absoluteUrl(),
     name = displayFileName(path),
-    sizeBytes = size,
+    sizeBytes = kilobytesToBytes(size),
     width = width,
     height = height,
     duration = duration.takeIf { it.isNotBlank() && it != "00:00:00" },

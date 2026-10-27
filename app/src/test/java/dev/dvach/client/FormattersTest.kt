@@ -4,6 +4,7 @@ import org.junit.Assert.assertEquals
 import org.junit.Test
 import dev.dvach.client.ui.thread.plainText
 import dev.dvach.client.util.decodeHtmlEntities
+import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.plural
 import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatFileSize
@@ -49,6 +50,14 @@ class FormattersTest {
         assertEquals("постов", plural(11, "пост", "поста", "постов"))
         assertEquals("постов", plural(25, "пост", "поста", "постов"))
         assertEquals("пост", plural(21, "пост", "поста", "постов"))
+    }
+
+    @Test
+    fun `makaba file size is kilobytes`() {
+        // В API `size` = 632 для файла на 610 КБ, а не байты.
+        assertEquals(647_168L, kilobytesToBytes(632))
+        assertEquals("632.0 КБ", formatFileSize(kilobytesToBytes(632)))
+        assertEquals("17.3 МБ", formatFileSize(kilobytesToBytes(17_720)))
     }
 
     @Test
