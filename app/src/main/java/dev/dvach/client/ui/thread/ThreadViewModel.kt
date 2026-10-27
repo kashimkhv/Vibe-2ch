@@ -20,6 +20,7 @@ import dev.dvach.client.data.settings.AppSettings
 import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.navigation.ThreadRoute
+import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
 
 data class ThreadUiState(
@@ -85,7 +86,7 @@ class ThreadViewModel @Inject constructor(
         }
     }
 
-    private fun threadTitle(): String =
+    fun threadTitle(): String =
         _state.value.posts.firstOrNull()?.let { op ->
             op.subject.ifBlank { plainText(op.commentHtml) }
         }?.take(140).orEmpty().ifBlank { "№${route.threadNum}" }
@@ -104,16 +105,4 @@ class ThreadViewModel @Inject constructor(
     }
 }
 
-private val TAG_REGEX = Regex("<[^>]+>")
-private val SPACES = Regex("\\s+")
-
-internal fun plainText(html: String): String = html
-    .replace(TAG_REGEX, " ")
-    .replace("&nbsp;", " ")
-    .replace("&quot;", "\"")
-    .replace("&#39;", "'")
-    .replace("&lt;", "<")
-    .replace("&gt;", ">")
-    .replace("&amp;", "&")
-    .replace(SPACES, " ")
-    .trim()
+internal fun plainText(html: String): String = stripHtml(html)

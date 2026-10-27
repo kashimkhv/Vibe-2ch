@@ -53,3 +53,19 @@ fun formatRelativeTime(timestampSeconds: Long, nowMillis: Long = System.currentT
 
 fun postUrl(boardId: String, threadNum: Int, postNum: Int = threadNum): String =
     "https://2ch.hk/$boardId/res/$threadNum.html#${postNum}"
+
+/** Русские склонения: 1 пост, 2 поста, 11 постов. */
+fun plural(count: Int, one: String, few: String, many: String): String {
+    val mod100 = count % 100
+    val mod10 = count % 10
+    return when {
+        mod100 in 11..14 -> many
+        mod10 == 1 -> one
+        mod10 in 2..4 -> few
+        else -> many
+    }
+}
+
+fun postsLabel(count: Int): String = "${formatCount(count)} ${plural(count, "пост", "поста", "постов")}"
+
+fun filesLabel(count: Int): String = "${formatCount(count)} ${plural(count, "файл", "файла", "файлов")}"

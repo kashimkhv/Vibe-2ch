@@ -12,6 +12,7 @@ import dev.dvach.client.domain.model.Board
 import dev.dvach.client.domain.model.Post
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.domain.model.ThreadsPage
+import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -90,19 +91,23 @@ private fun PostDto.toDomain(boardId: String) = Post(
 
 private fun FileDto.toDomain(): Attachment = Attachment(
     url = path.absoluteUrl(),
-    thumbnailUrl = (thumbnailPath.ifBlank { path }).absoluteUrl(),
-    name = fullName.ifBlank { name },
+    thumbnailUrl = listOf(thumbnail, thumbnailPath, path)
+        .firstOrNull { it.isNotBlank() }
+        .orEmpty()
+        .absoluteUrl(),
+    name = fullName.ifBlank { displayname.ifBlank { name } },
     sizeBytes = size,
     width = width,
     height = height,
-    isVideo = type == TYPE_VIDEO || name.endsWith(".webm") || name.endsWith(".mp4"),
+    duration = duration.takeIf { it.isNotBlank() && it != "00:00:00" },
+    isVideo = VIDEO_EXTENSIONS.any { path.endsWith(it, ignoreCase = true) },
 )
 
 private fun BoardDto.toDomain() = Board(
     id = id,
     name = name,
     category = category,
-    info = info,
+    info = stripHtml(info),
     threadsPerPage = threadsPerPage,
     maxPages = maxPages,
     bumpLimit = bumpLimit,
@@ -130,4 +135,4 @@ private fun String.absoluteUrl(): String = when {
     else -> BASE_URL.trimEnd('/') + "/" + this
 }
 
-private const val TYPE_VIDEO = 10
+private val VIDEO_EXTENSIONS = listOf(".webm", ".mp4", ".mov", ".mkv")

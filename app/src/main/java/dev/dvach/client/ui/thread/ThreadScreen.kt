@@ -44,6 +44,7 @@ import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.util.postUrl
+import dev.dvach.client.util.postsLabel
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -69,16 +70,17 @@ fun ThreadScreen(
             TopAppBar(
                 title = {
                     Column {
-                        Text(text = "/$boardId/$threadNum", fontFamily = FontFamily.Monospace)
                         Text(
-                            text = buildString {
-                                append("№$threadNum")
-                                if (state.posts.isNotEmpty()) append(" · ${state.posts.size} постов")
-                            },
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            text = "/$boardId/ №$threadNum",
+                            style = MaterialTheme.typography.titleMedium,
+                            fontFamily = FontFamily.Monospace,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
+                        )
+                        Text(
+                            text = if (state.posts.isEmpty()) "Тред" else postsLabel(state.posts.size),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
                 },

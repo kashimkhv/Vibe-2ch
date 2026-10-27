@@ -10,7 +10,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
@@ -139,12 +139,17 @@ private fun BoardRow(board: Board, onClick: () -> Unit) {
             color = MaterialTheme.colorScheme.primaryContainer,
             shape = RoundedCornerShape(8.dp),
         ) {
-            Box(contentAlignment = Alignment.Center, modifier = Modifier.width(52.dp).padding(vertical = 6.dp)) {
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.widthIn(min = 52.dp).padding(horizontal = 8.dp, vertical = 6.dp),
+            ) {
                 Text(
                     text = "/${board.id}/",
                     style = MaterialTheme.typography.labelLarge,
                     fontFamily = FontFamily.Monospace,
                     color = MaterialTheme.colorScheme.onPrimaryContainer,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
                 )
             }
         }

@@ -7,6 +7,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
@@ -29,6 +30,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -44,7 +46,10 @@ import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.ui.components.LoadingBox
+import dev.dvach.client.util.filesLabel
 import dev.dvach.client.util.formatCount
+import dev.dvach.client.util.postsLabel
+import dev.dvach.client.util.stripHtml
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -118,6 +123,10 @@ fun ThreadsScreen(
 
 @Composable
 private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
+    val plainComment = remember(thread.commentHtml) { stripHtml(thread.commentHtml) }
+    val subject = thread.subject.trim()
+    val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
+
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -137,12 +146,14 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
             )
         }
         Column(modifier = Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(
-                text = thread.subject.ifBlank { "Без темы" },
-                style = MaterialTheme.typography.titleSmall,
-                maxLines = 2,
-                overflow = TextOverflow.Ellipsis,
-            )
+            if (showSubject) {
+                Text(
+                    text = thread.subject.ifBlank { "Без темы" },
+                    style = MaterialTheme.typography.titleSmall,
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                )
+            }
             HtmlText(
                 html = thread.commentHtml,
                 style = MaterialTheme.typography.bodySmall,
@@ -151,13 +162,13 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
-                    text = "${formatCount(thread.postsCount)} постов",
+                    text = postsLabel(thread.postsCount),
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                 )
                 if (thread.filesCount > 0) {
                     Text(
-                        text = "${thread.filesCount} файлов",
+                        text = filesLabel(thread.filesCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
@@ -195,7 +206,7 @@ private fun PageBar(
     onPrevious: () -> Unit,
     onNext: () -> Unit,
 ) {
-    Surface(tonalElevation = 3.dp) {
+    Surface(tonalElevation = 3.dp, modifier = Modifier.navigationBarsPadding()) {
         Row(
             modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
             verticalAlignment = Alignment.CenterVertically,

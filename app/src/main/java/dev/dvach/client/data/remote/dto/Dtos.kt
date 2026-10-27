@@ -73,8 +73,12 @@ data class PostDto(
 @Serializable
 data class FileDto(
     val name: String = "",
+    val displayname: String = "",
     @SerialName("fullname") val fullName: String = "",
     val path: String = "",
+    /** актуальное поле превью в Makaba 2026 */
+    val thumbnail: String = "",
+    /** legacy-поле, встречается в старых ответах */
     @SerialName("tn_path") val thumbnailPath: String = "",
     val size: Long = 0,
     val width: Int = 0,

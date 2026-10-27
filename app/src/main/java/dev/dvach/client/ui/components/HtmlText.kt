@@ -23,6 +23,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import dev.dvach.client.util.decodeHtmlEntities
 
 /**
  * Мини-рендерер HTML из `comment`-поля Makaba.
@@ -174,7 +175,7 @@ private fun tokenizeDvachHtml(
     fun currentSpoiler(): Int? = stack.lastOrNull { it.spoilerIndex != null }?.spoilerIndex
 
     fun appendText(raw: String) {
-        val text = decodeEntities(raw)
+        val text = decodeHtmlEntities(raw)
         if (text.isEmpty()) return
 
         val style = mergedStyle().let { if (baseColor == Color.Unspecified) it else it.merge(SpanStyle(color = baseColor)) }
@@ -277,14 +278,4 @@ private fun parseColor(value: String): Color? {
     }.getOrNull()
 }
 
-private fun decodeEntities(text: String): String {
-    if (!text.contains('&')) return text
-    return text
-        .replace("&nbsp;", " ")
-        .replace("&quot;", "\"")
-        .replace("&#39;", "'")
-        .replace("&apos;", "'")
-        .replace("&lt;", "<")
-        .replace("&gt;", ">")
-        .replace("&amp;", "&")
-}
+

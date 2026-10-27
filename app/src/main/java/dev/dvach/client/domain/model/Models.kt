@@ -71,5 +71,6 @@ data class Attachment(
     val sizeBytes: Long,
     val width: Int,
     val height: Int,
+    val duration: String? = null,
     val isVideo: Boolean,
 )

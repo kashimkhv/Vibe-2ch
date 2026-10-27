@@ -3,6 +3,8 @@ package dev.dvach.client
 import org.junit.Assert.assertEquals
 import org.junit.Test
 import dev.dvach.client.ui.thread.plainText
+import dev.dvach.client.util.decodeHtmlEntities
+import dev.dvach.client.util.plural
 import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatFileSize
 import dev.dvach.client.util.postUrl
@@ -30,6 +32,23 @@ class FormattersTest {
             "https://2ch.hk/b/res/123.html#456",
             postUrl("b", 123, 456),
         )
+    }
+
+    @Test
+    fun `html entities decode numerically and by name`() {
+        assertEquals("WebM/MP4", decodeHtmlEntities("WebM&#47;MP4"))
+        assertEquals("a b", decodeHtmlEntities("a&nbsp;b"))
+        assertEquals("«цитата»", decodeHtmlEntities("&laquo;цитата&raquo;"))
+        assertEquals("—", decodeHtmlEntities("&#8212;"))
+    }
+
+    @Test
+    fun `russian plurals follow the count`() {
+        assertEquals("пост", plural(1, "пост", "поста", "постов"))
+        assertEquals("поста", plural(3, "пост", "поста", "постов"))
+        assertEquals("постов", plural(11, "пост", "поста", "постов"))
+        assertEquals("постов", plural(25, "пост", "поста", "постов"))
+        assertEquals("пост", plural(21, "пост", "поста", "постов"))
     }
 
     @Test
