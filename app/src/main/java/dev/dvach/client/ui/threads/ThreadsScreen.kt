@@ -136,6 +136,27 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
+        // Вложения ОП-поста идут перед текстом, как и в самом треде.
+        // У ОП-поста бывает несколько файлов — показываем превью каждого.
+        val thumbnails = thread.attachments.map { it.thumbnailUrl }.filter { it.isNotBlank() }
+        if (thumbnails.isNotEmpty()) {
+            FlowRow(
+                horizontalArrangement = Arrangement.spacedBy(6.dp),
+                verticalArrangement = Arrangement.spacedBy(6.dp),
+            ) {
+                thumbnails.forEach { url ->
+                    AsyncImage(
+                        model = url,
+                        contentDescription = null,
+                        contentScale = ContentScale.Crop,
+                        modifier = Modifier
+                            .size(76.dp)
+                            .clip(RoundedCornerShape(10.dp)),
+                    )
+                }
+            }
+        }
+
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (showSubject) {
                 Text(
@@ -184,26 +205,6 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
                         text = "закрыт",
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.error,
-                    )
-                }
-            }
-        }
-
-        // У ОП-поста бывает несколько файлов — показываем превью каждого.
-        val thumbnails = thread.attachments.map { it.thumbnailUrl }.filter { it.isNotBlank() }
-        if (thumbnails.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                thumbnails.forEach { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(76.dp)
-                            .clip(RoundedCornerShape(10.dp)),
                     )
                 }
             }
