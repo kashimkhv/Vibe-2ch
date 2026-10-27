@@ -17,3 +17,4 @@ local.properties
 # локальные дампы uiautomator
 ui*.xml
 u*.xml
+screenshots/
