@@ -2,6 +2,7 @@ package dev.dvach.client.ui.threads
 
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -9,17 +10,14 @@ import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.navigationBarsPadding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
-import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.ChevronLeft
-import androidx.compose.material.icons.filled.ChevronRight
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -27,22 +25,24 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
-import coil3.compose.AsyncImage
+import kotlinx.coroutines.flow.distinctUntilChanged
+import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.EmptyBox
@@ -63,6 +63,27 @@ fun ThreadsScreen(
     viewModel: ThreadsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+
+    // Обновление — это новая лента с первой страницы, поэтому сначала наверх:
+    // иначе список остался бы на прежней позиции и сразу догрузил бы всё обратно.
+    val refreshFromTop: () -> Unit = {
+        scope.launch { listState.scrollToItem(0) }
+        viewModel.refresh()
+    }
+
+    // Бесконечная лента: страница догружается, когда до конца остаётся
+    // пара карточек, — без кнопок «вперёд/назад» и без ожидания у пустого места.
+    LaunchedEffect(listState) {
+        snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
+            .distinctUntilChanged()
+            .collect { lastVisible ->
+                if (lastVisible >= state.threads.size - LOAD_MORE_PREFETCH) {
+                    viewModel.loadMore()
+                }
+            }
+    }
 
     Scaffold(
         topBar = {
@@ -85,18 +106,10 @@ fun ThreadsScreen(
                     }
                 },
                 actions = {
-                    IconButton(onClick = viewModel::refresh) {
+                    IconButton(onClick = refreshFromTop) {
                         Icon(Icons.Default.Refresh, contentDescription = "Обновить")
                     }
                 },
-            )
-        },
-        bottomBar = {
-            PageBar(
-                page = state.page,
-                canGoNext = state.canGoNext,
-                onPrevious = viewModel::previousPage,
-                onNext = viewModel::nextPage,
             )
         },
     ) { padding ->
@@ -109,7 +122,7 @@ fun ThreadsScreen(
                 state.error != null && state.threads.isEmpty() ->
                     ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::refresh)
                 state.threads.isEmpty() -> EmptyBox("На доске пока нет тредов")
-                else -> LazyColumn(modifier = Modifier.fillMaxSize()) {
+                else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
                     items(items = state.threads, key = { it.num }) { thread ->
                         ThreadCard(
                             thread = thread,
@@ -121,8 +134,53 @@ fun ThreadsScreen(
                         )
                         HorizontalDivider()
                     }
+                    item(key = "threads-footer") {
+                        ListFooter(
+                            isLoadingMore = state.isLoadingMore,
+                            loadMoreError = state.loadMoreError,
+                            canGoNext = state.canGoNext,
+                            onRetry = { viewModel.loadMore(force = true) },
+                        )
+                    }
                 }
             }
+        }
+    }
+}
+
+/** Сколько карточек остаётся до конца, когда начинается догрузка. */
+private const val LOAD_MORE_PREFETCH = 3
+
+/** Низ списка: спиннер догрузки, кнопка повтора после ошибки или «конец списка». */
+@Composable
+private fun ListFooter(
+    isLoadingMore: Boolean,
+    loadMoreError: String?,
+    canGoNext: Boolean,
+    onRetry: () -> Unit,
+) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxWidth().padding(vertical = 18.dp),
+    ) {
+        when {
+            loadMoreError != null -> TextButton(onClick = onRetry) {
+                Text("Не удалось загрузить — повторить")
+            }
+            isLoadingMore -> CircularProgressIndicator(
+                strokeWidth = 2.dp,
+                modifier = Modifier.size(26.dp),
+            )
+            !canGoNext -> Text(
+                text = "Конец списка",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+            else -> Text(
+                text = "Загружаем ещё…",
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
         }
     }
 }
@@ -212,34 +270,6 @@ private fun ThreadCard(
                         color = MaterialTheme.colorScheme.error,
                     )
                 }
-            }
-        }
-    }
-}
-
-@Composable
-private fun PageBar(
-    page: Int,
-    canGoNext: Boolean,
-    onPrevious: () -> Unit,
-    onNext: () -> Unit,
-) {
-    Surface(tonalElevation = 3.dp, modifier = Modifier.navigationBarsPadding()) {
-        Row(
-            modifier = Modifier.fillMaxWidth().padding(horizontal = 8.dp, vertical = 4.dp),
-            verticalAlignment = Alignment.CenterVertically,
-            horizontalArrangement = Arrangement.SpaceBetween,
-        ) {
-            IconButton(onClick = onPrevious, enabled = page > 0) {
-                Icon(Icons.Default.ChevronLeft, contentDescription = "Предыдущая страница")
-            }
-            Text(
-                text = "Страница ${page + 1}",
-                style = MaterialTheme.typography.labelLarge,
-                modifier = Modifier.width(120.dp),
-            )
-            IconButton(onClick = onNext, enabled = canGoNext) {
-                Icon(Icons.Default.ChevronRight, contentDescription = "Следующая страница")
             }
         }
     }

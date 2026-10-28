@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import dev.dvach.client.data.ChanRepository
 import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.domain.model.ThreadSummary
+import dev.dvach.client.domain.model.ThreadsPage
 import dev.dvach.client.ui.navigation.ThreadsRoute
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import javax.inject.Inject
@@ -20,8 +21,13 @@ import javax.inject.Inject
 data class ThreadsUiState(
     val boardId: String,
     val boardName: String,
+    /** Номер последней загруженной страницы (с нуля). */
     val page: Int = 0,
     val isLoading: Boolean = true,
+    /** Догрузка следующей страницы: список уже на экране, внизу крутится спиннер. */
+    val isLoadingMore: Boolean = false,
+    /** Ошибка догрузки: список остался, внизу — кнопка «Повторить». */
+    val loadMoreError: String? = null,
     val error: String? = null,
     val threads: List<ThreadSummary> = emptyList(),
     val canGoNext: Boolean = false,
@@ -46,7 +52,7 @@ class ThreadsViewModel @Inject constructor(
     val state: StateFlow<ThreadsUiState> = _state.asStateFlow()
 
     init {
-        loadPage(0)
+        loadFirstPage()
         // Размер превью меняется в настройках — держим его в состоянии экрана,
         // чтобы список перерисовался сразу после возврата.
         viewModelScope.launch {
@@ -61,10 +67,11 @@ class ThreadsViewModel @Inject constructor(
         }
     }
 
-    fun loadPage(page: Int) {
-        _state.update { it.copy(isLoading = true, error = null, page = page) }
+    /** Первая страница: замена списка целиком (первый вход и обновление). */
+    fun loadFirstPage() {
+        _state.update { it.copy(isLoading = true, error = null, loadMoreError = null) }
         viewModelScope.launch {
-            runCatching { repository.index(_state.value.boardId, page) }
+            runCatching { repository.index(route.boardId, 0) }
                 .onSuccess { result ->
                     _state.update {
                         it.copy(
@@ -72,9 +79,7 @@ class ThreadsViewModel @Inject constructor(
                             error = null,
                             threads = result.threads,
                             page = result.currentPage,
-                            // Страница заполнена целиком и лимит страниц доски не достигнут.
-                            canGoNext = result.threads.size >= result.threadsPerPage &&
-                                result.currentPage + 1 < result.maxPages,
+                            canGoNext = result.canGoNext(),
                         )
                     }
                 }
@@ -86,13 +91,57 @@ class ThreadsViewModel @Inject constructor(
         }
     }
 
-    fun refresh() = loadPage(_state.value.page)
+    /**
+     * Догрузка следующей страницы — вызывается, когда список прокрутили
+     * почти до конца. Повторный вызов во время загрузки игнорируется.
+     *
+     * @param force повтор после ошибки (кнопка «Повторить»), иначе авто-догрузка
+     *   не долбит сервер, пока ошибка не снята.
+     */
+    fun loadMore(force: Boolean = false) {
+        val current = _state.value
+        if (current.isLoading || current.isLoadingMore || !current.canGoNext) return
+        if (current.loadMoreError != null && !force) return
 
-    fun nextPage() {
-        if (_state.value.canGoNext) loadPage(_state.value.page + 1)
+        _state.update { it.copy(isLoadingMore = true, loadMoreError = null) }
+        viewModelScope.launch {
+            runCatching { repository.index(route.boardId, current.page + 1) }
+                .onSuccess { result ->
+                    _state.update { state ->
+                        state.copy(
+                            isLoadingMore = false,
+                            loadMoreError = null,
+                            // Между страницами треды могли переехать (бамп), поэтому
+                            // склеиваем без дублей по номеру треда.
+                            threads = mergeThreads(state.threads, result.threads),
+                            page = result.currentPage,
+                            canGoNext = result.canGoNext(),
+                        )
+                    }
+                }
+                .onFailure { error ->
+                    _state.update {
+                        it.copy(
+                            isLoadingMore = false,
+                            loadMoreError = error.message ?: "Ошибка сети",
+                        )
+                    }
+                }
+        }
     }
 
-    fun previousPage() {
-        if (_state.value.page > 0) loadPage(_state.value.page - 1)
-    }
+    fun refresh() = loadFirstPage()
 }
+
+/**
+ * Страница считается заполненной и лимит страниц доски не достигнут — значит,
+ * дальше есть что грузить. Та же проверка, что была у кнопки «вперёд».
+ */
+private fun ThreadsPage.canGoNext(): Boolean =
+    threads.size >= threadsPerPage && currentPage + 1 < maxPages
+
+/** Склейка страниц без дублей: порядок сохраняется, повторные треды отбрасываются. */
+internal fun mergeThreads(
+    loaded: List<ThreadSummary>,
+    next: List<ThreadSummary>,
+): List<ThreadSummary> = (loaded + next).distinctBy { it.num }
