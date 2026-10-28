@@ -1,29 +1,29 @@
 package dev.dvach.client.ui.thread
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
-import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.Bookmark
-import androidx.compose.material.icons.filled.BookmarkBorder
-import androidx.compose.material.icons.filled.OpenInBrowser
-import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
-import androidx.compose.material3.Text
-import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Text
+import androidx.compose.material3.TopAppBar
+import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
@@ -33,21 +33,19 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.Attachment
-import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
-import dev.dvach.client.util.postUrl
 import dev.dvach.client.util.postsLabel
 
-@OptIn(ExperimentalMaterial3Api::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
 fun ThreadScreen(
     onBack: () -> Unit,
@@ -61,9 +59,9 @@ fun ThreadScreen(
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
-    val uriHandler = LocalUriHandler.current
     var highlighted by remember { mutableIntStateOf(-1) }
     var appliedInitialHighlight by remember { mutableStateOf(false) }
+    var titleMenuOpen by remember { mutableStateOf(false) }
     val initialHighlight = viewModel.route.highlight
     val snackbarHostState = remember { SnackbarHostState() }
 
@@ -83,23 +81,67 @@ fun ThreadScreen(
     val boardId = viewModel.route.boardId
     val threadNum = viewModel.route.threadNum
 
+    // В заголовке — тема ОП-поста, а не номер треда: номер и так виден в подзаголовке.
+    val op = state.posts.firstOrNull()
+    val title = remember(op, threadNum) {
+        op?.let { post -> post.subject.trim().ifBlank { plainText(post.commentHtml) } }
+            ?.take(140)
+            ?.ifBlank { null }
+            ?: "№$threadNum"
+    }
+
+    val toggleBookmark: () -> Unit = {
+        val adding = !bookmarked
+        viewModel.toggleBookmark()
+        scope.launch {
+            snackbarHostState.showSnackbar(
+                if (adding) "Сохранено в закладки" else "Удалено из закладок",
+            )
+        }
+    }
+
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 title = {
-                    Column {
-                        Text(
-                            text = "/$boardId/ №$threadNum",
-                            style = MaterialTheme.typography.titleMedium,
-                            fontFamily = FontFamily.Monospace,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
-                        Text(
-                            text = if (state.posts.isEmpty()) "Тред" else postsLabel(state.posts.size),
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    Box {
+                        Column(
+                            modifier = Modifier
+                                .clip(RoundedCornerShape(8.dp))
+                                .combinedClickable(
+                                    interactionSource = remember { MutableInteractionSource() },
+                                    indication = null,
+                                    onClick = {},
+                                    onLongClick = { titleMenuOpen = true },
+                                ),
+                        ) {
+                            Text(
+                                text = title,
+                                style = MaterialTheme.typography.titleMedium,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                            Text(
+                                text = buildString {
+                                    append("/$boardId/ · №$threadNum")
+                                    if (state.posts.isNotEmpty()) {
+                                        append(" · ")
+                                        append(postsLabel(state.posts.size))
+                                    }
+                                },
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                            )
+                        }
+
+                        BookmarkMenu(
+                            expanded = titleMenuOpen,
+                            bookmarked = bookmarked,
+                            onDismiss = { titleMenuOpen = false },
+                            onToggle = toggleBookmark,
                         )
                     }
                 },
@@ -108,24 +150,16 @@ fun ThreadScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
-                actions = {
-                    IconButton(onClick = viewModel::toggleBookmark) {
-                        Icon(
-                            imageVector = if (bookmarked) Icons.Default.Bookmark else Icons.Default.BookmarkBorder,
-                            contentDescription = if (bookmarked) "Убрать из избранного" else "В избранное",
-                        )
-                    }
-                    IconButton(onClick = { uriHandler.runCatching { openUri(postUrl(boardId, threadNum)) } }) {
-                        Icon(Icons.Default.OpenInBrowser, contentDescription = "Открыть в браузере")
-                    }
-                    IconButton(onClick = viewModel::load) {
-                        Icon(Icons.Default.Refresh, contentDescription = "Обновить")
-                    }
-                },
+                // Кнопок в шапке нет: обновление — свайпом сверху вниз, закладки —
+                // через долгое нажатие на заголовок или на пост.
             )
         },
     ) { padding ->
-        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+        PullToRefreshBox(
+            isRefreshing = state.isLoading && state.posts.isNotEmpty(),
+            onRefresh = viewModel::load,
+            modifier = Modifier.padding(padding).fillMaxSize(),
+        ) {
             when {
                 state.isLoading && state.posts.isEmpty() -> LoadingBox()
                 state.error != null && state.posts.isEmpty() ->
@@ -135,6 +169,8 @@ fun ThreadScreen(
                         PostCard(
                             post = post,
                             isHighlighted = post.num == highlighted,
+                            bookmarked = bookmarked,
+                            onToggleBookmark = toggleBookmark,
                             showThumbnails = settings.showThumbnails,
                             thumbnailScalePercent = settings.thumbnailScalePercent,
                             onPostClick = { ref, refThread ->

@@ -1,5 +1,8 @@
 package dev.dvach.client.ui.thread
 
+import androidx.compose.foundation.ExperimentalFoundationApi
+import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -11,7 +14,10 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
@@ -28,15 +34,20 @@ import dev.dvach.client.util.formatTimestamp
 import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.stripHtml
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 fun PostCard(
     post: Post,
     isHighlighted: Boolean,
     onPostClick: (postNum: Int, threadNum: Int?) -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
+    bookmarked: Boolean = false,
+    onToggleBookmark: () -> Unit = {},
     showThumbnails: Boolean = true,
     thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
 ) {
+    // Меню привязано к шапке поста: оно открывается под ней, а не в углу экрана.
+    var menuOpen by remember { mutableStateOf(false) }
     val plainComment = remember(post.commentHtml) { stripHtml(post.commentHtml) }
     val subject = post.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
@@ -47,31 +58,52 @@ fun PostCard(
     }
 
     Surface(color = container, modifier = Modifier.fillMaxWidth()) {
-        Column(modifier = Modifier.padding(horizontal = 12.dp, vertical = 10.dp)) {
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(
-                    text = post.name.ifBlank { "Аноним" },
-                    style = MaterialTheme.typography.labelLarge,
-                    fontWeight = if (post.isOp) FontWeight.Bold else FontWeight.Medium,
-                    color = if (post.isOp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                    maxLines = 1,
-                    overflow = TextOverflow.Ellipsis,
-                    modifier = Modifier.widthIn(max = 180.dp),
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .combinedClickable(
+                    interactionSource = remember { MutableInteractionSource() },
+                    indication = null,
+                    onClick = {},
+                    onLongClick = { menuOpen = true },
                 )
-                post.trip?.let { trip ->
+                .padding(horizontal = 12.dp, vertical = 10.dp),
+        ) {
+            Box {
+                // Долгое нажатие на пост открывает меню; якорь — шапка, поэтому
+                // список появляется под именем и номером нажатого поста.
+                Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
-                        text = " !$trip",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.tertiary,
+                        text = post.name.ifBlank { "Аноним" },
+                        style = MaterialTheme.typography.labelLarge,
+                        fontWeight = if (post.isOp) FontWeight.Bold else FontWeight.Medium,
+                        color = if (post.isOp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.widthIn(max = 180.dp),
+                    )
+                    post.trip?.let { trip ->
+                        Text(
+                            text = " !$trip",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.tertiary,
+                            maxLines = 1,
+                        )
+                    }
+                    Box(modifier = Modifier.weight(1f))
+                    Text(
+                        text = post.num.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }
-                Box(modifier = Modifier.weight(1f))
-                Text(
-                    text = post.num.toString(),
-                    style = MaterialTheme.typography.labelSmall,
-                    fontFamily = FontFamily.Monospace,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+                BookmarkMenu(
+                    expanded = menuOpen,
+                    bookmarked = bookmarked,
+                    onDismiss = { menuOpen = false },
+                    onToggle = onToggleBookmark,
                 )
             }
 

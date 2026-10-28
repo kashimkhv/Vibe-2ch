@@ -13,6 +13,7 @@ import dev.dvach.client.domain.model.Post
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.domain.model.ThreadsPage
 import dev.dvach.client.util.attachmentFileName
+import dev.dvach.client.util.decodeHtmlEntities
 import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
@@ -56,14 +57,16 @@ private fun ThreadsPageDto.toDomain(boardId: String) = ThreadsPage(
     maxPages = board?.maxPages?.takeIf { it > 0 } ?: Int.MAX_VALUE,
 )
 
-private fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
+internal fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
     val op = posts.firstOrNull() ?: return null
     return ThreadSummary(
         boardId = boardId,
         num = op.num,
-        subject = op.subject,
+        // Движок отдаёт имя и тему с HTML-сущностями («Аноним&nbsp;»), а в UI
+        // они выводятся как обычный текст — раскрываем здесь, на границе DTO.
+        subject = decodeHtmlEntities(op.subject).trim(),
         commentHtml = op.comment,
-        name = op.name,
+        name = decodeHtmlEntities(op.name).trim(),
         date = op.date,
         timestamp = op.timestamp,
         postsCount = if (postsCount > 0) postsCount else posts.size,
@@ -76,16 +79,16 @@ private fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
     )
 }
 
-private fun PostDto.toDomain(boardId: String) = Post(
+internal fun PostDto.toDomain(boardId: String) = Post(
     boardId = board,
     num = num,
     parent = parent,
-    name = name,
-    subject = subject,
+    name = decodeHtmlEntities(name).trim(),
+    subject = decodeHtmlEntities(subject).trim(),
     commentHtml = comment,
     date = date,
     timestamp = timestamp,
-    trip = trip.ifBlank { null },
+    trip = decodeHtmlEntities(trip).trim().ifBlank { null },
     isOp = isOp == 1,
     isSticky = sticky == 1,
     isClosed = closed == 1,
@@ -99,7 +102,7 @@ private fun FileDto.toDomain(): Attachment = Attachment(
         .firstOrNull { it.isNotBlank() }
         .orEmpty()
         .absoluteUrl(),
-    name = attachmentFileName(fullName, displayname, name, path),
+    name = decodeHtmlEntities(attachmentFileName(fullName, displayname, name, path)),
     sizeBytes = kilobytesToBytes(size),
     width = width,
     height = height,
