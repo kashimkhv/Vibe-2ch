@@ -126,11 +126,8 @@ fun ThreadsScreen(
     }
 }
 
-/** Исходная ширина превью в списке тредов; от неё считается процент в настройках. */
+/** Сторона ячейки превью в списке тредов при 100 %; процент берётся из настроек. */
 private const val THUMBNAIL_BASE_DP = 76
-
-/** Предел высоты превью в списке: высокие картинки обрезаются, карточка компактна. */
-private const val THUMBNAIL_MAX_HEIGHT_DP = 96
 
 /** Сколько превью ОП-поста показывать в списке; остальные — в плашке «+N». */
 private const val THUMBNAILS_IN_LIST = 3
@@ -152,13 +149,12 @@ private fun ThreadCard(
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Превью ОП-поста — тот же компонент, что и в треде. В списке они
-        // обрезаются: не больше трёх штук (остальные в плашке «+N») и с
-        // ограничением высоты, иначе одна карточка занимает весь экран.
+        // Превью ОП-поста — тот же компонент, что и в треде: квадратные ячейки,
+        // картинка вписана целиком. В списке показываем не больше трёх
+        // (остальные в плашке «+N»), иначе карточка занимает весь экран.
         AttachmentThumbsRow(
             files = thread.attachments,
-            width = scaleThumbnail(THUMBNAIL_BASE_DP, thumbnailScalePercent).dp,
-            maxHeight = scaleThumbnail(THUMBNAIL_MAX_HEIGHT_DP, thumbnailScalePercent).dp,
+            side = scaleThumbnail(THUMBNAIL_BASE_DP, thumbnailScalePercent).dp,
             maxVisible = THUMBNAILS_IN_LIST,
             onClick = { onClick() },
         )

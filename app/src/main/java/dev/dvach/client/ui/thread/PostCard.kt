@@ -86,7 +86,7 @@ fun PostCard(
             if (showThumbnails && post.files.isNotEmpty()) {
                 AttachmentThumbsRow(
                     files = post.files,
-                    width = scaleThumbnail(THUMBNAIL_BASE_WIDTH_DP, thumbnailScalePercent).dp,
+                    side = scaleThumbnail(THUMBNAIL_BASE_SIDE_DP, thumbnailScalePercent).dp,
                     onClick = onOpenAttachment,
                     label = ::attachmentLabel,
                     modifier = Modifier.padding(top = 6.dp),
@@ -127,12 +127,12 @@ fun PostCard(
 }
 
 /**
- * Ширина превью в треде при 100 %. Серверные превью — около 250 px, и если
- * рисовать их «в натуральную величину» (как было), на 3x-экране это ~83 dp:
- * картинка выглядит мелкой. Поэтому ширина задаётся явно, а процент из
- * настроек её масштабирует.
+ * Сторона квадратной ячейки превью в треде при 100 %. Серверные превью —
+ * около 250 px, и если рисовать их «в натуральную величину» (как было), на
+ * 3x-экране это ~83 dp: картинка выглядела мелкой. Поэтому размер задаётся
+ * явно, а процент из настроек его масштабирует.
  */
-private const val THUMBNAIL_BASE_WIDTH_DP = 220
+private const val THUMBNAIL_BASE_SIDE_DP = 220
 
 /** Подпись под превью: имя файла, размер, длительность, разрешение. */
 private fun attachmentLabel(file: Attachment): String = buildString {
