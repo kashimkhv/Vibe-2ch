@@ -26,7 +26,6 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -137,6 +136,7 @@ fun ThreadScreen(
                             post = post,
                             isHighlighted = post.num == highlighted,
                             showThumbnails = settings.showThumbnails,
+                            thumbnailScalePercent = settings.thumbnailScalePercent,
                             onPostClick = { ref, refThread ->
                                 val index = state.posts.indexOfFirst { it.num == ref }
                                 if (refThread != null && refThread != threadNum) {

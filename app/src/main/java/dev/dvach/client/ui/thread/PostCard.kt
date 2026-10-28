@@ -1,21 +1,12 @@
 package dev.dvach.client.ui.thread
 
-import androidx.compose.foundation.clickable
-import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
-import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.foundation.background
-import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.ContentCopy
-import androidx.compose.material.icons.filled.OpenInBrowser
 import androidx.compose.material3.HorizontalDivider
-import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
@@ -23,19 +14,19 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.remember
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.draw.clip
-import androidx.compose.ui.layout.ContentScale
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
-import coil3.compose.AsyncImage
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.Post
+import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.HtmlText
+import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import dev.dvach.client.util.formatFileSize
-import dev.dvach.client.util.stripHtml
 import dev.dvach.client.util.formatTimestamp
+import dev.dvach.client.util.scaleThumbnail
+import dev.dvach.client.util.stripHtml
 
 @Composable
 fun PostCard(
@@ -44,6 +35,7 @@ fun PostCard(
     onPostClick: (postNum: Int, threadNum: Int?) -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
     showThumbnails: Boolean = true,
+    thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
 ) {
     val plainComment = remember(post.commentHtml) { stripHtml(post.commentHtml) }
     val subject = post.subject.trim()
@@ -89,15 +81,16 @@ fun PostCard(
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )
 
+            // Вложения идут перед текстом. Вид превью общий с карточкой в списке
+            // тредов — это один и тот же компонент [AttachmentThumbsRow].
             if (showThumbnails && post.files.isNotEmpty()) {
-                Column(
-                    verticalArrangement = Arrangement.spacedBy(6.dp),
+                AttachmentThumbsRow(
+                    files = post.files,
+                    width = scaleThumbnail(THUMBNAIL_BASE_WIDTH_DP, thumbnailScalePercent).dp,
+                    onClick = onOpenAttachment,
+                    label = ::attachmentLabel,
                     modifier = Modifier.padding(top = 6.dp),
-                ) {
-                    post.files.forEach { file ->
-                        AttachmentView(file = file, onOpen = { onOpenAttachment(file) })
-                    }
-                }
+                )
             }
 
             if (showSubject) {
@@ -133,54 +126,22 @@ fun PostCard(
     }
 }
 
-@Composable
-private fun AttachmentView(file: Attachment, onOpen: () -> Unit) {
-    Column(
-        verticalArrangement = Arrangement.spacedBy(2.dp),
-        modifier = Modifier.clickable(onClick = onOpen),
-    ) {
-        if (file.thumbnailUrl.isNotBlank()) {
-            AsyncImage(
-                model = file.thumbnailUrl,
-                contentDescription = file.name,
-                contentScale = ContentScale.Crop,
-                modifier = Modifier
-                    .widthIn(max = 260.dp)
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            )
-        } else {
-            Box(
-                contentAlignment = Alignment.Center,
-                modifier = Modifier
-                    .widthIn(max = 260.dp)
-                    .height(96.dp)
-                    .fillMaxWidth()
-                    .clip(RoundedCornerShape(10.dp))
-                    .background(MaterialTheme.colorScheme.surfaceVariant),
-            ) {
-                Text(
-                    text = if (file.isVideo) "▶ ВИДЕО" else "ФАЙЛ",
-                    style = MaterialTheme.typography.labelMedium,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                )
-            }
-        }
-        Text(
-            text = buildString {
-                append(file.name)
-                if (file.sizeBytes > 0) append("  ${formatFileSize(file.sizeBytes)}")
-                file.duration?.let { append("  $it") }
-                if (file.width > 0 && file.height > 0) append("  ${file.width}×${file.height}")
-                if (file.isVideo) {
-                    append("  ")
-                    append(file.extension.ifBlank { "webm" }.uppercase())
-                }
-            },
-            style = MaterialTheme.typography.labelSmall,
-            color = MaterialTheme.colorScheme.onSurfaceVariant,
-            maxLines = 1,
-            overflow = TextOverflow.Ellipsis,
-        )
+/**
+ * Ширина превью в треде при 100 %. Серверные превью — около 250 px, и если
+ * рисовать их «в натуральную величину» (как было), на 3x-экране это ~83 dp:
+ * картинка выглядит мелкой. Поэтому ширина задаётся явно, а процент из
+ * настроек её масштабирует.
+ */
+private const val THUMBNAIL_BASE_WIDTH_DP = 220
+
+/** Подпись под превью: имя файла, размер, длительность, разрешение. */
+private fun attachmentLabel(file: Attachment): String = buildString {
+    append(file.name)
+    if (file.sizeBytes > 0) append("  ${formatFileSize(file.sizeBytes)}")
+    file.duration?.let { append("  $it") }
+    if (file.width > 0 && file.height > 0) append("  ${file.width}×${file.height}")
+    if (file.isVideo) {
+        append("  ")
+        append(file.extension.ifBlank { "webm" }.uppercase())
     }
 }

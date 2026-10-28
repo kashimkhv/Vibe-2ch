@@ -19,6 +19,7 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
@@ -33,6 +34,10 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.BuildConfig
 import dev.dvach.client.data.settings.ThemeMode
 import dev.dvach.client.ui.components.HtmlText
+import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
+import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
+import dev.dvach.client.util.THUMBNAIL_SCALE_STEP
+import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -88,6 +93,12 @@ fun SettingsScreen(
                 subtitle = "Выключите, если экономно расходуете трафик",
                 checked = settings.showThumbnails,
                 onCheckedChange = viewModel::setShowThumbnails,
+            )
+
+            ThumbnailScaleRow(
+                percent = settings.thumbnailScalePercent,
+                enabled = settings.showThumbnails,
+                onChange = viewModel::setThumbnailScale,
             )
 
             SwitchRow(
@@ -155,6 +166,46 @@ private fun ThemeOption(
             text = label,
             style = MaterialTheme.typography.bodyLarge,
             modifier = Modifier.padding(start = 12.dp),
+        )
+    }
+}
+
+@Composable
+private fun ThumbnailScaleRow(
+    percent: Int,
+    enabled: Boolean,
+    onChange: (Int) -> Unit,
+) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Размер превью",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = "$percent %",
+                style = MaterialTheme.typography.labelLarge,
+                color = if (enabled) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
+        }
+        Text(
+            text = "От $THUMBNAIL_SCALE_MIN до $THUMBNAIL_SCALE_MAX %, " +
+                "действует в списках тредов и внутри тредов",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Slider(
+            value = percent.toFloat(),
+            onValueChange = { onChange(it.roundToInt()) },
+            valueRange = THUMBNAIL_SCALE_MIN.toFloat()..THUMBNAIL_SCALE_MAX.toFloat(),
+            steps = (THUMBNAIL_SCALE_MAX - THUMBNAIL_SCALE_MIN) / THUMBNAIL_SCALE_STEP - 1,
+            enabled = enabled,
+            modifier = Modifier.padding(top = 4.dp),
         )
     }
 }

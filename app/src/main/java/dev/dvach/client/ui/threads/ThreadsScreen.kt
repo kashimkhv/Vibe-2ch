@@ -44,6 +44,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import coil3.compose.AsyncImage
 import dev.dvach.client.domain.model.ThreadSummary
+import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.HtmlText
@@ -51,6 +52,7 @@ import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.util.filesLabel
 import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.postsLabel
+import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.stripHtml
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
@@ -111,6 +113,7 @@ fun ThreadsScreen(
                     items(items = state.threads, key = { it.num }) { thread ->
                         ThreadCard(
                             thread = thread,
+                            thumbnailScalePercent = state.thumbnailScalePercent,
                             onClick = {
                                 onThreadClick(thread.boardId, state.boardName, thread.num)
                             },
@@ -123,8 +126,21 @@ fun ThreadsScreen(
     }
 }
 
+/** Исходная ширина превью в списке тредов; от неё считается процент в настройках. */
+private const val THUMBNAIL_BASE_DP = 76
+
+/** Предел высоты превью в списке: высокие картинки обрезаются, карточка компактна. */
+private const val THUMBNAIL_MAX_HEIGHT_DP = 96
+
+/** Сколько превью ОП-поста показывать в списке; остальные — в плашке «+N». */
+private const val THUMBNAILS_IN_LIST = 3
+
 @Composable
-private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
+private fun ThreadCard(
+    thread: ThreadSummary,
+    thumbnailScalePercent: Int,
+    onClick: () -> Unit,
+) {
     val plainComment = remember(thread.commentHtml) { stripHtml(thread.commentHtml) }
     val subject = thread.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
@@ -136,26 +152,16 @@ private fun ThreadCard(thread: ThreadSummary, onClick: () -> Unit) {
             .padding(12.dp),
         verticalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        // Вложения ОП-поста идут перед текстом, как и в самом треде.
-        // У ОП-поста бывает несколько файлов — показываем превью каждого.
-        val thumbnails = thread.attachments.map { it.thumbnailUrl }.filter { it.isNotBlank() }
-        if (thumbnails.isNotEmpty()) {
-            FlowRow(
-                horizontalArrangement = Arrangement.spacedBy(6.dp),
-                verticalArrangement = Arrangement.spacedBy(6.dp),
-            ) {
-                thumbnails.forEach { url ->
-                    AsyncImage(
-                        model = url,
-                        contentDescription = null,
-                        contentScale = ContentScale.Crop,
-                        modifier = Modifier
-                            .size(76.dp)
-                            .clip(RoundedCornerShape(10.dp)),
-                    )
-                }
-            }
-        }
+        // Превью ОП-поста — тот же компонент, что и в треде. В списке они
+        // обрезаются: не больше трёх штук (остальные в плашке «+N») и с
+        // ограничением высоты, иначе одна карточка занимает весь экран.
+        AttachmentThumbsRow(
+            files = thread.attachments,
+            width = scaleThumbnail(THUMBNAIL_BASE_DP, thumbnailScalePercent).dp,
+            maxHeight = scaleThumbnail(THUMBNAIL_MAX_HEIGHT_DP, thumbnailScalePercent).dp,
+            maxVisible = THUMBNAILS_IN_LIST,
+            onClick = { onClick() },
+        )
 
         Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
             if (showSubject) {

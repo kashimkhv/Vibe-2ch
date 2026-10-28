@@ -11,8 +11,10 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import dev.dvach.client.data.ChanRepository
+import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.ui.navigation.ThreadsRoute
+import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import javax.inject.Inject
 
 data class ThreadsUiState(
@@ -23,11 +25,14 @@ data class ThreadsUiState(
     val error: String? = null,
     val threads: List<ThreadSummary> = emptyList(),
     val canGoNext: Boolean = false,
+    /** Размер превью вложений в процентах, из настроек. */
+    val thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
 )
 
 @HiltViewModel
 class ThreadsViewModel @Inject constructor(
     private val repository: ChanRepository,
+    private val settings: SettingsRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -40,6 +45,13 @@ class ThreadsViewModel @Inject constructor(
 
     init {
         loadPage(0)
+        // Размер превью меняется в настройках — держим его в состоянии экрана,
+        // чтобы список перерисовался сразу после возврата.
+        viewModelScope.launch {
+            settings.settings.collect { appSettings ->
+                _state.update { it.copy(thumbnailScalePercent = appSettings.thumbnailScalePercent) }
+            }
+        }
     }
 
     fun loadPage(page: Int) {

@@ -31,4 +31,8 @@ class SettingsViewModel @Inject constructor(
     fun setShowThumbnails(enabled: Boolean) = viewModelScope.launch {
         repository.setShowThumbnails(enabled)
     }
+
+    fun setThumbnailScale(percent: Int) = viewModelScope.launch {
+        repository.setThumbnailScale(percent)
+    }
 }
