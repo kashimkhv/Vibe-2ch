@@ -3,15 +3,15 @@ package dev.dvach.client.ui.thread
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.MaterialTheme
-import androidx.compose.material3.Surface
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
@@ -20,6 +20,10 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.drawBehind
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
@@ -46,33 +50,75 @@ fun PostCard(
     showThumbnails: Boolean = true,
     thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
     autoRevealSpoilers: Boolean = false,
+    /** Уровень вложенности в дереве ответов: 0 — корень ветки. */
+    depth: Int = 0,
 ) {
     // Меню привязано к шапке поста: оно открывается под ней, а не в углу экрана.
     var menuOpen by remember { mutableStateOf(false) }
     val plainComment = remember(post.commentHtml) { stripHtml(post.commentHtml) }
     val subject = post.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
+    // Подсветка перехода по цитате — тёплый жёлтый, как выделение в старом
+    // Android. Он не путается с голубым ОП и сразу виден среди белых ответов.
+    val highlightColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
+        Color(0xFF46401C)
+    } else {
+        Color(0xFFFFF2C0)
+    }
+
     val container = when {
-        isHighlighted -> MaterialTheme.colorScheme.secondaryContainer
-        post.isOp -> MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.35f)
+        isHighlighted -> highlightColor
+        // ОП — светло-голубая строка, ответы белые: иерархию задаёт не тень,
+        // а подложка и разделитель.
+        post.isOp -> MaterialTheme.colorScheme.primaryContainer
         else -> MaterialTheme.colorScheme.surface
     }
 
-    Surface(color = container, modifier = Modifier.fillMaxWidth()) {
+    val guideColor = MaterialTheme.colorScheme.outlineVariant
+
+    // Пост — плоская белая строка на всю ширину, отделённая от следующей
+    // тонким разделителем. Так выглядели списки в старом Material: никаких
+    // карточек с тенью и скруглением, иерархию задаёт граница.
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(container),
+    ) {
         Column(
             modifier = Modifier
                 .fillMaxWidth()
+                // Направляющие в отступе: по одной линии на каждый уровень
+                // вложенности. Сами строки не рисуют ветки — линии показывают,
+                // что пост находится внутри ответа на пост выше.
+                .drawBehind {
+                    if (depth > 0) {
+                        val step = TREE_INDENT_DP.dp.toPx()
+                        val stroke = 1.dp.toPx()
+                        for (level in 1..depth) {
+                            val x = (level - 0.5f) * step
+                            drawLine(
+                                color = guideColor,
+                                start = Offset(x, 0f),
+                                end = Offset(x, size.height),
+                                strokeWidth = stroke,
+                            )
+                        }
+                    }
+                }
+                .padding(start = (depth * TREE_INDENT_DP).dp)
                 .combinedClickable(
                     interactionSource = remember { MutableInteractionSource() },
                     indication = null,
                     onClick = {},
                     onLongClick = { menuOpen = true },
                 )
-                .padding(horizontal = 12.dp, vertical = 10.dp),
+                .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Box {
                 // Долгое нажатие на пост открывает меню; якорь — шапка, поэтому
                 // список появляется под именем и номером нажатого поста.
+                // Шапка в одну строку: имя, трип, дата и номер — экономит высоту
+                // и не разрывает пост на «две головы».
                 Row(verticalAlignment = Alignment.CenterVertically) {
                     Text(
                         text = post.name.ifBlank { "Аноним" },
@@ -81,7 +127,7 @@ fun PostCard(
                         color = if (post.isOp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                         maxLines = 1,
                         overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 180.dp),
+                        modifier = Modifier.widthIn(max = 150.dp),
                     )
                     post.trip?.let { trip ->
                         Text(
@@ -91,12 +137,22 @@ fun PostCard(
                             maxLines = 1,
                         )
                     }
-                    Box(modifier = Modifier.weight(1f))
+                    Text(
+                        text = formatTimestamp(post.timestamp).ifBlank { post.date },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                        overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier
+                            .padding(start = 8.dp)
+                            .weight(1f),
+                    )
                     Text(
                         text = post.num.toString(),
                         style = MaterialTheme.typography.labelSmall,
                         fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(start = 8.dp),
                     )
                 }
 
@@ -107,12 +163,6 @@ fun PostCard(
                     onToggle = onToggleBookmark,
                 )
             }
-
-            Text(
-                text = formatTimestamp(post.timestamp).ifBlank { post.date },
-                style = MaterialTheme.typography.labelSmall,
-                color = MaterialTheme.colorScheme.onSurfaceVariant,
-            )
 
             // Вложения идут перед текстом. Вид превью общий с карточкой в списке
             // тредов — это один и тот же компонент [AttachmentThumbsRow].
@@ -152,13 +202,21 @@ fun PostCard(
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }
-
-            if (!post.isOp) {
-                HorizontalDivider(modifier = Modifier.padding(top = 10.dp), color = MaterialTheme.colorScheme.outlineVariant)
-            }
         }
+
+        // Разделитель идёт во всю ширину, включая отступ дерева.
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+        )
     }
 }
+
+/**
+ * Шаг отступа на уровень вложенности. Пост сдвигается вправо, поэтому
+ * дерево читается без линий-коннекторов, а глубина ограничена в [buildPostTree].
+ */
+private const val TREE_INDENT_DP = 16
 
 /**
  * Сторона квадратной ячейки превью в треде при 100 %. Серверные превью —

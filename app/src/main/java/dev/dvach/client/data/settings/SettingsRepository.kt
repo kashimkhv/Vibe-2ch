@@ -22,8 +22,7 @@ import javax.inject.Singleton
 enum class ThemeMode { SYSTEM, LIGHT, DARK }
 
 data class AppSettings(
-    val themeMode: ThemeMode = ThemeMode.SYSTEM,
-    val dynamicColor: Boolean = true,
+    val themeMode: ThemeMode = ThemeMode.LIGHT,
     val showThumbnails: Boolean = true,
     /** Размер превью вложений в процентах от базового. */
     val thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
@@ -40,7 +39,6 @@ class SettingsRepository @Inject constructor(
 ) {
     private object Keys {
         val THEME = stringPreferencesKey("theme_mode")
-        val DYNAMIC = booleanPreferencesKey("dynamic_color")
         val THUMBS = booleanPreferencesKey("show_thumbnails")
         val THUMB_SCALE = intPreferencesKey("thumbnail_scale_percent")
         val AUTO_REVEAL = booleanPreferencesKey("auto_reveal_spoilers")
@@ -52,8 +50,7 @@ class SettingsRepository @Inject constructor(
         .map { prefs ->
             AppSettings(
                 themeMode = prefs[Keys.THEME]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
-                    ?: ThemeMode.SYSTEM,
-                dynamicColor = prefs[Keys.DYNAMIC] ?: true,
+                    ?: ThemeMode.LIGHT,
                 showThumbnails = prefs[Keys.THUMBS] ?: true,
                 thumbnailScalePercent = (prefs[Keys.THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT)
                     .coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
@@ -64,10 +61,6 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit {
         it[Keys.THEME] = mode.name
-    }
-
-    suspend fun setDynamicColor(enabled: Boolean) = context.dataStore.edit {
-        it[Keys.DYNAMIC] = enabled
     }
 
     suspend fun setShowThumbnails(enabled: Boolean) = context.dataStore.edit {

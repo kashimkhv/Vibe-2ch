@@ -31,12 +31,13 @@ import androidx.compose.ui.unit.dp
 import coil3.compose.AsyncImage
 import dev.dvach.client.domain.model.Attachment
 
-private val Corner = RoundedCornerShape(10.dp)
-private val BadgeShape = RoundedCornerShape(8.dp)
+private val Corner = RoundedCornerShape(0.dp)
+private val BadgeShape = RoundedCornerShape(2.dp)
 
 /**
  * Превью вложения — единственный вид превью в приложении: и в списке тредов,
- * и в самом треде картинка рисуется этим компонентом.
+ * и в самом треде картинка рисуется этим компонентом. Углы прямые: в старом
+ * Material картинки не скруглялись.
  *
  * Превью — квадратная ячейка размером [side], картинка заполняет её целиком
  * (лишнее по краям подрезается по центру). Квадрат невидимый: ни рамки, ни
@@ -171,7 +172,7 @@ fun AttachmentThumbsRow(
                         text = text,
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
+                        maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
                         modifier = Modifier.width(side),
                     )

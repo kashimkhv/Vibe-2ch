@@ -45,7 +45,7 @@ class NetworkChanRepository @Inject constructor(
             .threads
             .firstOrNull()
             ?.posts
-            ?.map { it.toDomain(boardId) }
+            ?.toThreadPosts(boardId)
             .orEmpty()
 }
 
@@ -79,8 +79,20 @@ internal fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
     )
 }
 
+/**
+ * Посты треда в доменные модели. ОП — всегда первый пост ответа: в API поле
+ * `op` у постов треда равно 0 даже у стартового, поэтому по нему не отличить
+ * автора треда от отвечающих.
+ */
+internal fun List<PostDto>.toThreadPosts(boardId: String): List<Post> =
+    mapIndexed { index, dto ->
+        dto.toDomain(boardId).let { if (index == 0) it.copy(isOp = true) else it }
+    }
+
 internal fun PostDto.toDomain(boardId: String) = Post(
-    boardId = board,
+    // В ответе треда поле `board` заполнено, но если сервер его не прислал —
+    // берём доску из маршрута, чтобы пост не остался без идентификатора.
+    boardId = board.ifBlank { boardId },
     num = num,
     parent = parent,
     name = decodeHtmlEntities(name).trim(),

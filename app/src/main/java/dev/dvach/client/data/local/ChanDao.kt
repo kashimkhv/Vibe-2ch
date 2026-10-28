@@ -38,4 +38,21 @@ interface ChanDao {
 
     @Query("DELETE FROM pinned_boards WHERE board_id = :boardId")
     suspend fun unpinBoard(boardId: String)
+
+    /** Место, на котором остановились в треде, или null, если тред ещё не читали. */
+    @Query("SELECT * FROM thread_scroll WHERE thread_key = :threadKey")
+    suspend fun threadScroll(threadKey: String): ThreadScrollEntity?
+
+    @Upsert
+    suspend fun saveThreadScroll(entry: ThreadScrollEntity)
+
+    /**
+     * Держим в базе позиции не больше [limit] последних тредов: иначе таблица
+     * растёт бесконечно, а старые позиции всё равно не нужны.
+     */
+    @Query(
+        "DELETE FROM thread_scroll WHERE thread_key NOT IN " +
+            "(SELECT thread_key FROM thread_scroll ORDER BY updated_at DESC LIMIT :limit)"
+    )
+    suspend fun trimThreadScroll(limit: Int)
 }

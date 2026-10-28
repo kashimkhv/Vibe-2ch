@@ -28,3 +28,20 @@ data class HistoryEntity(
     val subject: String,
     @ColumnInfo(name = "visited_at") val visitedAt: Long,
 )
+
+/**
+ * Место, на котором пользователь остановился в треде.
+ *
+ * [postNum] — первый видимый пост: при возврате прокрутка идёт к нему, а не
+ * к сохранённому индексу, потому что после обновления треда посты могли
+ * переехать (новые ответы, перестроенное дерево). [scrollIndex] — резерв,
+ * если этого поста в треде уже нет (удалён).
+ */
+@Entity(tableName = "thread_scroll")
+data class ThreadScrollEntity(
+    @PrimaryKey @ColumnInfo(name = "thread_key") val threadKey: String,
+    @ColumnInfo(name = "post_num") val postNum: Int,
+    @ColumnInfo(name = "scroll_index") val scrollIndex: Int,
+    @ColumnInfo(name = "scroll_offset") val scrollOffset: Int,
+    @ColumnInfo(name = "updated_at") val updatedAt: Long,
+)

@@ -1,6 +1,8 @@
 package dev.dvach.client.ui.settings
 
 import android.os.Build
+import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
@@ -28,11 +30,14 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.BuildConfig
 import dev.dvach.client.data.settings.ThemeMode
+import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
@@ -50,6 +55,7 @@ fun SettingsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = dvachTopAppBarColors(),
                 title = { Text("Настройки") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -108,18 +114,6 @@ fun SettingsScreen(
                 onCheckedChange = viewModel::setAutoRevealSpoilers,
             )
 
-            SwitchRow(
-                title = "Динамические цвета",
-                subtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
-                    "Палитра из обоев (Material You)"
-                } else {
-                    "Доступно с Android 12"
-                },
-                checked = settings.dynamicColor,
-                enabled = Build.VERSION.SDK_INT >= Build.VERSION_CODES.S,
-                onCheckedChange = viewModel::setDynamicColor,
-            )
-
             HorizontalDivider()
             SectionTitle("О приложении")
 
@@ -145,14 +139,33 @@ fun SettingsScreen(
     }
 }
 
+/**
+ * Заголовок раздела — серая полоса во всю ширину, как подзаголовки списков
+ * в старом Material. Плашка отделяет блок настроек от предыдущего, не
+ * добавляя лишних отступов.
+ */
 @Composable
 private fun SectionTitle(text: String) {
-    Text(
-        text = text.uppercase(),
-        style = MaterialTheme.typography.labelMedium,
-        color = MaterialTheme.colorScheme.primary,
-        modifier = Modifier.padding(start = 20.dp, end = 20.dp, top = 20.dp, bottom = 6.dp),
-    )
+    Column(modifier = Modifier.fillMaxWidth()) {
+        Box(
+            modifier = Modifier
+                .fillMaxWidth()
+                .background(MaterialTheme.colorScheme.surfaceVariant)
+                .padding(horizontal = 20.dp, vertical = 8.dp),
+        ) {
+            Text(
+                text = text.uppercase(),
+                style = MaterialTheme.typography.labelMedium,
+                fontWeight = FontWeight.Medium,
+                letterSpacing = 0.8.sp,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+        )
+    }
 }
 
 @Composable

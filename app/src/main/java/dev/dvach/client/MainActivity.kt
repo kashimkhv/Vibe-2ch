@@ -48,10 +48,7 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            DvachTheme(
-                themeMode = settings.themeMode,
-                dynamicColor = settings.dynamicColor,
-            ) {
+            DvachTheme(themeMode = settings.themeMode) {
                 DvachNavHost()
             }
         }

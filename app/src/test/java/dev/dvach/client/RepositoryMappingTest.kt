@@ -3,6 +3,7 @@ package dev.dvach.client
 import dev.dvach.client.data.remote.dto.PostDto
 import dev.dvach.client.data.remote.dto.ThreadDto
 import dev.dvach.client.data.toDomain
+import dev.dvach.client.data.toThreadPosts
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotNull
 import org.junit.Assert.assertNull
@@ -56,5 +57,28 @@ class RepositoryMappingTest {
         assertEquals("", post.name)
         assertEquals("", post.subject)
         assertNull(post.trip)
+    }
+
+    @Test
+    fun `first post of a thread is the op even though api sends op 0`() {
+        // В ответе /res/{num}.json у всех постов `op`: 0, включая стартовый.
+        val posts = listOf(
+            PostDto(num = 100, name = "Аноним", isOp = 0),
+            PostDto(num = 101, name = "Аноним", isOp = 0),
+            PostDto(num = 102, name = "Аноним"),
+        ).toThreadPosts("b")
+
+        assertEquals(listOf(true, false, false), posts.map { it.isOp })
+    }
+
+    @Test
+    fun `thread posts keep their order and board`() {
+        val posts = listOf(
+            PostDto(num = 100, comment = "<p>ОП</p>"),
+            PostDto(num = 101, comment = "<p>ответ</p>"),
+        ).toThreadPosts("b")
+
+        assertEquals(listOf(100, 101), posts.map { it.num })
+        assertEquals(listOf("b", "b"), posts.map { it.boardId })
     }
 }

@@ -1,5 +1,6 @@
 package dev.dvach.client.ui.threads
 
+import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
@@ -7,6 +8,7 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -19,12 +21,12 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
@@ -44,6 +46,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.ThreadSummary
+import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
@@ -88,6 +91,7 @@ fun ThreadsScreen(
     Scaffold(
         topBar = {
             TopAppBar(
+                colors = dvachTopAppBarColors(),
                 title = {
                     Column {
                         Text("/${state.boardId}/", fontFamily = FontFamily.Monospace)
@@ -122,7 +126,10 @@ fun ThreadsScreen(
                 state.error != null && state.threads.isEmpty() ->
                     ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::refresh)
                 state.threads.isEmpty() -> EmptyBox("На доске пока нет тредов")
-                else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                else -> LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                ) {
                     items(items = state.threads, key = { it.num }) { thread ->
                         ThreadCard(
                             thread = thread,
@@ -132,7 +139,6 @@ fun ThreadsScreen(
                                 onThreadClick(thread.boardId, state.boardName, thread.num)
                             },
                         )
-                        HorizontalDivider()
                     }
                     item(key = "threads-footer") {
                         ListFooter(
@@ -202,75 +208,87 @@ private fun ThreadCard(
     val subject = thread.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
 
+    // Строка списка — плоская, во всю ширину, с разделителем снизу:
+    // карточек со скруглением в старом Material не было.
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .clickable(onClick = onClick)
-            .padding(12.dp),
-        verticalArrangement = Arrangement.spacedBy(8.dp),
+            .background(MaterialTheme.colorScheme.surface),
     ) {
-        // Превью ОП-поста — тот же компонент, что и в треде: квадратные ячейки,
-        // картинка вписана целиком. В списке показываем не больше трёх
-        // (остальные в плашке «+N»), иначе карточка занимает весь экран.
-        AttachmentThumbsRow(
-            files = thread.attachments,
-            side = scaleThumbnail(THUMBNAIL_BASE_DP, thumbnailScalePercent).dp,
-            maxVisible = THUMBNAILS_IN_LIST,
-            onClick = { onClick() },
-        )
-
-        Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            if (showSubject) {
-                Text(
-                    text = thread.subject.ifBlank { "Без темы" },
-                    style = MaterialTheme.typography.titleSmall,
-                    maxLines = 2,
-                    overflow = TextOverflow.Ellipsis,
-                )
-            }
-            HtmlText(
-                html = thread.commentHtml,
-                style = MaterialTheme.typography.bodySmall,
-                maxLines = 4,
-                overflow = TextOverflow.Ellipsis,
-                linksEnabled = false,
-                autoRevealSpoilers = autoRevealSpoilers,
+        Column(
+            modifier = Modifier
+                .fillMaxWidth()
+                .clickable(onClick = onClick)
+                .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
+            verticalArrangement = Arrangement.spacedBy(6.dp),
+        ) {
+            // Превью ОП-поста — тот же компонент, что и в треде: квадратные ячейки,
+            // картинка вписана целиком. В списке показываем не больше трёх
+            // (остальные в плашке «+N»), иначе карточка занимает весь экран.
+            AttachmentThumbsRow(
+                files = thread.attachments,
+                side = scaleThumbnail(THUMBNAIL_BASE_DP, thumbnailScalePercent).dp,
+                maxVisible = THUMBNAILS_IN_LIST,
+                onClick = { onClick() },
             )
-            Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                Text(
-                    text = postsLabel(thread.postsCount),
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+
+            Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                if (showSubject) {
+                    Text(
+                        text = thread.subject.ifBlank { "Без темы" },
+                        style = MaterialTheme.typography.titleSmall,
+                        maxLines = 2,
+                        overflow = TextOverflow.Ellipsis,
+                    )
+                }
+                HtmlText(
+                    html = thread.commentHtml,
+                    style = MaterialTheme.typography.bodySmall,
+                    maxLines = 4,
+                    overflow = TextOverflow.Ellipsis,
+                    linksEnabled = false,
+                    autoRevealSpoilers = autoRevealSpoilers,
                 )
-                if (thread.filesCount > 0) {
+                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(
-                        text = filesLabel(thread.filesCount),
+                        text = postsLabel(thread.postsCount),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
-                }
-                if (thread.views > 0) {
-                    Text(
-                        text = "${formatCount(thread.views)} просм.",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                }
-                if (thread.isSticky) {
-                    Text(
-                        text = "закреплён",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.primary,
-                    )
-                }
-                if (thread.isClosed) {
-                    Text(
-                        text = "закрыт",
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.error,
-                    )
+                    if (thread.filesCount > 0) {
+                        Text(
+                            text = filesLabel(thread.filesCount),
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (thread.views > 0) {
+                        Text(
+                            text = "${formatCount(thread.views)} просм.",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
+                    }
+                    if (thread.isSticky) {
+                        Text(
+                            text = "закреплён",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    if (thread.isClosed) {
+                        Text(
+                            text = "закрыт",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.error,
+                        )
+                    }
                 }
             }
         }
+        HorizontalDivider(
+            thickness = 1.dp,
+            color = MaterialTheme.colorScheme.outlineVariant,
+        )
     }
 }

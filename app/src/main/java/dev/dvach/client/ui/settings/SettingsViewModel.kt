@@ -24,9 +24,6 @@ class SettingsViewModel @Inject constructor(
         repository.setThemeMode(mode)
     }
 
-    fun setDynamicColor(enabled: Boolean) = viewModelScope.launch {
-        repository.setDynamicColor(enabled)
-    }
 
     fun setShowThumbnails(enabled: Boolean) = viewModelScope.launch {
         repository.setShowThumbnails(enabled)

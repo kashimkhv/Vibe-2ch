@@ -5,8 +5,10 @@ import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.gestures.awaitEachGesture
 import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -21,7 +23,6 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.KeyboardArrowUp
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
-import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -33,6 +34,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -40,6 +42,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,10 +55,13 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.Attachment
+import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.util.imagesLabel
@@ -82,6 +88,16 @@ fun ThreadScreen(
     val initialHighlight = viewModel.route.highlight
     val snackbarHostState = remember { SnackbarHostState() }
 
+    // Дерево ответов: пост встаёт сразу под тем, кого цитирует.
+    val nodes = remember(state.posts) { buildPostTree(state.posts) }
+
+    // Пост, к которому надо прокрутить после пересборки дерева: при переходе
+    // по цитате ветка может быть свёрнута, и позиция в списке ещё не та.
+    var pendingScroll by remember { mutableStateOf<PendingScroll?>(null) }
+
+    // Позицию восстанавливаем один раз: дальше список живёт своей жизнью.
+    var restoredScroll by remember { mutableStateOf(false) }
+
     val refreshing = state.isLoading && state.posts.isNotEmpty()
 
     // «Потянуть вверх в конце треда» — обновление: тянем список за последний
@@ -97,13 +113,69 @@ fun ThreadScreen(
     LaunchedEffect(state.posts) {
         if (!appliedInitialHighlight && initialHighlight > 0 && state.posts.isNotEmpty()) {
             appliedInitialHighlight = true
-            val index = state.posts.indexOfFirst { it.num == initialHighlight }
-            if (index >= 0) {
+            pendingScroll = PendingScroll(initialHighlight, animate = false)
+        }
+    }
+
+    // Возврат в тред: прокручиваем к посту, на котором остановились.
+    // Переход по цитате важнее — если он есть, позицию не трогаем.
+    LaunchedEffect(nodes, state.scrollLoaded, state.savedScroll) {
+        if (restoredScroll || !state.scrollLoaded || nodes.isEmpty()) return@LaunchedEffect
+        restoredScroll = true
+        if (initialHighlight > 0) return@LaunchedEffect
+        val saved = state.savedScroll ?: return@LaunchedEffect
+        // Прокрутка без анимации: экран ещё не показан, анимация была бы рывком.
+        listState.scrollToItem(
+            scrollIndexFor(nodes, saved.postNum, saved.index),
+            saved.offset,
+        )
+    }
+
+    // Запоминаем место при уходе с экрана. latestNodes — чтобы обработчик видел
+    // актуальный список, а не тот, что был на первом кадре.
+    val latestNodes by rememberUpdatedState(nodes)
+    val savePosition: () -> Unit = {
+        val index = listState.firstVisibleItemIndex
+        val postNum = latestNodes.getOrNull(index)?.post?.num
+        if (postNum != null) {
+            viewModel.saveScroll(
+                postNum = postNum,
+                index = index,
+                offset = listState.firstVisibleItemScrollOffset,
+            )
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose { savePosition() }
+    }
+    // И в фон: если систему прибьёт процесс, позиция останется на последнем
+    // месте, а не там, где тред закрывали в прошлый раз.
+    LifecycleEventEffect(Lifecycle.Event.ON_STOP) { savePosition() }
+
+    // Прокрутка выполняется уже по готовому дереву, поэтому цитата попадает
+    // точно в пост, даже если ветка была свёрнута и только что раскрылась.
+    LaunchedEffect(nodes, pendingScroll) {
+        val target = pendingScroll ?: return@LaunchedEffect
+        val index = nodes.indexOfFirst { it.post.num == target.num }
+        if (index >= 0) {
+            if (target.animate) {
+                listState.animateScrollToItem(index)
+            } else {
                 listState.scrollToItem(index)
-                highlighted = initialHighlight
-                delay(HIGHLIGHT_MS)
-                if (highlighted == initialHighlight) highlighted = -1
             }
+            highlighted = target.num
+        }
+        // Сбрасываем запрос последним: если сделать это до прокрутки, смена
+        // ключа перезапустит эффект и отменит анимацию.
+        pendingScroll = null
+    }
+
+    // Подсветка гаснет сама, отдельным эффектом: перезапуск прокрутки не должен
+    // оставлять пост подсвеченным навсегда.
+    LaunchedEffect(highlighted) {
+        if (highlighted > 0) {
+            delay(HIGHLIGHT_MS)
+            highlighted = -1
         }
     }
 
@@ -137,6 +209,7 @@ fun ThreadScreen(
         snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
+                colors = dvachTopAppBarColors(),
                 title = {
                     Box {
                         Column(
@@ -240,8 +313,12 @@ fun ThreadScreen(
                     state.isLoading && state.posts.isEmpty() -> LoadingBox()
                     state.error != null && state.posts.isEmpty() ->
                         ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::load)
-                    else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                        items(items = state.posts, key = { it.num }) { post ->
+                    else -> LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(items = nodes, key = { it.post.num }) { node ->
+                            val post = node.post
                             PostCard(
                                 post = post,
                                 isHighlighted = post.num == highlighted,
@@ -250,18 +327,13 @@ fun ThreadScreen(
                                 showThumbnails = settings.showThumbnails,
                                 thumbnailScalePercent = settings.thumbnailScalePercent,
                                 autoRevealSpoilers = settings.autoRevealSpoilers,
+                                depth = node.depth,
                                 onPostClick = { ref, refThread ->
-                                    val index = state.posts.indexOfFirst { it.num == ref }
                                     if (refThread != null && refThread != threadNum) {
                                         // Цитата из другого треда — открываем его и подсвечиваем пост.
                                         onOpenThread(refThread, ref)
-                                    } else if (index >= 0) {
-                                        highlighted = ref
-                                        scope.launch {
-                                            listState.animateScrollToItem(index)
-                                            delay(HIGHLIGHT_MS)
-                                            if (highlighted == ref) highlighted = -1
-                                        }
+                                    } else if (state.posts.any { it.num == ref }) {
+                                        pendingScroll = PendingScroll(ref, animate = true)
                                     } else {
                                         // Пост мог быть удалён или ещё не догружен.
                                         scope.launch {
@@ -274,7 +346,6 @@ fun ThreadScreen(
                                     onOpenMedia(file)
                                 },
                             )
-                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
                         }
                         item(key = "thread-end") {
                             EndOfThreadHint()
@@ -343,3 +414,6 @@ private const val HIGHLIGHT_MS = 1500L
 
 /** Насколько надо вытянуть конец треда вверх, чтобы он обновился. */
 private const val END_REFRESH_THRESHOLD_DP = 96
+
+/** Запрос на прокрутку к посту: номер и нужно ли анимировать переход. */
+private data class PendingScroll(val num: Int, val animate: Boolean)

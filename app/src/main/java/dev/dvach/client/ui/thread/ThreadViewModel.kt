@@ -16,6 +16,7 @@ import dev.dvach.client.data.ChanRepository
 import dev.dvach.client.data.local.BookmarkEntity
 import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.local.HistoryEntity
+import dev.dvach.client.data.local.ThreadScrollRepository
 import dev.dvach.client.data.settings.AppSettings
 import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.domain.model.Attachment
@@ -25,16 +26,28 @@ import dev.dvach.client.ui.navigation.ThreadRoute
 import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
 
+/** Место, на котором пользователь остановился в треде. */
+data class SavedScroll(
+    val postNum: Int,
+    val index: Int,
+    val offset: Int,
+)
+
 data class ThreadUiState(
     val isLoading: Boolean = true,
     val error: String? = null,
     val posts: List<Post> = emptyList(),
+    /** Сохранённая позиция чтения; null — тред ещё не открывали. */
+    val savedScroll: SavedScroll? = null,
+    /** Позиция прочитана из базы: только после этого можно решать, прокручивать ли. */
+    val scrollLoaded: Boolean = false,
 )
 
 @HiltViewModel
 class ThreadViewModel @Inject constructor(
     private val repository: ChanRepository,
     private val dao: ChanDao,
+    private val scrollRepository: ThreadScrollRepository,
     private val mediaPlaylist: MediaPlaylist,
     settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle,
@@ -51,7 +64,21 @@ class ThreadViewModel @Inject constructor(
     val isBookmarked: StateFlow<Boolean> = dao.isBookmarked(route.boardId, route.threadNum)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
+    /** Ключ треда в базе: позиция чтения хранится по доске и номеру. */
+    private val threadKey: String get() = "${route.boardId}/${route.threadNum}"
+
     init {
+        viewModelScope.launch {
+            val saved = scrollRepository.load(threadKey)
+            _state.update {
+                it.copy(
+                    savedScroll = saved?.let { entry ->
+                        SavedScroll(entry.postNum, entry.scrollIndex, entry.scrollOffset)
+                    },
+                    scrollLoaded = true,
+                )
+            }
+        }
         load()
     }
 
@@ -83,6 +110,15 @@ class ThreadViewModel @Inject constructor(
         } else {
             mediaPlaylist.set(listOf(file), 0)
         }
+    }
+
+    /**
+     * Запоминает место, на котором закрыли тред. Вызывается при уходе с экрана,
+     * поэтому запись идёт через репозиторий со своим scope: `viewModelScope`
+     * к этому моменту уже отменён.
+     */
+    fun saveScroll(postNum: Int, index: Int, offset: Int) {
+        scrollRepository.save(threadKey, postNum, index, offset)
     }
 
     fun toggleBookmark() {
