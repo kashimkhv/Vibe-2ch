@@ -45,6 +45,7 @@ fun PostCard(
     onToggleBookmark: () -> Unit = {},
     showThumbnails: Boolean = true,
     thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
+    autoRevealSpoilers: Boolean = false,
 ) {
     // Меню привязано к шапке поста: оно открывается под ней, а не в углу экрана.
     var menuOpen by remember { mutableStateOf(false) }
@@ -138,6 +139,7 @@ fun PostCard(
                 HtmlText(
                     html = post.commentHtml,
                     onPostClick = onPostClick,
+                    autoRevealSpoilers = autoRevealSpoilers,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }

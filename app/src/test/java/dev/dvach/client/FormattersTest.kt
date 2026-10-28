@@ -9,7 +9,9 @@ import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.plural
 import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatFileSize
+import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postUrl
+import dev.dvach.client.util.videosLabel
 
 class FormattersTest {
 
@@ -84,6 +86,15 @@ class FormattersTest {
         assertEquals(647_168L, kilobytesToBytes(632))
         assertEquals("632.0 КБ", formatFileSize(kilobytesToBytes(632)))
         assertEquals("17.3 МБ", formatFileSize(kilobytesToBytes(17_720)))
+    }
+
+    @Test
+    fun `attachment counters in the thread header are pluralized`() {
+        assertEquals("1 картинка", imagesLabel(1))
+        assertEquals("3 картинки", imagesLabel(3))
+        assertEquals("11 картинок", imagesLabel(11))
+        assertEquals("1 видео", videosLabel(1))
+        assertEquals("5 видео", videosLabel(5))
     }
 
     @Test

@@ -2,17 +2,24 @@ package dev.dvach.client.ui.thread
 
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
+import androidx.compose.foundation.gestures.awaitEachGesture
+import androidx.compose.foundation.gestures.awaitFirstDown
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
+import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -21,19 +28,27 @@ import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.material3.pulltorefresh.PullToRefreshBox
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
+import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
+import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.positionChange
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -43,7 +58,9 @@ import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
+import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postsLabel
+import dev.dvach.client.util.videosLabel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
 @Composable
@@ -65,6 +82,18 @@ fun ThreadScreen(
     val initialHighlight = viewModel.route.highlight
     val snackbarHostState = remember { SnackbarHostState() }
 
+    val refreshing = state.isLoading && state.posts.isNotEmpty()
+
+    // «Потянуть вверх в конце треда» — обновление: тянем список за последний
+    // пост, отпускаем — тред перезагружается.
+    var endPull by remember { mutableFloatStateOf(0f) }
+    var refreshingFromEnd by remember { mutableStateOf(false) }
+    val endRefreshThreshold = with(LocalDensity.current) { END_REFRESH_THRESHOLD_DP.dp.toPx() }
+
+    LaunchedEffect(refreshing) {
+        if (!refreshing) refreshingFromEnd = false
+    }
+
     LaunchedEffect(state.posts) {
         if (!appliedInitialHighlight && initialHighlight > 0 && state.posts.isNotEmpty()) {
             appliedInitialHighlight = true
@@ -80,6 +109,10 @@ fun ThreadScreen(
 
     val boardId = viewModel.route.boardId
     val threadNum = viewModel.route.threadNum
+
+    // Счётчики вложений в шапке: сколько в треде картинок и сколько видео.
+    val imagesCount = remember(state.posts) { state.posts.sumOf { post -> post.files.count { !it.isVideo } } }
+    val videosCount = remember(state.posts) { state.posts.sumOf { post -> post.files.count { it.isVideo } } }
 
     // В заголовке — тема ОП-поста, а не номер треда: номер и так виден в подзаголовке.
     val op = state.posts.firstOrNull()
@@ -129,6 +162,14 @@ fun ThreadScreen(
                                         append(" · ")
                                         append(postsLabel(state.posts.size))
                                     }
+                                    if (imagesCount > 0) {
+                                        append(" · ")
+                                        append(imagesLabel(imagesCount))
+                                    }
+                                    if (videosCount > 0) {
+                                        append(" · ")
+                                        append(videosLabel(videosCount))
+                                    }
                                 },
                                 style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
@@ -150,51 +191,126 @@ fun ThreadScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
-                // Кнопок в шапке нет: обновление — свайпом сверху вниз, закладки —
-                // через долгое нажатие на заголовок или на пост.
+                // Кнопок в шапке нет: обновление — свайпом сверху вниз (или снизу
+                // вверх в конце треда), закладки — через долгое нажатие на заголовок
+                // или на пост.
             )
         },
     ) { padding ->
-        PullToRefreshBox(
-            isRefreshing = state.isLoading && state.posts.isNotEmpty(),
-            onRefresh = viewModel::load,
-            modifier = Modifier.padding(padding).fillMaxSize(),
-        ) {
-            when {
-                state.isLoading && state.posts.isEmpty() -> LoadingBox()
-                state.error != null && state.posts.isEmpty() ->
-                    ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::load)
-                else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
-                    items(items = state.posts, key = { it.num }) { post ->
-                        PostCard(
-                            post = post,
-                            isHighlighted = post.num == highlighted,
-                            bookmarked = bookmarked,
-                            onToggleBookmark = toggleBookmark,
-                            showThumbnails = settings.showThumbnails,
-                            thumbnailScalePercent = settings.thumbnailScalePercent,
-                            onPostClick = { ref, refThread ->
-                                val index = state.posts.indexOfFirst { it.num == ref }
-                                if (refThread != null && refThread != threadNum) {
-                                    // Цитата из другого треда — открываем его и подсвечиваем пост.
-                                    onOpenThread(refThread, ref)
-                                } else if (index >= 0) {
-                                    highlighted = ref
-                                    scope.launch {
-                                        listState.animateScrollToItem(index)
-                                        delay(HIGHLIGHT_MS)
-                                        if (highlighted == ref) highlighted = -1
-                                    }
-                                } else {
-                                    // Пост мог быть удалён или ещё не догружен.
-                                    scope.launch {
-                                        snackbarHostState.showSnackbar("Пост $ref не найден в треде")
-                                    }
-                                }
-                            },
-                            onOpenAttachment = onOpenMedia,
+        Box(
+            modifier = Modifier
+                .padding(padding)
+                .fillMaxSize()
+                // Жест только читаем (Initial pass, ничего не потребляем), поэтому
+                // список продолжает скроллиться и «пружинить» как обычно.
+                .pointerInput(endRefreshThreshold) {
+                    awaitEachGesture {
+                        val down = awaitFirstDown(
+                            requireUnconsumed = false,
+                            pass = PointerEventPass.Initial,
                         )
-                        HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        var pull = 0f
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!change.pressed) break
+                            // Копим только когда список уже в самом низу: до этого
+                            // жест — обычная прокрутка.
+                            if (listState.canScrollForward) {
+                                pull = 0f
+                            } else {
+                                pull = (pull - change.positionChange().y).coerceAtLeast(0f)
+                            }
+                            endPull = pull
+                        }
+                        if (pull >= endRefreshThreshold && !refreshing) {
+                            refreshingFromEnd = true
+                            viewModel.load()
+                        }
+                        endPull = 0f
+                    }
+                },
+        ) {
+            PullToRefreshBox(
+                isRefreshing = refreshing && !refreshingFromEnd,
+                onRefresh = viewModel::load,
+                modifier = Modifier.fillMaxSize(),
+            ) {
+                when {
+                    state.isLoading && state.posts.isEmpty() -> LoadingBox()
+                    state.error != null && state.posts.isEmpty() ->
+                        ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::load)
+                    else -> LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                        items(items = state.posts, key = { it.num }) { post ->
+                            PostCard(
+                                post = post,
+                                isHighlighted = post.num == highlighted,
+                                bookmarked = bookmarked,
+                                onToggleBookmark = toggleBookmark,
+                                showThumbnails = settings.showThumbnails,
+                                thumbnailScalePercent = settings.thumbnailScalePercent,
+                                autoRevealSpoilers = settings.autoRevealSpoilers,
+                                onPostClick = { ref, refThread ->
+                                    val index = state.posts.indexOfFirst { it.num == ref }
+                                    if (refThread != null && refThread != threadNum) {
+                                        // Цитата из другого треда — открываем его и подсвечиваем пост.
+                                        onOpenThread(refThread, ref)
+                                    } else if (index >= 0) {
+                                        highlighted = ref
+                                        scope.launch {
+                                            listState.animateScrollToItem(index)
+                                            delay(HIGHLIGHT_MS)
+                                            if (highlighted == ref) highlighted = -1
+                                        }
+                                    } else {
+                                        // Пост мог быть удалён или ещё не догружен.
+                                        scope.launch {
+                                            snackbarHostState.showSnackbar("Пост $ref не найден в треде")
+                                        }
+                                    }
+                                },
+                                onOpenAttachment = { file ->
+                                    viewModel.prepareMedia(file)
+                                    onOpenMedia(file)
+                                },
+                            )
+                            HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
+                        }
+                        item(key = "thread-end") {
+                            EndOfThreadHint()
+                        }
+                    }
+                }
+            }
+
+            // Индикатор вытягивания снизу: появляется, только когда тянут конец треда.
+            if (endPull > 0f || refreshingFromEnd) {
+                Surface(
+                    shape = CircleShape,
+                    color = MaterialTheme.colorScheme.surfaceContainerHigh,
+                    shadowElevation = 4.dp,
+                    modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 24.dp),
+                ) {
+                    if (refreshingFromEnd) {
+                        CircularProgressIndicator(
+                            strokeWidth = 2.dp,
+                            modifier = Modifier.padding(10.dp).size(24.dp),
+                        )
+                    } else {
+                        Icon(
+                            imageVector = Icons.Filled.KeyboardArrowUp,
+                            contentDescription = "Обновить тред",
+                            tint = MaterialTheme.colorScheme.primary,
+                            modifier = Modifier
+                                .padding(10.dp)
+                                .size(24.dp)
+                                .graphicsLayer {
+                                    alpha = (endPull / endRefreshThreshold.coerceAtLeast(1f))
+                                        .coerceIn(0.3f, 1f)
+                                    rotationZ = 180f * (endPull / endRefreshThreshold.coerceAtLeast(0.01f))
+                                        .coerceIn(0f, 1f)
+                                },
+                        )
                     }
                 }
             }
@@ -202,5 +318,28 @@ fun ThreadScreen(
     }
 }
 
+/** Подсказка в конце треда: свайп вверх перезагружает тред. */
+@Composable
+private fun EndOfThreadHint() {
+    Column(
+        horizontalAlignment = Alignment.CenterHorizontally,
+        modifier = Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 22.dp),
+    ) {
+        Text(
+            text = "Конец треда",
+            style = MaterialTheme.typography.labelMedium,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = "Потяните вверх, чтобы обновить",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
 /** Сколько подсвечивается пост, к которому перешли по цитате. */
 private const val HIGHLIGHT_MS = 1500L
+
+/** Насколько надо вытянуть конец треда вверх, чтобы он обновился. */
+private const val END_REFRESH_THRESHOLD_DP = 96

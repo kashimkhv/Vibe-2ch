@@ -27,6 +27,8 @@ data class ThreadsUiState(
     val canGoNext: Boolean = false,
     /** Размер превью вложений в процентах, из настроек. */
     val thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
+    /** Спойлеры в превью ОП-поста раскрыты сразу. */
+    val autoRevealSpoilers: Boolean = false,
 )
 
 @HiltViewModel
@@ -49,7 +51,12 @@ class ThreadsViewModel @Inject constructor(
         // чтобы список перерисовался сразу после возврата.
         viewModelScope.launch {
             settings.settings.collect { appSettings ->
-                _state.update { it.copy(thumbnailScalePercent = appSettings.thumbnailScalePercent) }
+                _state.update {
+                    it.copy(
+                        thumbnailScalePercent = appSettings.thumbnailScalePercent,
+                        autoRevealSpoilers = appSettings.autoRevealSpoilers,
+                    )
+                }
             }
         }
     }

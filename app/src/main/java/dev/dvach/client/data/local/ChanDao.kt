@@ -28,4 +28,14 @@ interface ChanDao {
 
     @Query("DELETE FROM history")
     suspend fun clearHistory()
+
+    /** Закреплённые доски: в порядке закрепления — он же порядок в начале списка. */
+    @Query("SELECT * FROM pinned_boards ORDER BY pinned_at ASC")
+    fun pinnedBoards(): Flow<List<PinnedBoardEntity>>
+
+    @Upsert
+    suspend fun pinBoard(board: PinnedBoardEntity)
+
+    @Query("DELETE FROM pinned_boards WHERE board_id = :boardId")
+    suspend fun unpinBoard(boardId: String)
 }

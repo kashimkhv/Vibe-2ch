@@ -12,6 +12,7 @@ import dev.dvach.client.data.ChanRepository
 import dev.dvach.client.data.NetworkChanRepository
 import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.local.ChanDatabase
+import dev.dvach.client.data.local.MIGRATION_1_2
 import javax.inject.Singleton
 
 @Module
@@ -21,7 +22,9 @@ object DatabaseModule {
     @Provides
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): ChanDatabase =
-        Room.databaseBuilder(context, ChanDatabase::class.java, "dvach.db").build()
+        Room.databaseBuilder(context, ChanDatabase::class.java, "dvach.db")
+            .addMigrations(MIGRATION_1_2)
+            .build()
 
     @Provides
     fun provideDao(db: ChanDatabase): ChanDao = db.chanDao()

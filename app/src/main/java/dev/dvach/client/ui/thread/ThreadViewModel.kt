@@ -18,7 +18,9 @@ import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.local.HistoryEntity
 import dev.dvach.client.data.settings.AppSettings
 import dev.dvach.client.data.settings.SettingsRepository
+import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.Post
+import dev.dvach.client.ui.media.MediaPlaylist
 import dev.dvach.client.ui.navigation.ThreadRoute
 import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
@@ -33,6 +35,7 @@ data class ThreadUiState(
 class ThreadViewModel @Inject constructor(
     private val repository: ChanRepository,
     private val dao: ChanDao,
+    private val mediaPlaylist: MediaPlaylist,
     settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -65,6 +68,20 @@ class ThreadViewModel @Inject constructor(
                         it.copy(isLoading = false, error = error.message ?: "Ошибка сети")
                     }
                 }
+        }
+    }
+
+    /**
+     * Кладём в просмотрщик все вложения треда, чтобы их можно было листать
+     * свайпом, и запоминаем, какое открыли.
+     */
+    fun prepareMedia(file: Attachment) {
+        val files = _state.value.posts.flatMap { it.files }
+        val index = files.indexOfFirst { it.url == file.url && it.name == file.name }
+        if (index >= 0) {
+            mediaPlaylist.set(files, index)
+        } else {
+            mediaPlaylist.set(listOf(file), 0)
         }
     }
 

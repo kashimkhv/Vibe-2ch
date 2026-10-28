@@ -27,6 +27,7 @@ import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
 import dev.dvach.client.di.MediaClient
+import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.ui.navigation.MediaRoute
 import java.io.File
 import javax.inject.Inject
@@ -46,21 +47,81 @@ sealed interface DownloadState {
 class MediaViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     @MediaClient private val client: OkHttpClient,
+    playlist: MediaPlaylist,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
     val route: MediaRoute = savedStateHandle.toRoute()
+
+    /**
+     * Всё, что можно листать свайпом: файлы треда из [MediaPlaylist] или
+     * единственное вложение из маршрута (если процесс пересоздали).
+     */
+    val items: List<Attachment> = playlist.items.ifEmpty {
+        listOf(
+            Attachment(
+                url = route.url,
+                thumbnailUrl = "",
+                name = route.name,
+                sizeBytes = 0,
+                width = 0,
+                height = 0,
+                isVideo = route.isVideo,
+            ),
+        )
+    }
+
+    val initialPage: Int = playlist.index.coerceIn(0, (items.size - 1).coerceAtLeast(0))
+
+    private val _page = MutableStateFlow(initialPage)
+    val page: StateFlow<Int> = _page.asStateFlow()
 
     private val _download = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val download: StateFlow<DownloadState> = _download.asStateFlow()
 
     /**
      * Плеер живёт во ViewModel, чтобы переживать поворот экрана, и создаётся
-     * только для видео: картинке ExoPlayer не нужен.
+     * лениво — только когда на экране действительно видео. Flow нужен, чтобы
+     * экран перерисовался в момент создания плеера.
      */
-    private val player: ExoPlayer? = if (route.isVideo) createPlayer() else null
+    private val _player = MutableStateFlow<ExoPlayer?>(null)
+    val playerFlow: StateFlow<ExoPlayer?> = _player.asStateFlow()
 
-    fun player(): ExoPlayer? = player
+    private var preparedUrl: String? = null
+
+    init {
+        syncPlayer()
+    }
+
+    /** Текущее вложение — от него зависят заголовок, счётчик и скачивание. */
+    fun currentItem(): Attachment = items[_page.value.coerceIn(0, items.lastIndex)]
+
+    /**
+     * Переключение страницы пейджера: картинке плеер не нужен, а для видео
+     * подменяем медиа-источник. Один плеер на весь просмотрщик — иначе на
+     * каждом свайпе пришлось бы освобождать предыдущий.
+     */
+    fun onPageChanged(page: Int) {
+        val index = page.coerceIn(0, items.lastIndex)
+        _page.value = index
+        syncPlayer()
+    }
+
+    private fun syncPlayer() {
+        val item = currentItem()
+        val existing = _player.value
+        if (!item.isVideo) {
+            existing?.pause()
+            return
+        }
+        val exo = existing ?: createPlayer().also { _player.value = it }
+        if (preparedUrl != item.url) {
+            preparedUrl = item.url
+            exo.setMediaItem(MediaItem.fromUri(item.url))
+            exo.prepare()
+        }
+        exo.playWhenReady = true
+    }
 
     private fun createPlayer(): ExoPlayer {
         // Видео идёт через тот же OkHttp (UA для Cloudflare), но без callTimeout.
@@ -80,17 +141,15 @@ class MediaViewModel @Inject constructor(
                     /* handleAudioFocus = */ true,
                 )
                 setHandleAudioBecomingNoisy(true)
-                setMediaItem(MediaItem.fromUri(route.url))
-                prepare()
-                playWhenReady = true
             }
     }
 
     fun download() {
         if (_download.value is DownloadState.InProgress) return
         _download.value = DownloadState.InProgress
+        val item = currentItem()
         viewModelScope.launch {
-            _download.value = runCatching { saveToGallery(route.url, fileName()) }
+            _download.value = runCatching { saveToGallery(item) }
                 .fold(
                     onSuccess = { DownloadState.Done(it) },
                     onFailure = { DownloadState.Failed(it.message ?: "Не удалось скачать файл") },
@@ -103,12 +162,13 @@ class MediaViewModel @Inject constructor(
     }
 
     override fun onCleared() {
-        player?.release()
+        _player.value?.release()
+        _player.value = null
     }
 
-    private fun fileName(): String {
-        val name = route.name.ifBlank { route.url.substringAfterLast('/') }
-        val ext = route.url.substringAfterLast('.', "")
+    private fun fileName(item: Attachment): String {
+        val name = item.name.ifBlank { route.name.ifBlank { item.url.substringAfterLast('/') } }
+        val ext = item.url.substringAfterLast('.', "")
         return if (ext.isEmpty() || name.substringAfterLast('.', "").isNotEmpty()) {
             name
         } else {
@@ -116,14 +176,14 @@ class MediaViewModel @Inject constructor(
         }
     }
 
-    private fun mimeType(): String = when (route.url.substringAfterLast('.').lowercase()) {
+    private fun mimeType(item: Attachment): String = when (item.url.substringAfterLast('.').lowercase()) {
         "png" -> "image/png"
         "webp" -> "image/webp"
         "gif" -> "image/gif"
         "mp4" -> "video/mp4"
         "webm" -> "video/webm"
         "mkv" -> "video/x-matroska"
-        else -> if (route.isVideo) "video/*" else "image/jpeg"
+        else -> if (item.isVideo) "video/*" else "image/jpeg"
     }
 
     /**
@@ -131,27 +191,28 @@ class MediaViewModel @Inject constructor(
      * разрешений). На старых версиях RELATIVE_PATH нет, поэтому кладём в
      * приватную папку приложения — она доступна без WRITE_EXTERNAL_STORAGE.
      */
-    private suspend fun saveToGallery(url: String, name: String): String =
+    private suspend fun saveToGallery(item: Attachment): String =
         withContext(Dispatchers.IO) {
-            val request = Request.Builder().url(url).build()
+            val name = fileName(item)
+            val request = Request.Builder().url(item.url).build()
             client.newCall(request).execute().use { response ->
                 if (!response.isSuccessful) error("Сервер ответил " + response.code)
                 val body = response.body ?: error("Пустой ответ")
 
                 if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
-                    val collection = if (route.isVideo) {
+                    val collection = if (item.isVideo) {
                         MediaStore.Video.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
                     } else {
                         MediaStore.Images.Media.getContentUri(MediaStore.VOLUME_EXTERNAL_PRIMARY)
                     }
-                    val relativePath = if (route.isVideo) {
+                    val relativePath = if (item.isVideo) {
                         Environment.DIRECTORY_MOVIES + "/Dvach"
                     } else {
                         Environment.DIRECTORY_PICTURES + "/Dvach"
                     }
                     val values = ContentValues().apply {
                         put(MediaStore.MediaColumns.DISPLAY_NAME, name)
-                        put(MediaStore.MediaColumns.MIME_TYPE, mimeType())
+                        put(MediaStore.MediaColumns.MIME_TYPE, mimeType(item))
                         put(MediaStore.MediaColumns.RELATIVE_PATH, relativePath)
                         put(MediaStore.MediaColumns.IS_PENDING, 1)
                     }
@@ -172,7 +233,7 @@ class MediaViewModel @Inject constructor(
                 } else {
                     val dir = File(
                         context.getExternalFilesDir(
-                            if (route.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES,
+                            if (item.isVideo) Environment.DIRECTORY_MOVIES else Environment.DIRECTORY_PICTURES,
                         ),
                         "Dvach",
                     ).apply { mkdirs() }

@@ -94,3 +94,9 @@ fun plural(count: Int, one: String, few: String, many: String): String {
 fun postsLabel(count: Int): String = "${formatCount(count)} ${plural(count, "пост", "поста", "постов")}"
 
 fun filesLabel(count: Int): String = "${formatCount(count)} ${plural(count, "файл", "файла", "файлов")}"
+
+fun imagesLabel(count: Int): String =
+    "${formatCount(count)} ${plural(count, "картинка", "картинки", "картинок")}"
+
+/** «Видео» не склоняется: 1 видео, 5 видео. */
+fun videosLabel(count: Int): String = "${formatCount(count)} видео"

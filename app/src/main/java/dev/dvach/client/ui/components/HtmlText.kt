@@ -9,7 +9,6 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -48,23 +47,31 @@ fun HtmlText(
     linksEnabled: Boolean = true,
     /** Клик по цитате: номер поста и тред, в котором он лежит (null — текущий). */
     onPostClick: ((postNum: Int, threadNum: Int?) -> Unit)? = null,
+    /**
+     * Скрытый текст (спойлеры) сразу раскрыт. Тап по такому спойлеру его
+     * прячет — состояние в [revealedSpoilers] при этом работает «наоборот».
+     */
+    autoRevealSpoilers: Boolean = false,
 ) {
     var revealedSpoilers by remember(html) { mutableStateOf<Set<Int>>(emptySet()) }
     val scheme = MaterialTheme.colorScheme
 
-    val annotated: AnnotatedString = remember(html, revealedSpoilers, scheme.primary, color, linksEnabled) {
+    val annotated: AnnotatedString = remember(
+        html,
+        revealedSpoilers,
+        autoRevealSpoilers,
+        scheme.primary,
+        color,
+        linksEnabled,
+    ) {
         renderDvachHtml(
             html = html,
             linksEnabled = linksEnabled,
             linkColor = scheme.primary,
             baseColor = color,
             revealedSpoilers = revealedSpoilers,
+            autoRevealSpoilers = autoRevealSpoilers,
             spoilerBackground = scheme.onSurface,
-            spoilerRevealedColor = if (scheme.onSurface.luminance() > 0.5f) {
-                scheme.surface
-            } else {
-                scheme.background
-            },
             onSpoilerClick = { index ->
                 revealedSpoilers = if (revealedSpoilers.contains(index)) {
                     revealedSpoilers - index
@@ -112,8 +119,8 @@ private fun renderDvachHtml(
     linkColor: Color,
     baseColor: Color,
     revealedSpoilers: Set<Int>,
+    autoRevealSpoilers: Boolean,
     spoilerBackground: Color,
-    spoilerRevealedColor: Color,
     onSpoilerClick: (Int) -> Unit,
     onPostClick: ((postNum: Int, threadNum: Int?) -> Unit)?,
 ): AnnotatedString {
@@ -123,8 +130,8 @@ private fun renderDvachHtml(
         linkColor = linkColor,
         baseColor = baseColor,
         revealedSpoilers = revealedSpoilers,
+        autoRevealSpoilers = autoRevealSpoilers,
         spoilerBackground = spoilerBackground,
-        spoilerRevealedColor = spoilerRevealedColor,
     )
 
     val linkStyles = TextLinkStyles(
@@ -175,8 +182,8 @@ private fun tokenizeDvachHtml(
     linkColor: Color,
     baseColor: Color,
     revealedSpoilers: Set<Int>,
+    autoRevealSpoilers: Boolean,
     spoilerBackground: Color,
-    spoilerRevealedColor: Color,
 ): List<Run> {
     val runs = mutableListOf<Run>()
     val stack = mutableListOf<OpenTag>()
@@ -195,7 +202,13 @@ private fun tokenizeDvachHtml(
         val text = decodeHtmlEntities(raw)
         if (text.isEmpty()) return
 
-        val style = mergedStyle().let { if (baseColor == Color.Unspecified) it else it.merge(SpanStyle(color = baseColor)) }
+        // Цвет по умолчанию подмешиваем первым: явные цвета из HTML (и цвет
+        // скрытого спойлера) должны его перекрывать.
+        val style = if (baseColor == Color.Unspecified) {
+            mergedStyle()
+        } else {
+            SpanStyle(color = baseColor).merge(mergedStyle())
+        }
         val href = currentHref()
         val spoiler = currentSpoiler()
         val ref = currentRef()
@@ -281,13 +294,22 @@ private fun tokenizeDvachHtml(
                     attrs.contains("color: transparent", ignoreCase = true)
                 if (isSpoiler) {
                     val index = spoilerCounter++
-                    val revealed = revealedSpoilers.contains(index)
+                    // По умолчанию спойлер скрыт; при авто-раскрытии tapped index
+                    // работает в обратную сторону — тап прячет текст обратно.
+                    val revealed = revealedSpoilers.contains(index) != autoRevealSpoilers
                     stack += OpenTag(
                         name = SPOILER_TAG,
-                        style = SpanStyle(
-                            background = spoilerBackground,
-                            color = if (revealed) spoilerRevealedColor else spoilerBackground,
-                        ),
+                        style = if (revealed) {
+                            // Раскрытый спойлер — обычный текст, но с лёгкой
+                            // заливкой: видно, что это был скрытый текст, а не
+                            // обычная строка.
+                            SpanStyle(background = spoilerBackground.copy(alpha = REVEALED_SPOILER_ALPHA))
+                        } else {
+                            SpanStyle(
+                                background = spoilerBackground,
+                                color = spoilerBackground,
+                            )
+                        },
                         spoilerIndex = index,
                     )
                 } else {
@@ -311,6 +333,12 @@ private val HREF_ATTR = Regex("""href\s*=\s*["']([^"']*)["']""")
 private val POST_NUM_ATTR = Regex("""data-num\s*=\s*["'](\d+)["']""")
 private val THREAD_NUM_ATTR = Regex("""data-thread\s*=\s*["'](\d+)["']""")
 private const val SPOILER_TAG = "__spoiler__"
+
+/**
+ * Прозрачность плашки раскрытого спойлера. Сплошная плашка делала текст
+ * нечитаемым, а без заливки спойлер было не отличить от обычного текста.
+ */
+private const val REVEALED_SPOILER_ALPHA = 0.16f
 
 private fun parseColor(value: String): Color? {
     val v = value.trim()

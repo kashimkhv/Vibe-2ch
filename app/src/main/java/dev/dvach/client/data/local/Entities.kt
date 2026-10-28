@@ -13,6 +13,13 @@ data class BookmarkEntity(
     @ColumnInfo(name = "created_at") val createdAt: Long,
 )
 
+@Entity(tableName = "pinned_boards")
+data class PinnedBoardEntity(
+    @PrimaryKey @ColumnInfo(name = "board_id") val boardId: String,
+    /** Порядок закрепления: доски показываются в том порядке, в котором их закрепили. */
+    @ColumnInfo(name = "pinned_at") val pinnedAt: Long,
+)
+
 @Entity(tableName = "history")
 data class HistoryEntity(
     @PrimaryKey @ColumnInfo(name = "thread_key") val threadKey: String,

@@ -114,6 +114,7 @@ fun ThreadsScreen(
                         ThreadCard(
                             thread = thread,
                             thumbnailScalePercent = state.thumbnailScalePercent,
+                            autoRevealSpoilers = state.autoRevealSpoilers,
                             onClick = {
                                 onThreadClick(thread.boardId, state.boardName, thread.num)
                             },
@@ -136,6 +137,7 @@ private const val THUMBNAILS_IN_LIST = 3
 private fun ThreadCard(
     thread: ThreadSummary,
     thumbnailScalePercent: Int,
+    autoRevealSpoilers: Boolean,
     onClick: () -> Unit,
 ) {
     val plainComment = remember(thread.commentHtml) { stripHtml(thread.commentHtml) }
@@ -174,6 +176,7 @@ private fun ThreadCard(
                 maxLines = 4,
                 overflow = TextOverflow.Ellipsis,
                 linksEnabled = false,
+                autoRevealSpoilers = autoRevealSpoilers,
             )
             Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(

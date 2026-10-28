@@ -102,6 +102,13 @@ fun SettingsScreen(
             )
 
             SwitchRow(
+                title = "Раскрывать спойлеры",
+                subtitle = "Скрытый текст показывается сразу, без тапа по плашке",
+                checked = settings.autoRevealSpoilers,
+                onCheckedChange = viewModel::setAutoRevealSpoilers,
+            )
+
+            SwitchRow(
                 title = "Динамические цвета",
                 subtitle = if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.S) {
                     "Палитра из обоев (Material You)"

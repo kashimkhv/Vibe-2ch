@@ -15,9 +15,11 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material.icons.filled.Search
 import androidx.compose.material.icons.filled.Settings
+import androidx.compose.material.icons.outlined.PushPin
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -92,7 +94,11 @@ fun BoardsScreen(
                 state.error != null && state.boards.isEmpty() ->
                     ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::load)
                 state.visibleBoards.isEmpty() -> EmptyBox("Ничего не найдено")
-                else -> BoardsList(state = state, onBoardClick = onBoardClick)
+                else -> BoardsList(
+                    state = state,
+                    onBoardClick = onBoardClick,
+                    onTogglePin = viewModel::togglePin,
+                )
             }
         }
     }
@@ -102,31 +108,72 @@ fun BoardsScreen(
 private fun BoardsList(
     state: BoardsUiState,
     onBoardClick: (Board) -> Unit,
+    onTogglePin: (Board) -> Unit,
 ) {
+    val pinnedIds = state.pinnedBoardIds.toSet()
     LazyColumn(modifier = Modifier.fillMaxSize()) {
+        // Закреплённые — всегда первыми: до нужной доски не надо листать категории.
+        if (state.pinnedBoards.isNotEmpty()) {
+            item(key = "header-pinned") {
+                GroupHeader(text = "Закреплённые", highlighted = true)
+            }
+            items(count = state.pinnedBoards.size, key = { "pinned-${state.pinnedBoards[it].id}" }) { index ->
+                val board = state.pinnedBoards[index]
+                BoardRow(
+                    board = board,
+                    pinned = true,
+                    onClick = { onBoardClick(board) },
+                    onTogglePin = { onTogglePin(board) },
+                )
+            }
+        }
         state.grouped.forEach { (category, boards) ->
             item(key = "header-$category") {
-                Surface(
-                    color = MaterialTheme.colorScheme.surfaceVariant,
-                    modifier = Modifier.fillMaxWidth(),
-                ) {
-                    Text(
-                        text = category.uppercase(),
-                        style = MaterialTheme.typography.labelMedium,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
-                    )
-                }
+                GroupHeader(text = category)
             }
             items(count = boards.size, key = { boards[it].id }) { index ->
-                BoardRow(board = boards[index], onClick = { onBoardClick(boards[index]) })
+                val board = boards[index]
+                BoardRow(
+                    board = board,
+                    pinned = board.id in pinnedIds,
+                    onClick = { onBoardClick(board) },
+                    onTogglePin = { onTogglePin(board) },
+                )
             }
         }
     }
 }
 
 @Composable
-private fun BoardRow(board: Board, onClick: () -> Unit) {
+private fun GroupHeader(text: String, highlighted: Boolean = false) {
+    Surface(
+        color = if (highlighted) {
+            MaterialTheme.colorScheme.primaryContainer
+        } else {
+            MaterialTheme.colorScheme.surfaceVariant
+        },
+        modifier = Modifier.fillMaxWidth(),
+    ) {
+        Text(
+            text = text.uppercase(),
+            style = MaterialTheme.typography.labelMedium,
+            color = if (highlighted) {
+                MaterialTheme.colorScheme.onPrimaryContainer
+            } else {
+                MaterialTheme.colorScheme.onSurfaceVariant
+            },
+            modifier = Modifier.padding(horizontal = 16.dp, vertical = 8.dp),
+        )
+    }
+}
+
+@Composable
+private fun BoardRow(
+    board: Board,
+    pinned: Boolean,
+    onClick: () -> Unit,
+    onTogglePin: () -> Unit,
+) {
     Row(
         modifier = Modifier
             .fillMaxWidth()
@@ -170,6 +217,17 @@ private fun BoardRow(board: Board, onClick: () -> Unit) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+        }
+        IconButton(onClick = onTogglePin) {
+            Icon(
+                imageVector = if (pinned) Icons.Filled.PushPin else Icons.Outlined.PushPin,
+                contentDescription = if (pinned) "Открепить доску" else "Закрепить доску",
+                tint = if (pinned) {
+                    MaterialTheme.colorScheme.primary
+                } else {
+                    MaterialTheme.colorScheme.onSurfaceVariant
+                },
+            )
         }
     }
 }
