@@ -102,6 +102,20 @@ class ThreadViewModel @Inject constructor(
      * Кладём в просмотрщик все вложения треда, чтобы их можно было листать
      * свайпом, и запоминаем, какое открыли.
      */
+    /**
+     * Пост, чьё вложение последним листали в просмотрщике, — чтобы после
+     * возврата тред встал на него, а не на то место, где его оставили.
+     *
+     * `null`, если в просмотрщике не листали или долистали только до файлов
+     * того же поста: тогда позицию менять незачем.
+     */
+    fun consumeMediaPost(): Int? {
+        val viewed = mediaPlaylist.consumeSwiped() ?: return null
+        return _state.value.posts.firstOrNull { post ->
+            post.files.any { it.url == viewed.url }
+        }?.num
+    }
+
     fun prepareMedia(file: Attachment) {
         val files = _state.value.posts.flatMap { it.files }
         val index = files.indexOfFirst { it.url == file.url && it.name == file.name }
@@ -116,8 +130,13 @@ class ThreadViewModel @Inject constructor(
      * Запоминает место, на котором закрыли тред. Вызывается при уходе с экрана,
      * поэтому запись идёт через репозиторий со своим scope: `viewModelScope`
      * к этому моменту уже отменён.
+     *
+     * Позицию держим и в состоянии: при возврате из просмотрщика экран треда
+     * собирается заново, и восстанавливать место надо по последнему кадру, а не
+     * по записи из базы, прочитанной при открытии треда.
      */
     fun saveScroll(postNum: Int, index: Int, offset: Int) {
+        _state.update { it.copy(savedScroll = SavedScroll(postNum, index, offset)) }
         scrollRepository.save(threadKey, postNum, index, offset)
     }
 

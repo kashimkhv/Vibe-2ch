@@ -1,6 +1,7 @@
 package dev.dvach.client
 
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertNull
 import org.junit.Test
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.ui.media.MediaPlaylist
@@ -35,6 +36,48 @@ class MediaPlaylistTest {
 
         playlist.set(listOf(file("1.jpg")), -3)
         assertEquals(0, playlist.index)
+    }
+
+    @Test
+    fun `swiping to another file is remembered for the thread`() {
+        val playlist = MediaPlaylist()
+        val files = listOf(file("1.jpg"), file("2.jpg"), file("3.webm", video = true))
+        playlist.set(files, 0)
+
+        playlist.select(2)
+
+        assertEquals(2, playlist.index)
+        // Тред должен встать на пост этого файла.
+        assertEquals(files[2], playlist.consumeSwiped())
+    }
+
+    @Test
+    fun `without swiping the thread position is left alone`() {
+        val playlist = MediaPlaylist()
+        playlist.set(listOf(file("1.jpg"), file("2.jpg")), 1)
+
+        // Просмотрщик открыли и закрыли на том же файле.
+        assertNull(playlist.consumeSwiped())
+    }
+
+    @Test
+    fun `the swiped file is consumed once`() {
+        val playlist = MediaPlaylist()
+        playlist.set(listOf(file("1.jpg"), file("2.jpg")), 0)
+        playlist.select(1)
+
+        assertEquals("2.jpg", playlist.consumeSwiped()?.name)
+        // Повторный возврат в тред уже ничего не прокручивает.
+        assertNull(playlist.consumeSwiped())
+    }
+
+    @Test
+    fun `select on an empty playlist does nothing`() {
+        // Процесс пересоздали: в плейлисте пусто, а маршрут остался.
+        val playlist = MediaPlaylist()
+        playlist.select(3)
+        assertEquals(0, playlist.index)
+        assertNull(playlist.consumeSwiped())
     }
 
     @Test

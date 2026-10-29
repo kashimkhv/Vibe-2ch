@@ -130,6 +130,17 @@ fun ThreadScreen(
         if (restoredScroll || !state.scrollLoaded || nodes.isEmpty()) return@LaunchedEffect
         restoredScroll = true
         if (initialHighlight > 0) return@LaunchedEffect
+        // Если в просмотрщике долистали до другого поста — встаём на него:
+        // позиция в треде следует за листанием медиа.
+        val viewedPost = viewModel.consumeMediaPost()
+        if (viewedPost != null) {
+            val index = nodes.indexOfFirst { it.post.num == viewedPost }
+            // Пост уже на экране — не дёргаем список зря.
+            if (index >= 0 && listState.layoutInfo.visibleItemsInfo.none { it.index == index }) {
+                listState.scrollToItem(index)
+                return@LaunchedEffect
+            }
+        }
         val saved = state.savedScroll ?: return@LaunchedEffect
         // Прокрутка без анимации: экран ещё не показан, анимация была бы рывком.
         listState.scrollToItem(

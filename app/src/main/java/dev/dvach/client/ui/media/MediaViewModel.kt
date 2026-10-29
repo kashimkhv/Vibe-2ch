@@ -47,7 +47,7 @@ sealed interface DownloadState {
 class MediaViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     @MediaClient private val client: OkHttpClient,
-    playlist: MediaPlaylist,
+    private val playlist: MediaPlaylist,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -104,6 +104,9 @@ class MediaViewModel @Inject constructor(
     fun onPageChanged(page: Int) {
         val index = page.coerceIn(0, items.lastIndex)
         _page.value = index
+        // Плейлист помнит, до какого файла долистали: по возврате в тред
+        // список прокрутится к посту с этим вложением.
+        playlist.select(index)
         syncPlayer()
     }
 
