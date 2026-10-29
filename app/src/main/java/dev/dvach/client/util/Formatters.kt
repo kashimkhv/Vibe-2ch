@@ -58,6 +58,12 @@ fun formatFileSize(bytes: Long): String {
     }
 }
 
+/**
+ * Размер кэша словами: у пустого кэша «пусто» понятнее, чем «0 Б»,
+ * а нулевой предел роста («сколько влезет») в интерфейсе не показываем.
+ */
+fun formatCacheSize(bytes: Long): String = if (bytes <= 0) "пусто" else formatFileSize(bytes)
+
 fun formatCount(value: Int): String = when {
     value < 1000 -> value.toString()
     value < 100_000 -> String.format(Locale.US, "%.1fК", value / 1000.0)

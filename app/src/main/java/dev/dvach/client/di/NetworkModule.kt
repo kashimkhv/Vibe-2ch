@@ -4,6 +4,7 @@ import android.content.Context
 import android.os.Build
 import coil3.ImageLoader
 import coil3.PlatformContext
+import coil3.disk.DiskCache
 import coil3.gif.AnimatedImageDecoder
 import coil3.network.okhttp.OkHttpNetworkFetcherFactory
 import coil3.request.crossfade
@@ -19,6 +20,7 @@ import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
 import retrofit2.Retrofit
+import okio.Path.Companion.toOkioPath
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dev.dvach.client.BuildConfig
 import dev.dvach.client.data.remote.DvachApi
@@ -127,11 +129,23 @@ object NetworkModule {
 }
 
 /**
+ * Предел дискового кэша картинок. Задаём явно, а не «сколько даст система»:
+ * размер видно в настройках, и он не скачет от свободного места на диске.
+ */
+private const val IMAGE_DISK_CACHE_BYTES = 256L * 1024 * 1024
+
+/**
  * Общая сборка Coil-загрузчика: картинки ходят через тот же OkHttp (общий кэш и UA),
  * анимированные гифки декодируются нативно.
  */
 fun buildImageLoader(context: PlatformContext, client: OkHttpClient): ImageLoader =
     ImageLoader.Builder(context)
+        .diskCache {
+            DiskCache.Builder()
+                .directory(context.cacheDir.resolve("image_cache").toOkioPath())
+                .maxSizeBytes(IMAGE_DISK_CACHE_BYTES)
+                .build()
+        }
         .components {
             add(OkHttpNetworkFetcherFactory(callFactory = { client }))
             // ImageDecoder появился в API 28, ниже анимированные GIF просто не декодируем

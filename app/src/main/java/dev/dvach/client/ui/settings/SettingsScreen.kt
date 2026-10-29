@@ -12,9 +12,12 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
 import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material3.AlertDialog
+import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
@@ -22,12 +25,19 @@ import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
+import androidx.compose.material3.SnackbarHost
+import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.semantics.Role
@@ -37,13 +47,17 @@ import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.BuildConfig
+import dev.dvach.client.data.cache.CacheUsage
 import dev.dvach.client.data.settings.ThemeMode
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
+import dev.dvach.client.util.formatCacheSize
+import dev.dvach.client.util.formatFileSize
 import dev.dvach.client.util.THUMBNAIL_SCALE_STEP
+import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -53,9 +67,14 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val cacheUsage by viewModel.cacheUsage.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
+    val snackbarHostState = remember { SnackbarHostState() }
+    val scope = rememberCoroutineScope()
+    var confirmClear by remember { mutableStateOf(false) }
 
     Scaffold(
+        snackbarHost = { SnackbarHost(snackbarHostState) },
         topBar = {
             TopAppBar(
                 colors = dvachTopAppBarColors(),
@@ -128,6 +147,30 @@ fun SettingsScreen(
                 )
 
                 HorizontalDivider()
+                SectionTitle("Кэш")
+
+                CacheRow(usage = cacheUsage)
+
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 4.dp)) {
+                    Text(
+                        text = "Картинки, превью и ответы API. Закладки, настройки и " +
+                            "скачанные файлы очистка не затрагивает.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = { confirmClear = true },
+                        enabled = !cacheUsage.isEmpty,
+                        // Углы задаём явно: кнопки Material3 — «пилюли», а в
+                        // остальном интерфейсе углы почти прямые.
+                        shape = RoundedCornerShape(2.dp),
+                        modifier = Modifier.padding(top = 8.dp),
+                    ) {
+                        Text("Очистить кэш")
+                    }
+                }
+
+                HorizontalDivider()
                 SectionTitle("О приложении")
 
                 Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
@@ -159,7 +202,70 @@ fun SettingsScreen(
             )
         }
     }
+
+    if (confirmClear) {
+        AlertDialog(
+            onDismissRequest = { confirmClear = false },
+            shape = RoundedCornerShape(2.dp),
+            title = { Text("Очистить кэш?") },
+            text = {
+                Text(
+                    "Картинки, превью и ответы API будут скачаны заново. " +
+                        "Закладки, настройки и сохранённые файлы останутся.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClear = false
+                        viewModel.clearCache()
+                        scope.launch { snackbarHostState.showSnackbar("Кэш очищен") }
+                    },
+                ) {
+                    Text("Очистить")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClear = false }) { Text("Отмена") }
+            },
+        )
+    }
 }
+
+/**
+ * Сколько занято и из какого предела: два числа рядом с кнопкой очистки,
+ * чтобы было видно, что именно освободится.
+ */
+@Composable
+private fun CacheRow(usage: CacheUsage) {
+    Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
+        Row(verticalAlignment = Alignment.CenterVertically) {
+            Text(
+                text = "Занято",
+                style = MaterialTheme.typography.bodyLarge,
+                modifier = Modifier.weight(1f),
+            )
+            Text(
+                text = formatCacheSize(usage.totalBytes),
+                style = MaterialTheme.typography.labelLarge,
+                color = MaterialTheme.colorScheme.primary,
+            )
+        }
+        Text(
+            text = cacheDetails(usage),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/** «Картинки: 12.4 МБ из 256.0 МБ · сеть: 3.1 МБ из 64.0 МБ». */
+internal fun cacheDetails(usage: CacheUsage): String =
+    "Картинки: ${withLimit(usage.imagesBytes, usage.imagesLimitBytes)}" +
+        " · сеть: ${withLimit(usage.networkBytes, usage.networkLimitBytes)}"
+
+private fun withLimit(bytes: Long, limitBytes: Long): String =
+    if (limitBytes > 0) "${formatCacheSize(bytes)} из ${formatFileSize(limitBytes)}" else formatCacheSize(bytes)
 
 /**
  * Заголовок раздела — серая полоса во всю ширину, как подзаголовки списков
