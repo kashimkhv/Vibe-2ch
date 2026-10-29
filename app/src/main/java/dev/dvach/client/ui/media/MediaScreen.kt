@@ -133,7 +133,14 @@ fun MediaScreen(
             val item = items[index]
             val isCurrent = index == pagerState.currentPage
             when {
-                item.isVideo && isCurrent && player != null -> VideoSurface(player!!)
+                // Видео приближается так же, как картинка: те же жесты и тот же
+                // слой трансформации, просто под ним не `AsyncImage`, а плеер.
+                item.isVideo && isCurrent && player != null -> Zoomable(
+                    resetKey = item.url,
+                    onZoomChange = { zoom -> if (index == pagerState.currentPage) zoomed = zoom },
+                ) {
+                    VideoSurface(player!!)
+                }
                 item.isVideo -> VideoPlaceholder(item)
                 else -> ZoomableImage(
                     url = item.url,
@@ -353,8 +360,47 @@ private fun ZoomableImage(
     onZoomChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    var scale by remember(url) { mutableFloatStateOf(1f) }
-    var offset by remember(url) { mutableStateOf(Offset.Zero) }
+    Zoomable(resetKey = url, onZoomChange = onZoomChange, modifier = modifier) {
+        SubcomposeAsyncImage(
+            model = url,
+            contentDescription = contentDescription,
+            contentScale = ContentScale.Fit,
+            modifier = Modifier.fillMaxSize(),
+            loading = {
+                Box(contentAlignment = Alignment.Center) {
+                    CircularProgressIndicator(color = Color.White)
+                }
+            },
+            error = {
+                Text(
+                    text = "Не удалось загрузить файл",
+                    color = Color.White,
+                    style = MaterialTheme.typography.bodyMedium,
+                )
+            },
+            success = { SubcomposeAsyncImageContent() },
+        )
+    }
+}
+
+/**
+ * Зум страницы галереи: масштаб и смещение живут здесь, а [content] рисуется
+ * внутри трансформированного слоя. Под ним может быть что угодно — картинка
+ * или `AndroidView` с плеером.
+ *
+ * Жест устроен так, чтобы не мешать листанию: при 100 % один палец никого не
+ * перехватывает, и свайп достаётся пейджеру. Взяли двумя пальцами — забираем
+ * жест себе, а пейджер на это время выключается через [onZoomChange].
+ */
+@Composable
+private fun Zoomable(
+    resetKey: Any,
+    onZoomChange: (Boolean) -> Unit,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    var scale by remember(resetKey) { mutableFloatStateOf(1f) }
+    var offset by remember(resetKey) { mutableStateOf(Offset.Zero) }
 
     fun applyScale(next: Float, pan: Offset, viewSize: IntSize) {
         val clamped = next.coerceIn(MIN_SCALE, MAX_SCALE)
@@ -374,7 +420,7 @@ private fun ZoomableImage(
 
     Box(
         modifier = modifier
-            .pointerInput(url) {
+            .pointerInput(resetKey) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
                     do {
@@ -393,7 +439,7 @@ private fun ZoomableImage(
                     } while (event.changes.any { it.pressed })
                 }
             }
-            .pointerInput(url) {
+            .pointerInput(resetKey) {
                 detectTapGestures(
                     onDoubleTap = { tap ->
                         if (scale > MIN_SCALE) {
@@ -412,10 +458,7 @@ private fun ZoomableImage(
             },
         contentAlignment = Alignment.Center,
     ) {
-        SubcomposeAsyncImage(
-            model = url,
-            contentDescription = contentDescription,
-            contentScale = ContentScale.Fit,
+        Box(
             modifier = Modifier
                 .fillMaxSize()
                 .graphicsLayer {
@@ -424,22 +467,12 @@ private fun ZoomableImage(
                     translationX = offset.x
                     translationY = offset.y
                 },
-            loading = {
-                Box(contentAlignment = Alignment.Center) {
-                    CircularProgressIndicator(color = Color.White)
-                }
-            },
-            error = {
-                Text(
-                    text = "Не удалось загрузить файл",
-                    color = Color.White,
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-            },
-            success = { SubcomposeAsyncImageContent() },
-        )
+        ) {
+            content()
+        }
     }
 }
+
 
 private const val MIN_SCALE = 1f
 private const val MAX_SCALE = 5f
