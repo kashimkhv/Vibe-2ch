@@ -50,6 +50,7 @@ import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.DvachScrollbar
+import dev.dvach.client.ui.components.PrefetchThumbnails
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.HtmlText
@@ -130,6 +131,17 @@ fun ThreadsScreen(
                     ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::refresh)
                 state.threads.isEmpty() -> EmptyBox("На доске пока нет тредов")
                 else -> Box(modifier = Modifier.fillMaxSize()) {
+                    // Превью следующих карточек грузим заранее: при быстром флинге
+                    // список успевает уехать раньше, чем картинки попросят сами.
+                    PrefetchThumbnails(
+                        listState = listState,
+                        urlsOf = { index ->
+                            state.threads.getOrNull(index)?.attachments
+                                ?.take(THUMBNAILS_IN_LIST)
+                                ?.map { it.thumbnailUrl }
+                                .orEmpty()
+                        },
+                    )
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),

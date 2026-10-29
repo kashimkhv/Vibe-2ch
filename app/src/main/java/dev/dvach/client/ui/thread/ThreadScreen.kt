@@ -67,6 +67,7 @@ import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.SCROLLBAR_WIDTH
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
+import dev.dvach.client.ui.components.PrefetchThumbnails
 import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postsLabel
 import dev.dvach.client.util.videosLabel
@@ -317,6 +318,18 @@ fun ThreadScreen(
                 onRefresh = viewModel::load,
                 modifier = Modifier.fillMaxSize(),
             ) {
+                // Превью следующих постов ставим в очередь заранее: иначе при
+                // быстром флинге список уезжает быстрее, чем подгружаются картинки.
+                if (settings.showThumbnails) {
+                    PrefetchThumbnails(
+                        listState = listState,
+                        urlsOf = { index ->
+                            nodes.getOrNull(index)?.post?.files
+                                ?.map { it.thumbnailUrl }
+                                .orEmpty()
+                        },
+                    )
+                }
                 when {
                     state.isLoading && state.posts.isEmpty() -> LoadingBox()
                     state.error != null && state.posts.isEmpty() ->

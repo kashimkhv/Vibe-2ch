@@ -14,6 +14,7 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
+import okhttp3.Dispatcher
 import okhttp3.MediaType.Companion.toMediaType
 import okhttp3.OkHttpClient
 import okhttp3.logging.HttpLoggingInterceptor
@@ -60,6 +61,14 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .cache(Cache(File(context.cacheDir, "http_cache"), 64L * 1024 * 1024))
+            // Превью грузятся пачкой по всему экрану: пять соединений на хост
+            // (умолчание OkHttp) — узкое место при быстром скролле.
+            .dispatcher(
+                Dispatcher().apply {
+                    maxRequests = 32
+                    maxRequestsPerHost = 16
+                },
+            )
             .addInterceptor { chain ->
                 chain.proceed(
                     chain.request().newBuilder()
