@@ -33,6 +33,10 @@ class SettingsViewModel @Inject constructor(
         repository.setThumbnailScale(percent)
     }
 
+    fun setListThumbnailScale(percent: Int) = viewModelScope.launch {
+        repository.setListThumbnailScale(percent)
+    }
+
     fun setAutoRevealSpoilers(enabled: Boolean) = viewModelScope.launch {
         repository.setAutoRevealSpoilers(enabled)
     }

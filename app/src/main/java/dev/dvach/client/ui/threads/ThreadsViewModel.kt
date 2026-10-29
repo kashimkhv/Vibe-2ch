@@ -31,8 +31,8 @@ data class ThreadsUiState(
     val error: String? = null,
     val threads: List<ThreadSummary> = emptyList(),
     val canGoNext: Boolean = false,
-    /** Размер превью вложений в процентах, из настроек. */
-    val thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
+    /** Размер превью ОП-поста в списке, в процентах; у него отдельная настройка. */
+    val listThumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
     /** Спойлеры в превью ОП-поста раскрыты сразу. */
     val autoRevealSpoilers: Boolean = false,
 )
@@ -59,7 +59,7 @@ class ThreadsViewModel @Inject constructor(
             settings.settings.collect { appSettings ->
                 _state.update {
                     it.copy(
-                        thumbnailScalePercent = appSettings.thumbnailScalePercent,
+                        listThumbnailScalePercent = appSettings.listThumbnailScalePercent,
                         autoRevealSpoilers = appSettings.autoRevealSpoilers,
                     )
                 }

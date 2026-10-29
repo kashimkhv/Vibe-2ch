@@ -3,14 +3,17 @@ package dev.dvach.client.ui.bookmarks
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.DeleteOutline
@@ -33,6 +36,7 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.data.local.BookmarkEntity
 import dev.dvach.client.ui.components.dvachTopAppBarColors
+import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.util.formatRelativeTime
 
@@ -44,6 +48,7 @@ fun BookmarksScreen(
     viewModel: BookmarksViewModel = hiltViewModel(),
 ) {
     val bookmarks by viewModel.bookmarks.collectAsStateWithLifecycle()
+    val listState = rememberLazyListState()
 
     Scaffold(
         topBar = {
@@ -61,14 +66,24 @@ fun BookmarksScreen(
         if (bookmarks.isEmpty()) {
             EmptyBox("Пока пусто. Открывайте треды и добавляйте их в избранное.", modifier = Modifier.padding(padding))
         } else {
-            LazyColumn(modifier = Modifier.padding(padding).fillMaxSize()) {
-                items(items = bookmarks, key = { it.id }) { bookmark ->
-                    BookmarkRow(
-                        bookmark = bookmark,
-                        onClick = { onOpenThread(bookmark.boardId, bookmark.threadNum) },
-                        onRemove = { viewModel.remove(bookmark) },
-                    )
+            Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                    items(items = bookmarks, key = { it.id }) { bookmark ->
+                        BookmarkRow(
+                            bookmark = bookmark,
+                            onClick = { onOpenThread(bookmark.boardId, bookmark.threadNum) },
+                            onRemove = { viewModel.remove(bookmark) },
+                        )
+                    }
                 }
+
+                // Полоса прокрутки поверх списка: правый край экрана.
+                DvachScrollbar(
+                    state = listState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight(),
+                )
             }
         }
     }

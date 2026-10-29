@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -62,6 +63,8 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.ui.components.dvachTopAppBarColors
+import dev.dvach.client.ui.components.DvachScrollbar
+import dev.dvach.client.ui.components.SCROLLBAR_WIDTH
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.util.imagesLabel
@@ -105,6 +108,9 @@ fun ThreadScreen(
     var endPull by remember { mutableFloatStateOf(0f) }
     var refreshingFromEnd by remember { mutableStateOf(false) }
     val endRefreshThreshold = with(LocalDensity.current) { END_REFRESH_THRESHOLD_DP.dp.toPx() }
+    // Правая полоса прокрутки сама ловит палец: жесты, начавшиеся в её зоне,
+    // не должны считаться вытягиванием конца треда.
+    val scrollbarZone = with(LocalDensity.current) { SCROLLBAR_WIDTH.toPx() }
 
     LaunchedEffect(refreshing) {
         if (!refreshing) refreshingFromEnd = false
@@ -276,12 +282,14 @@ fun ThreadScreen(
                 .fillMaxSize()
                 // Жест только читаем (Initial pass, ничего не потребляем), поэтому
                 // список продолжает скроллиться и «пружинить» как обычно.
-                .pointerInput(endRefreshThreshold) {
+                .pointerInput(endRefreshThreshold, scrollbarZone) {
                     awaitEachGesture {
                         val down = awaitFirstDown(
                             requireUnconsumed = false,
                             pass = PointerEventPass.Initial,
                         )
+                        // Палец на полосе прокрутки — её дело, не наше.
+                        if (down.position.x >= size.width - scrollbarZone) return@awaitEachGesture
                         var pull = 0f
                         while (true) {
                             val event = awaitPointerEvent(PointerEventPass.Initial)
@@ -352,6 +360,14 @@ fun ThreadScreen(
                         }
                     }
                 }
+
+                // Полоса прокрутки поверх списка: правый край экрана.
+                DvachScrollbar(
+                    state = listState,
+                    modifier = Modifier
+                        .align(Alignment.CenterEnd)
+                        .fillMaxHeight(),
+                )
             }
 
             // Индикатор вытягивания снизу: появляется, только когда тянут конец треда.

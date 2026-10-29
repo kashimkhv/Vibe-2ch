@@ -33,8 +33,8 @@ import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
-import dev.dvach.client.util.formatFileSize
 import dev.dvach.client.util.formatTimestamp
+import dev.dvach.client.util.THUMBNAIL_BASE_SIDE_DP
 import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.stripHtml
 
@@ -171,7 +171,6 @@ fun PostCard(
                     files = post.files,
                     side = scaleThumbnail(THUMBNAIL_BASE_SIDE_DP, thumbnailScalePercent).dp,
                     onClick = onOpenAttachment,
-                    label = ::attachmentLabel,
                     modifier = Modifier.padding(top = 6.dp),
                 )
             }
@@ -218,22 +217,3 @@ fun PostCard(
  */
 private const val TREE_INDENT_DP = 16
 
-/**
- * Сторона квадратной ячейки превью в треде при 100 %. Серверные превью —
- * около 250 px, и если рисовать их «в натуральную величину» (как было), на
- * 3x-экране это ~83 dp: картинка выглядела мелкой. Поэтому размер задаётся
- * явно, а процент из настроек его масштабирует.
- */
-private const val THUMBNAIL_BASE_SIDE_DP = 220
-
-/** Подпись под превью: имя файла, размер, длительность, разрешение. */
-private fun attachmentLabel(file: Attachment): String = buildString {
-    append(file.name)
-    if (file.sizeBytes > 0) append("  ${formatFileSize(file.sizeBytes)}")
-    file.duration?.let { append("  $it") }
-    if (file.width > 0 && file.height > 0) append("  ${file.width}×${file.height}")
-    if (file.isVideo) {
-        append("  ")
-        append(file.extension.ifBlank { "webm" }.uppercase())
-    }
-}

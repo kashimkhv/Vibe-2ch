@@ -6,11 +6,13 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.List
@@ -47,6 +49,7 @@ import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.ui.components.dvachTopAppBarColors
+import dev.dvach.client.ui.components.DvachScrollbar
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -124,40 +127,51 @@ private fun BoardsList(
     onTogglePin: (Board) -> Unit,
 ) {
     val pinnedIds = state.pinnedBoardIds.toSet()
-    LazyColumn(modifier = Modifier.fillMaxSize()) {
-        // Закреплённые — всегда первыми: до нужной доски не надо листать категории.
-        if (state.pinnedBoards.isNotEmpty()) {
-            item(key = "header-pinned") {
-                GroupHeader(text = "Закреплённые", highlighted = true)
+    val listState = rememberLazyListState()
+    Box(modifier = Modifier.fillMaxSize()) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+            // Закреплённые — всегда первыми: до нужной доски не надо листать категории.
+            if (state.pinnedBoards.isNotEmpty()) {
+                item(key = "header-pinned") {
+                    GroupHeader(text = "Закреплённые", highlighted = true)
+                }
+                items(count = state.pinnedBoards.size, key = { "pinned-${state.pinnedBoards[it].id}" }) { index ->
+                    val board = state.pinnedBoards[index]
+                    BoardRow(
+                        board = board,
+                        pinned = true,
+                        onClick = { onBoardClick(board) },
+                        onTogglePin = { onTogglePin(board) },
+                    )
+                }
             }
-            items(count = state.pinnedBoards.size, key = { "pinned-${state.pinnedBoards[it].id}" }) { index ->
-                val board = state.pinnedBoards[index]
-                BoardRow(
-                    board = board,
-                    pinned = true,
-                    onClick = { onBoardClick(board) },
-                    onTogglePin = { onTogglePin(board) },
-                )
+            state.grouped.forEach { (category, boards) ->
+                // Закреплённые уже стоят в начале списка — второй раз в категории
+                // они не нужны, иначе одна доска видна дважды.
+                val rest = boards.filter { it.id !in pinnedIds }
+                if (rest.isEmpty()) return@forEach
+                item(key = "header-$category") {
+                    GroupHeader(text = category)
+                }
+                items(count = rest.size, key = { rest[it].id }) { index ->
+                    val board = rest[index]
+                    BoardRow(
+                        board = board,
+                        pinned = false,
+                        onClick = { onBoardClick(board) },
+                        onTogglePin = { onTogglePin(board) },
+                    )
+                }
             }
         }
-        state.grouped.forEach { (category, boards) ->
-            // Закреплённые уже стоят в начале списка — второй раз в категории
-            // они не нужны, иначе одна доска видна дважды.
-            val rest = boards.filter { it.id !in pinnedIds }
-            if (rest.isEmpty()) return@forEach
-            item(key = "header-$category") {
-                GroupHeader(text = category)
-            }
-            items(count = rest.size, key = { rest[it].id }) { index ->
-                val board = rest[index]
-                BoardRow(
-                    board = board,
-                    pinned = false,
-                    onClick = { onBoardClick(board) },
-                    onTogglePin = { onTogglePin(board) },
-                )
-            }
-        }
+
+        // Полоса прокрутки поверх списка: правый край экрана.
+        DvachScrollbar(
+            state = listState,
+            modifier = Modifier
+                .align(Alignment.CenterEnd)
+                .fillMaxHeight(),
+        )
     }
 }
 

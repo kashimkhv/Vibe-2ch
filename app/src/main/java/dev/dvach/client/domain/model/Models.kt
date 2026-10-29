@@ -76,6 +76,12 @@ data class Attachment(
     val height: Int,
     val duration: String? = null,
     val isVideo: Boolean,
-    /** Расширение файла из `path` — у видео это webm, mp4, mov; в метке показываем его. */
+    /** Расширение файла из `path`: у видео это webm, mp4, mov. */
     val extension: String = "",
-)
+) {
+    /**
+     * Анимированная картинка. Отдельного признака в API нет, а из картинок
+     * двач анимирует только gif — превью такой файл листает сам.
+     */
+    val isAnimated: Boolean get() = extension.equals("gif", ignoreCase = true)
+}

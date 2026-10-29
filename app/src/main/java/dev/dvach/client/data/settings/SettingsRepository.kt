@@ -24,8 +24,10 @@ enum class ThemeMode { SYSTEM, LIGHT, DARK }
 data class AppSettings(
     val themeMode: ThemeMode = ThemeMode.LIGHT,
     val showThumbnails: Boolean = true,
-    /** Размер превью вложений в процентах от базового. */
+    /** Размер превью вложений в треде, в процентах от базового. */
     val thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
+    /** Размер превью ОП-поста в списке тредов — отдельный ползунок. */
+    val listThumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
     /** Скрытый текст (спойлеры) показывается сразу, без тапа по плашке. */
     val autoRevealSpoilers: Boolean = false,
     val baseUrl: String = "https://2ch.hk",
@@ -41,6 +43,9 @@ class SettingsRepository @Inject constructor(
         val THEME = stringPreferencesKey("theme_mode")
         val THUMBS = booleanPreferencesKey("show_thumbnails")
         val THUMB_SCALE = intPreferencesKey("thumbnail_scale_percent")
+
+        /** Появился вместе с отдельным ползунком для списка тредов. */
+        val LIST_THUMB_SCALE = intPreferencesKey("list_thumbnail_scale_percent")
         val AUTO_REVEAL = booleanPreferencesKey("auto_reveal_spoilers")
         val BASE_URL = stringPreferencesKey("base_url")
     }
@@ -54,6 +59,11 @@ class SettingsRepository @Inject constructor(
                 showThumbnails = prefs[Keys.THUMBS] ?: true,
                 thumbnailScalePercent = (prefs[Keys.THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT)
                     .coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
+                listThumbnailScalePercent = (
+                    prefs[Keys.LIST_THUMB_SCALE]
+                        ?: prefs[Keys.THUMB_SCALE]
+                        ?: THUMBNAIL_SCALE_DEFAULT
+                    ).coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
                 autoRevealSpoilers = prefs[Keys.AUTO_REVEAL] ?: false,
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
@@ -69,6 +79,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setThumbnailScale(percent: Int) = context.dataStore.edit {
         it[Keys.THUMB_SCALE] = percent.coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX)
+    }
+
+    suspend fun setListThumbnailScale(percent: Int) = context.dataStore.edit {
+        it[Keys.LIST_THUMB_SCALE] = percent.coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX)
     }
 
     suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.dataStore.edit {

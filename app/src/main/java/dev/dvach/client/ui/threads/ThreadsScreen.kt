@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -48,6 +49,7 @@ import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.AttachmentThumbsRow
+import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.HtmlText
@@ -55,6 +57,7 @@ import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.util.filesLabel
 import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.postsLabel
+import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
 import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.stripHtml
 
@@ -126,28 +129,38 @@ fun ThreadsScreen(
                 state.error != null && state.threads.isEmpty() ->
                     ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::refresh)
                 state.threads.isEmpty() -> EmptyBox("На доске пока нет тредов")
-                else -> LazyColumn(
-                    state = listState,
-                    modifier = Modifier.fillMaxSize(),
-                ) {
-                    items(items = state.threads, key = { it.num }) { thread ->
-                        ThreadCard(
-                            thread = thread,
-                            thumbnailScalePercent = state.thumbnailScalePercent,
-                            autoRevealSpoilers = state.autoRevealSpoilers,
-                            onClick = {
-                                onThreadClick(thread.boardId, state.boardName, thread.num)
-                            },
-                        )
+                else -> Box(modifier = Modifier.fillMaxSize()) {
+                    LazyColumn(
+                        state = listState,
+                        modifier = Modifier.fillMaxSize(),
+                    ) {
+                        items(items = state.threads, key = { it.num }) { thread ->
+                            ThreadCard(
+                                thread = thread,
+                                listThumbnailScalePercent = state.listThumbnailScalePercent,
+                                autoRevealSpoilers = state.autoRevealSpoilers,
+                                onClick = {
+                                    onThreadClick(thread.boardId, state.boardName, thread.num)
+                                },
+                            )
+                        }
+                        item(key = "threads-footer") {
+                            ListFooter(
+                                isLoadingMore = state.isLoadingMore,
+                                loadMoreError = state.loadMoreError,
+                                canGoNext = state.canGoNext,
+                                onRetry = { viewModel.loadMore(force = true) },
+                            )
+                        }
                     }
-                    item(key = "threads-footer") {
-                        ListFooter(
-                            isLoadingMore = state.isLoadingMore,
-                            loadMoreError = state.loadMoreError,
-                            canGoNext = state.canGoNext,
-                            onRetry = { viewModel.loadMore(force = true) },
-                        )
-                    }
+
+                    // Полоса прокрутки поверх списка: правый край экрана.
+                    DvachScrollbar(
+                        state = listState,
+                        modifier = Modifier
+                            .align(Alignment.CenterEnd)
+                            .fillMaxHeight(),
+                    )
                 }
             }
         }
@@ -191,16 +204,13 @@ private fun ListFooter(
     }
 }
 
-/** Сторона ячейки превью в списке тредов при 100 %; процент берётся из настроек. */
-private const val THUMBNAIL_BASE_DP = 76
-
 /** Сколько превью ОП-поста показывать в списке; остальные — в плашке «+N». */
 private const val THUMBNAILS_IN_LIST = 3
 
 @Composable
 private fun ThreadCard(
     thread: ThreadSummary,
-    thumbnailScalePercent: Int,
+    listThumbnailScalePercent: Int,
     autoRevealSpoilers: Boolean,
     onClick: () -> Unit,
 ) {
@@ -223,11 +233,11 @@ private fun ThreadCard(
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
             // Превью ОП-поста — тот же компонент, что и в треде: квадратные ячейки,
-            // картинка вписана целиком. В списке показываем не больше трёх
+            // картинка заполняет их целиком. В списке показываем не больше трёх
             // (остальные в плашке «+N»), иначе карточка занимает весь экран.
             AttachmentThumbsRow(
                 files = thread.attachments,
-                side = scaleThumbnail(THUMBNAIL_BASE_DP, thumbnailScalePercent).dp,
+                side = scaleThumbnail(THUMBNAIL_LIST_BASE_SIDE_DP, listThumbnailScalePercent).dp,
                 maxVisible = THUMBNAILS_IN_LIST,
                 onClick = { onClick() },
             )

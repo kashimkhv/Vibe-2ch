@@ -1,5 +1,6 @@
 package dev.dvach.client
 
+import dev.dvach.client.data.remote.dto.FileDto
 import dev.dvach.client.data.remote.dto.PostDto
 import dev.dvach.client.data.remote.dto.ThreadDto
 import dev.dvach.client.data.toDomain
@@ -57,6 +58,25 @@ class RepositoryMappingTest {
         assertEquals("", post.name)
         assertEquals("", post.subject)
         assertNull(post.trip)
+    }
+
+    @Test
+    fun `attachment type is recognized by extension`() {
+        val post = PostDto(
+            num = 1,
+            files = listOf(
+                FileDto(path = "/b/src/1/2.gif", name = "анимация.gif"),
+                FileDto(path = "/b/src/1/3.GIF", name = "верхний регистр.gif"),
+                FileDto(path = "/b/src/1/4.webm", name = "видео.webm", duration = "00:00:12"),
+                FileDto(path = "/b/src/1/5.jpg", name = "фото.jpg"),
+            ),
+        ).toDomain("b")
+
+        // Оба значка в углу превью берутся из этих признаков: gif — анимация,
+        // webm — видео, jpg не получает ни того, ни другого.
+        assertEquals(listOf(true, true, false, false), post.files.map { it.isAnimated })
+        assertEquals(listOf(false, false, true, false), post.files.map { it.isVideo })
+        assertEquals("gif", post.files[0].extension)
     }
 
     @Test

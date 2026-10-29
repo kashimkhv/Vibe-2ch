@@ -5,6 +5,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
+import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
@@ -38,6 +39,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.BuildConfig
 import dev.dvach.client.data.settings.ThemeMode
 import dev.dvach.client.ui.components.dvachTopAppBarColors
+import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
@@ -51,6 +53,7 @@ fun SettingsScreen(
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val scrollState = rememberScrollState()
 
     Scaffold(
         topBar = {
@@ -65,76 +68,95 @@ fun SettingsScreen(
             )
         },
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .padding(padding)
-                .fillMaxSize()
-                .verticalScroll(rememberScrollState()),
-        ) {
-            SectionTitle("Оформление")
+        Box(modifier = Modifier.padding(padding).fillMaxSize()) {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .verticalScroll(scrollState),
+            ) {
+                SectionTitle("Оформление")
 
-            Column(modifier = Modifier.selectableGroup()) {
-                ThemeOption(
-                    label = "Как в системе",
-                    selected = settings.themeMode == ThemeMode.SYSTEM,
-                    onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) },
+                Column(modifier = Modifier.selectableGroup()) {
+                    ThemeOption(
+                        label = "Как в системе",
+                        selected = settings.themeMode == ThemeMode.SYSTEM,
+                        onClick = { viewModel.setThemeMode(ThemeMode.SYSTEM) },
+                    )
+                    ThemeOption(
+                        label = "Светлая",
+                        selected = settings.themeMode == ThemeMode.LIGHT,
+                        onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) },
+                    )
+                    ThemeOption(
+                        label = "Тёмная",
+                        selected = settings.themeMode == ThemeMode.DARK,
+                        onClick = { viewModel.setThemeMode(ThemeMode.DARK) },
+                    )
+                }
+
+                HorizontalDivider()
+                SectionTitle("Контент")
+
+                SwitchRow(
+                    title = "Превью картинок в тредах",
+                    subtitle = "Выключите, если экономно расходуете трафик",
+                    checked = settings.showThumbnails,
+                    onCheckedChange = viewModel::setShowThumbnails,
                 )
-                ThemeOption(
-                    label = "Светлая",
-                    selected = settings.themeMode == ThemeMode.LIGHT,
-                    onClick = { viewModel.setThemeMode(ThemeMode.LIGHT) },
+
+                ThumbnailScaleRow(
+                    title = "Размер превью в тредах",
+                    subtitle = "Картинки и видео внутри постов, база 150 dp",
+                    percent = settings.thumbnailScalePercent,
+                    enabled = settings.showThumbnails,
+                    onChange = viewModel::setThumbnailScale,
                 )
-                ThemeOption(
-                    label = "Тёмная",
-                    selected = settings.themeMode == ThemeMode.DARK,
-                    onClick = { viewModel.setThemeMode(ThemeMode.DARK) },
+
+                ThumbnailScaleRow(
+                    title = "Размер превью в списке тредов",
+                    subtitle = "Вложения ОП-поста в ленте, база 75 dp — половина тредового",
+                    percent = settings.listThumbnailScalePercent,
+                    enabled = settings.showThumbnails,
+                    onChange = viewModel::setListThumbnailScale,
                 )
+
+                SwitchRow(
+                    title = "Раскрывать спойлеры",
+                    subtitle = "Скрытый текст показывается сразу, без тапа по плашке",
+                    checked = settings.autoRevealSpoilers,
+                    onCheckedChange = viewModel::setAutoRevealSpoilers,
+                )
+
+                HorizontalDivider()
+                SectionTitle("О приложении")
+
+                Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
+                    Text(
+                        text = "Клиент для двача · ${BuildConfig.VERSION_NAME}",
+                        style = MaterialTheme.typography.bodyMedium,
+                    )
+                    HtmlText(
+                        html = "Данные: <a href=\"https://2ch.hk\">2ch.hk</a> (JSON API Makaba). " +
+                            "Код открыт: <a href=\"https://github.com/vortexwolf/2ch-Browser\">2ch-Browser</a>.",
+                        style = MaterialTheme.typography.bodySmall,
+                        modifier = Modifier.padding(top = 6.dp),
+                    )
+                    Text(
+                        text = "Java 2019 → Kotlin/Compose 2026",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        modifier = Modifier.padding(top = 8.dp),
+                    )
+                }
             }
 
-            HorizontalDivider()
-            SectionTitle("Контент")
-
-            SwitchRow(
-                title = "Превью картинок в тредах",
-                subtitle = "Выключите, если экономно расходуете трафик",
-                checked = settings.showThumbnails,
-                onCheckedChange = viewModel::setShowThumbnails,
+            // Полоса прокрутки поверх списка: правый край экрана.
+            DvachScrollbar(
+                state = scrollState,
+                modifier = Modifier
+                    .align(Alignment.CenterEnd)
+                    .fillMaxHeight(),
             )
-
-            ThumbnailScaleRow(
-                percent = settings.thumbnailScalePercent,
-                enabled = settings.showThumbnails,
-                onChange = viewModel::setThumbnailScale,
-            )
-
-            SwitchRow(
-                title = "Раскрывать спойлеры",
-                subtitle = "Скрытый текст показывается сразу, без тапа по плашке",
-                checked = settings.autoRevealSpoilers,
-                onCheckedChange = viewModel::setAutoRevealSpoilers,
-            )
-
-            HorizontalDivider()
-            SectionTitle("О приложении")
-
-            Column(modifier = Modifier.padding(horizontal = 20.dp, vertical = 8.dp)) {
-                Text(
-                    text = "Клиент для двача · ${BuildConfig.VERSION_NAME}",
-                    style = MaterialTheme.typography.bodyMedium,
-                )
-                HtmlText(
-                    html = "Данные: <a href=\"https://2ch.hk\">2ch.hk</a> (JSON API Makaba). " +
-                        "Код открыт: <a href=\"https://github.com/vortexwolf/2ch-Browser\">2ch-Browser</a>.",
-                    style = MaterialTheme.typography.bodySmall,
-                    modifier = Modifier.padding(top = 6.dp),
-                )
-                Text(
-                    text = "Java 2019 → Kotlin/Compose 2026",
-                    style = MaterialTheme.typography.labelSmall,
-                    color = MaterialTheme.colorScheme.onSurfaceVariant,
-                    modifier = Modifier.padding(top = 8.dp),
-                )
-            }
         }
     }
 }
@@ -192,6 +214,8 @@ private fun ThemeOption(
 
 @Composable
 private fun ThumbnailScaleRow(
+    title: String,
+    subtitle: String,
     percent: Int,
     enabled: Boolean,
     onChange: (Int) -> Unit,
@@ -199,7 +223,7 @@ private fun ThumbnailScaleRow(
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
-                text = "Размер превью",
+                text = title,
                 style = MaterialTheme.typography.bodyLarge,
                 modifier = Modifier.weight(1f),
             )
@@ -214,8 +238,7 @@ private fun ThumbnailScaleRow(
             )
         }
         Text(
-            text = "От $THUMBNAIL_SCALE_MIN до $THUMBNAIL_SCALE_MAX %, " +
-                "действует в списках тредов и внутри тредов",
+            text = "$subtitle. От $THUMBNAIL_SCALE_MIN до $THUMBNAIL_SCALE_MAX %",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
