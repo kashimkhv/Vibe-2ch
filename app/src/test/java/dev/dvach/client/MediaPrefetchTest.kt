@@ -19,8 +19,7 @@ class MediaPrefetchTest {
             listOf(9, 11, 8, 12, 13),
             mediaPrefetchOrder(page = 10, total = 100, ahead = 3, behind = 2),
         )
-        // Значения по умолчанию — шире: при быстром листании вперёд успевает
-        // уехать не одна страница.
+        // С запасом вперёд такой же порядок, только соседей больше.
         assertEquals(
             listOf(9, 11, 8, 12, 13, 14, 15),
             mediaPrefetchOrder(page = 10, total = 100, ahead = 5, behind = 2),
@@ -55,8 +54,8 @@ class MediaPrefetchTest {
 
     @Test
     fun `defaults cover both directions`() {
-        // Значения по умолчанию: вперёд дальше, чем назад, но сосед сзади есть.
-        assertEquals(5, MEDIA_PREFETCH_AHEAD)
+        // По умолчанию — по два соседа в каждую сторону: трафик важнее.
+        assertEquals(2, MEDIA_PREFETCH_AHEAD)
         assertEquals(2, MEDIA_PREFETCH_BEHIND)
     }
 }
