@@ -11,6 +11,7 @@ import androidx.compose.foundation.gestures.calculateZoom
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -111,11 +112,22 @@ fun MediaScreen(
 
     val current = items.getOrNull(page) ?: items.first()
 
-    Box(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+    BoxWithConstraints(modifier = Modifier.fillMaxSize().background(Color.Black)) {
+        // Пейджер компонует только текущую страницу, поэтому соседние картинки
+        // прогреваем сами — иначе они начинают грузиться, уже попав на экран.
+        PrefetchMedia(
+            items = items,
+            page = page,
+            sizePx = IntSize(constraints.maxWidth, constraints.maxHeight),
+        )
+
         HorizontalPager(
             state = pagerState,
             modifier = Modifier.fillMaxSize(),
             userScrollEnabled = !zoomed,
+            // Соседи держим в композиции: их картинки грузятся в том же размере,
+            // что и текущая, и к моменту свайпа уже лежат в памяти Coil.
+            beyondViewportPageCount = 1,
             key = { index -> items[index].url },
         ) { index ->
             val item = items[index]
