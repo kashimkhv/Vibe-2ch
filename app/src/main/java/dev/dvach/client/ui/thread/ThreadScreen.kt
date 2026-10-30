@@ -62,6 +62,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.Attachment
+import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.SCROLLBAR_WIDTH
@@ -228,6 +229,8 @@ fun ThreadScreen(
         topBar = {
             TopAppBar(
                 colors = dvachTopAppBarColors(),
+                // Шапка чуть выступает над списком — как app bar в старом Material.
+                modifier = Modifier.dvachShadow(),
                 title = {
                     Box {
                         Column(

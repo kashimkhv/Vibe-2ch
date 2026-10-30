@@ -49,6 +49,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.BuildConfig
 import dev.dvach.client.data.cache.CacheUsage
 import dev.dvach.client.data.settings.ThemeMode
+import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.HtmlText
@@ -78,6 +79,8 @@ fun SettingsScreen(
         topBar = {
             TopAppBar(
                 colors = dvachTopAppBarColors(),
+                // Шапка чуть выступает над списком — как app bar в старом Material.
+                modifier = Modifier.dvachShadow(),
                 title = { Text("Настройки") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
@@ -164,7 +167,9 @@ fun SettingsScreen(
                         // Углы задаём явно: кнопки Material3 — «пилюли», а в
                         // остальном интерфейсе углы почти прямые.
                         shape = RoundedCornerShape(2.dp),
-                        modifier = Modifier.padding(top = 8.dp),
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .dvachShadow(2.dp, RoundedCornerShape(2.dp)),
                     ) {
                         Text("Очистить кэш")
                     }

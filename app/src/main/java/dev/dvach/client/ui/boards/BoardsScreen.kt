@@ -48,6 +48,7 @@ import dev.dvach.client.domain.model.Board
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
+import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
 
@@ -65,6 +66,8 @@ fun BoardsScreen(
         topBar = {
             TopAppBar(
                 colors = dvachTopAppBarColors(),
+                // Шапка чуть выступает над списком — как app bar в старом Material.
+                modifier = Modifier.dvachShadow(),
                 title = { Text("Двач") },
                 actions = {
                     IconButton(onClick = onOpenBookmarks) {

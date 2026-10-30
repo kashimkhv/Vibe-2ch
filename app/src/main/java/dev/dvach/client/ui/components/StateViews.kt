@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.MaterialTheme
@@ -45,7 +46,15 @@ fun ErrorBox(
                 textAlign = TextAlign.Center,
             )
             if (onRetry != null) {
-                Button(onClick = onRetry) { Text("Повторить") }
+                // Кнопка как в старом Material: почти прямые углы и лёгкая тень,
+                // потому что это единственный «приподнятый» элемент на экране.
+                Button(
+                    onClick = onRetry,
+                    shape = RoundedCornerShape(2.dp),
+                    modifier = Modifier.dvachShadow(2.dp, RoundedCornerShape(2.dp)),
+                ) {
+                    Text("Повторить")
+                }
             }
         }
     }

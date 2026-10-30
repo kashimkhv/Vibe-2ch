@@ -47,6 +47,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
 import dev.dvach.client.domain.model.ThreadSummary
+import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.DvachScrollbar
@@ -96,6 +97,8 @@ fun ThreadsScreen(
         topBar = {
             TopAppBar(
                 colors = dvachTopAppBarColors(),
+                // Шапка чуть выступает над списком — как app bar в старом Material.
+                modifier = Modifier.dvachShadow(),
                 title = {
                     Column {
                         Text("/${state.boardId}/", fontFamily = FontFamily.Monospace)

@@ -35,6 +35,7 @@ import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.data.local.BookmarkEntity
+import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.EmptyBox
@@ -54,6 +55,8 @@ fun BookmarksScreen(
         topBar = {
             TopAppBar(
                 colors = dvachTopAppBarColors(),
+                // Шапка чуть выступает над списком — как app bar в старом Material.
+                modifier = Modifier.dvachShadow(),
                 title = { Text("Избранное") },
                 navigationIcon = {
                     IconButton(onClick = onBack) {
