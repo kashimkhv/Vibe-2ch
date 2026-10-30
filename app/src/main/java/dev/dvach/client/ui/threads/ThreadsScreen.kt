@@ -4,6 +4,7 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
@@ -40,6 +41,7 @@ import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -58,8 +60,10 @@ import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.util.filesLabel
 import dev.dvach.client.util.formatCount
+import dev.dvach.client.util.formatTimestamp
 import dev.dvach.client.util.postsLabel
 import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
+import dev.dvach.client.util.fitThumbnailSide
 import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.stripHtml
 
@@ -220,7 +224,7 @@ private fun ListFooter(
 }
 
 /** Сколько превью ОП-поста показывать в списке; остальные — в плашке «+N». */
-private const val THUMBNAILS_IN_LIST = 3
+private const val THUMBNAILS_IN_LIST = 4
 
 @Composable
 private fun ThreadCard(
@@ -247,15 +251,70 @@ private fun ThreadCard(
                 .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
+            // Шапка карточки: слева имя ОП-поста, справа дата и номер треда —
+            // так же, как в шапке поста в самом треде.
+            Row(
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+                modifier = Modifier.fillMaxWidth(),
+            ) {
+                Text(
+                    text = thread.name.ifBlank { "Аноним" },
+                    style = MaterialTheme.typography.labelLarge,
+                    fontWeight = FontWeight.Medium,
+                    color = MaterialTheme.colorScheme.onSurface,
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    modifier = Modifier.weight(1f, fill = false),
+                )
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    modifier = Modifier.padding(start = 8.dp),
+                ) {
+                    Text(
+                        text = formatTimestamp(thread.timestamp).ifBlank { thread.date },
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        maxLines = 1,
+                    )
+                    Text(
+                        text = "·",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                        modifier = Modifier.padding(horizontal = 4.dp),
+                    )
+                    Text(
+                        text = thread.num.toString(),
+                        style = MaterialTheme.typography.labelSmall,
+                        fontFamily = FontFamily.Monospace,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                }
+            }
+
             // Превью ОП-поста — тот же компонент, что и в треде: квадратные ячейки,
-            // картинка заполняет их целиком. В списке показываем не больше трёх
+            // картинка заполняет их целиком. В списке показываем не больше четырёх
             // (остальные в плашке «+N»), иначе карточка занимает весь экран.
-            AttachmentThumbsRow(
-                files = thread.attachments,
-                side = scaleThumbnail(THUMBNAIL_LIST_BASE_SIDE_DP, listThumbnailScalePercent).dp,
-                maxVisible = THUMBNAILS_IN_LIST,
-                onClick = { onClick() },
-            )
+            // Четыре ячейки в строку не влезают при крупном масштабе превью,
+            // поэтому при нехватке места ячейка ужимается до ширины карточки.
+            if (thread.attachments.isNotEmpty()) {
+                BoxWithConstraints {
+                    val configured =
+                        scaleThumbnail(THUMBNAIL_LIST_BASE_SIDE_DP, listThumbnailScalePercent)
+                    val visible = minOf(thread.attachments.size, THUMBNAILS_IN_LIST)
+                    val side = fitThumbnailSide(
+                        sideDp = configured,
+                        availableDp = maxWidth.value.toInt(),
+                        visible = visible,
+                    )
+                    AttachmentThumbsRow(
+                        files = thread.attachments,
+                        side = side.dp,
+                        maxVisible = THUMBNAILS_IN_LIST,
+                        onClick = { onClick() },
+                    )
+                }
+            }
 
             Column(verticalArrangement = Arrangement.spacedBy(4.dp)) {
                 if (showSubject) {

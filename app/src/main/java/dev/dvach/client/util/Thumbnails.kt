@@ -32,3 +32,21 @@ fun scaleThumbnail(baseDp: Int, percent: Int): Int {
     val safe = percent.coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX)
     return (baseDp * safe + 50) / 100
 }
+
+/**
+ * Сторона превью с учётом ширины карточки списка тредов.
+ *
+ * При крупном масштабе превью четыре картинки в строку не влезают (4 × 150 dp
+ * при 200 %), и FlowRow переносит лишние на вторую строку — карточка с
+ * картинками вырастает вдвое, а список от этого «дёргается». Поэтому при
+ * нехватке места сторона ужимается ровно до ширины ряда, чтобы все превью
+ * остались в одной строке; при обычном масштабе возвращается [sideDp].
+ *
+ * @param availableDp ширина, в которую должны влезть [visible] превью.
+ * @param visible сколько превью показываем в ряду (до четырёх).
+ */
+fun fitThumbnailSide(sideDp: Int, availableDp: Int, visible: Int, gapDp: Int = 4): Int {
+    if (visible <= 0 || availableDp <= 0) return sideDp
+    val fit = (availableDp - gapDp * (visible - 1)) / visible
+    return if (fit in 1 until sideDp) fit else sideDp
+}
