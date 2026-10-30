@@ -56,20 +56,36 @@ private val THUMB_WIDTH = 12.dp
 private val MIN_THUMB_HEIGHT = 56.dp
 
 /**
+ * Доля расхождения «палец — содержимое», которую гасим на каждом движении
+ * протяжки. Длина списка оценивается по средней высоте видимых постов, и за
+ * длинную протяжку расхождение накапливается: без подтягивания бегунок после
+ * отпускания уезжал бы назад на десятую часть дорожки.
+ */
+private const val CATCH_UP_GAIN = 0.08f
+
+/** Предел подтягивания за одно движение (px): выравнивание не должно выглядеть рывком. */
+private const val CATCH_UP_STEP = 96f
+
+/**
  * Полоса прокрутки справа: показывает, где пользователь находится в списке,
  * и позволяет тянуть себя пальцем — как в старых приложениях.
  *
  * В Compose готового скроллбара нет, поэтому он нарисован сам: `Canvas` рисует
  * дорожку и бегунок, а жест ловит `pointerInput`.
  *
- * Позиция считается **по индексам, а не в пикселях**. Раньше было наоборот:
- * средняя высота видимых элементов давала оценку всего содержимого, а палец
- * переводился в «пиксели» и округлялся до поста. В треде посты разной высоты —
- * картинка на пол-экрана, простыня текста, «Да.» в одну строку, — поэтому
- * оценка всё время врала: бегунок под пальцем уезжал на другой пост, и
- * протяжка читалась как «привязка к границам». В индексном пространстве
- * позиция и заказ на прокрутку означают одно и то же число, так что бегунок
- * идёт за пальцем один в один.
+ * **Позицию для рисования** считаем по индексам: `firstVisibleItemIndex` плюс
+ * доля прокрутки внутри первого видимого поста. Иначе никак — пиксельной
+ * высоты всего списка у `LazyColumn` нет.
+ *
+ * **Протяжку** при этом ведём не «долей дорожки», а относительно: сколько
+ * палец прошёл по дорожке — на такую же долю проехало содержимое. Раньше
+ * бегунок переводился в абсолютную позицию «пост + смещение внутри поста»,
+ * и смещение считалось по средней высоте видимого поста. В треде посты разной
+ * высоты: если взять «Да.» в одну строку и простыню в полторы тысячи
+ * пикселей, смещение в 100 px внутри простыни — это только её начало, а
+ * следующая граница поста перескакивала сразу на 1400 px. Отсюда и были
+ * рывки: контент ехал ровно, а на каждой границе постов подпрыгивал на целый
+ * пост. Теперь границ нет вовсе — есть только пройденный путь.
  */
 @Composable
 fun DvachScrollbar(
@@ -96,14 +112,12 @@ fun DvachScrollbar(
         1f
     }
 
-    // Для смещения внутри поста берём самый низкий видимый: если взять
-    // средний, у коротких постов смещение перескакивает через весь пост и
-    // список уезжает на пост-другой дальше, чем просил палец.
-    val live = LazyMapping(total, visible.size, visible.minOf { it.size }.toFloat())
-    // Шкалу фиксируем на время протяжки: число видимых постов гуляет на
-    // единицу, а вместе с ним менялся бы весь пересчёт — бегунок уезжал бы
-    // из-под пальца. По той же шкале считаем и позицию, иначе после
-    // отпускания она не совпала бы с тем, что просил палец.
+    // Средняя высота видимого поста — единственная оценка того, сколько
+    // пикселей содержимого приходится на один пост.
+    val live = LazyMapping(total, visible.size, averageSize)
+    // На время протяжки шкалу фиксируем: пока палец тянет, высоты постов и их
+    // число на экране успевают измениться, и скорость списка «поплыла» бы —
+    // палец идёт ровно, а содержимое то ускоряется, то замедляется.
     var frozen by remember { mutableStateOf<LazyMapping?>(null) }
     val mapping = frozen ?: live
     val scope = rememberCoroutineScope()
@@ -121,11 +135,41 @@ fun DvachScrollbar(
         viewportFraction = viewportFraction,
         modifier = modifier,
         onSeek = { fraction ->
+            // Тап по дорожке — один прыжок, тут пересчёт «доля → пост +
+            // смещение» ничем не мешает: список просто встаёт в новое место.
             val seek = scrollSeek(fraction, mapping.count, mapping.visibleCount, mapping.itemSize)
-            // requestScrollToItem, а не scrollToItem: он не запускает корутину
-            // на каждое движение пальца и не отменяет предыдущую на полпути —
-            // от этого протяжка тоже рвалась.
             state.requestScrollToItem(seek.index, seek.offset)
+        },
+        onScroll = { delta, fraction ->
+            // Протяжка двигает содержимое относительно, в пикселях: палец
+            // прошёл долю дорожки — список проехал такую же долю своего
+            // содержимого. Это главное отличие от прежней версии: нет
+            // пересчёта в «индекс поста», значит нет и скачков на границах
+            // постов, где раньше терялась высота поста.
+            //
+            // Оценка длины приблизительная (средняя высота видимых постов),
+            // поэтому за проезд накапливается расхождение с пальцем. Гасим
+            // его по чуть-чуть на каждом движении, а не рывком после
+            // отпускания: иначе бегунок в конце протяжки уезжал бы назад на
+            // десятую часть дорожки.
+            val span = mapping.spanPx
+            val first = state.layoutInfo.visibleItemsInfo.firstOrNull()
+            val pull = if (first != null && span > 0f) {
+                val now = scrollProgress(
+                    index = state.firstVisibleItemIndex,
+                    offset = state.firstVisibleItemScrollOffset,
+                    itemSize = first.size.toFloat(),
+                    count = mapping.count,
+                    visibleCount = mapping.visibleCount,
+                )
+                ((fraction - now) * CATCH_UP_GAIN * span).coerceIn(-CATCH_UP_STEP, CATCH_UP_STEP)
+            } else {
+                0f
+            }
+            // Подтягиваем только по ходу движения: если список уже упёрся
+            // в край, выравнивание не должно тянуть его назад.
+            val adjust = if (pull * delta > 0f) pull else 0f
+            state.dispatchRawDelta(delta * span + adjust)
         },
         onDragStart = {
             frozen = live
@@ -137,11 +181,24 @@ fun DvachScrollbar(
     )
 }
 
-/** Что нужно, чтобы переводить долю дорожки в позицию списка. */
-private data class LazyMapping(val count: Int, val visibleCount: Int, val itemSize: Float)
+/** Что нужно, чтобы вести протяжку и считать позицию. */
+private data class LazyMapping(val count: Int, val visibleCount: Int, val itemSize: Float) {
+    /** Сколько пикселей содержимого проезжает список от начала дорожки до конца. */
+    val spanPx: Float get() = scrollSpan(count, visibleCount, itemSize)
+}
 
 /** Куда прокрутить список: индекс элемента и смещение внутри него. */
 internal data class ScrollSeek(val index: Int, val offset: Int)
+
+/**
+ * Длина содержимого в пикселях, доступная прокрутке.
+ *
+ * Высота одного поста оценивается по средней высоте видимых, а позиций
+ * (экранов) в списке — `count - visibleCount`: с последнего экрана дальше
+ * прокручивать некуда.
+ */
+internal fun scrollSpan(count: Int, visibleCount: Int, itemSize: Float): Float =
+    itemSize * maxPosition(count, visibleCount)
 
 /**
  * Позиция в списке → доля дорожки (0 — начало, 1 — конец).
@@ -165,10 +222,11 @@ internal fun scrollProgress(
 }
 
 /**
- * Доля дорожки → позиция в списке.
+ * Доля дорожки → позиция в списке. Нужна для тапа по дорожке: это один
+ * осознанный прыжок, а не протяжка.
  *
- * Дробная часть доли переводится в смещение внутри поста, поэтому бегунок
- * едет плавно и внутри одного длинного поста, а не прыгает по постам.
+ * Дробная часть доли переводится в смещение внутри поста, поэтому список
+ * встаёт примерно туда, куда ткнули, а не на его начало.
  */
 internal fun scrollSeek(
     fraction: Float,
@@ -216,18 +274,21 @@ fun DvachScrollbar(
             // Тут смещение точное — пиксели известны, — поэтому и промахов нет.
             scope.launch { state.scrollTo((fraction * max).roundToInt()) }
         },
+        onScroll = { delta, _ -> state.dispatchRawDelta(delta * max) },
     )
 }
 
 /**
- * Дорожка и бегунок. Тап и перетаскивание считаются одинаково: позиция пальца
- * переводится в долю прокрутки, а что с ней делать, решает [onSeek].
+ * Дорожка и бегунок. Позиция пальца переводится в долю дорожки; тап по
+ * дорожке — [onSeek] (прыжок), протяжка — [onScroll] (сдвиг на долю, которую
+ * прошёл палец).
  */
 @Composable
 private fun ScrollbarRail(
     progress: Float,
     viewportFraction: Float,
     onSeek: (Float) -> Unit,
+    onScroll: (delta: Float, fraction: Float) -> Unit,
     modifier: Modifier,
     onDragStart: () -> Unit = {},
     onDragEnd: () -> Unit = {},
@@ -281,6 +342,7 @@ private fun ScrollbarRail(
     val currentThumbTop by rememberUpdatedState(shownTop)
     val currentThumb by rememberUpdatedState(thumbPx)
     val currentSeek by rememberUpdatedState(onSeek)
+    val currentScroll by rememberUpdatedState(onScroll)
     val currentDragStart by rememberUpdatedState(onDragStart)
     val currentDragEnd by rememberUpdatedState(onDragEnd)
 
@@ -305,15 +367,29 @@ private fun ScrollbarRail(
                     // Взяли сам бегунок — тянем его как есть, без рывка центром
                     // под палец. Ткнули в дорожку — бегунок прыгает под палец.
                     val grab = down.position.y - currentThumbTop
-                    val offset = if (grab in 0f..thumb) grab - thumb / 2f else 0f
+                    val grabbed = grab in 0f..thumb
+                    val offset = if (grabbed) grab - thumb / 2f else 0f
+                    var fraction = seekFraction(down.position.y - offset, thumb, railTravel)
+                    dragFraction = fraction
+                    // Прыгать нужно только при тапе по дорожке: если палец лёг
+                    // на бегунок, он и так уже стоит на нужной доле.
+                    if (!grabbed) currentSeek(fraction)
                     try {
-                        currentSeek(seekFraction(down.position.y - offset, thumb, railTravel))
-                        dragFraction = seekFraction(down.position.y - offset, thumb, railTravel)
                         drag(down.id) { change ->
                             change.consume()
-                            val f = seekFraction(change.position.y - offset, thumb, railTravel)
-                            dragFraction = f
-                            currentSeek(f)
+                            val next = seekFraction(change.position.y - offset, thumb, railTravel)
+                            if (next != fraction) {
+                                // Двигаем содержимое ровно на столько, на сколько
+                                // сместился палец. Никакого пересчёта в «пост +
+                                // смещение» — он и давал скачки на границах.
+                                currentScroll(next - fraction, next)
+                                fraction = next
+                                dragFraction = next
+                                // Дотянули до края — встаём в настоящий край
+                                // списка: оценка длины приблизительная, и до
+                                // последнего поста могло не хватить.
+                                if (next == 0f || next == 1f) currentSeek(next)
+                            }
                         }
                     } finally {
                         currentDragEnd()

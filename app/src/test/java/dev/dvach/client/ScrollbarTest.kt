@@ -5,7 +5,9 @@ import org.junit.Assert.assertTrue
 import org.junit.Test
 import dev.dvach.client.ui.components.scrollProgress
 import dev.dvach.client.ui.components.scrollSeek
+import dev.dvach.client.ui.components.scrollSpan
 import kotlin.math.abs
+import kotlin.math.roundToInt
 
 class ScrollbarTest {
 
@@ -97,5 +99,35 @@ class ScrollbarTest {
         // Дорожка прошла всю длину, а смещения внутри постов — разные: значит,
         // бегунок не залипает на границах постов.
         assertTrue(offsets.distinct().size >= 9)
+    }
+
+    @Test
+    fun `dragging the rail moves the list by the same fraction`() {
+        // Протяжка двигает содержимое относительно: 100 px поста × 6 позиций =
+        // 600 px на всю дорожку. Протащили долю — список проехал ту же долю,
+        // без пересчёта в «пост + смещение» и без скачков на границах постов.
+        val span = scrollSpan(count, visibleCount, itemSize)
+        assertEquals(600f, span, 0.001f)
+
+        repeat(101) { step ->
+            val fraction = step / 100f
+            val px = fraction * span
+            val index = (px / itemSize).toInt().coerceAtMost(count - 1)
+            val offset = (px - index * itemSize).roundToInt()
+            assertEquals(
+                "доля $fraction → $px px",
+                fraction,
+                scrollProgress(index, offset, itemSize, count, visibleCount),
+                0.001f,
+            )
+        }
+    }
+
+    @Test
+    fun `taller posts give a longer scroll span`() {
+        // Те же четыре позиции, но посты по 600 px: дорожка должна проезжать
+        // вчетверо больше содержимого, иначе в треде с картинками бегунок
+        // обгонял бы список.
+        assertEquals(1200f, scrollSpan(count = 4, visibleCount = 2, itemSize = 600f), 0.001f)
     }
 }
