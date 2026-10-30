@@ -4,12 +4,12 @@ import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.interaction.MutableInteractionSource
 import androidx.compose.foundation.background
+import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
-import androidx.compose.foundation.layout.widthIn
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
@@ -117,43 +117,61 @@ fun PostCard(
             Box {
                 // Долгое нажатие на пост открывает меню; якорь — шапка, поэтому
                 // список появляется под именем и номером нажатого поста.
-                // Шапка в одну строку: имя, трип, дата и номер — экономит высоту
-                // и не разрывает пост на «две головы».
-                Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
-                        text = post.name.ifBlank { "Аноним" },
-                        style = MaterialTheme.typography.labelLarge,
-                        fontWeight = if (post.isOp) FontWeight.Bold else FontWeight.Medium,
-                        color = if (post.isOp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier.widthIn(max = 150.dp),
-                    )
-                    post.trip?.let { trip ->
+                // Шапка в одну строку: слева имя и трип, справа дата и номер.
+                // Дата ушла к правому краю, чтобы имя получило её место: на /d/
+                // ники длинные, и раньше они обрезались на 150 dp.
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.SpaceBetween,
+                    modifier = Modifier.fillMaxWidth(),
+                ) {
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.weight(1f, fill = false),
+                    ) {
                         Text(
-                            text = " !$trip",
+                            text = post.name.ifBlank { "Аноним" },
+                            style = MaterialTheme.typography.labelLarge,
+                            fontWeight = if (post.isOp) FontWeight.Bold else FontWeight.Medium,
+                            color = if (post.isOp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
+                            maxLines = 1,
+                            overflow = TextOverflow.Ellipsis,
+                            modifier = Modifier.weight(1f, fill = false),
+                        )
+                        post.trip?.let { trip ->
+                            Text(
+                                text = " !$trip",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.tertiary,
+                                maxLines = 1,
+                            )
+                        }
+                    }
+                    Row(
+                        verticalAlignment = Alignment.CenterVertically,
+                        modifier = Modifier.padding(start = 8.dp),
+                    ) {
+                        Text(
+                            text = formatTimestamp(post.timestamp).ifBlank { post.date },
                             style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.tertiary,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,
                         )
+                        // Точка вместо пробела: дата и номер — разные вещи,
+                        // слитно они читаются как одно число.
+                        Text(
+                            text = "·",
+                            style = MaterialTheme.typography.labelSmall,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant.copy(alpha = 0.6f),
+                            modifier = Modifier.padding(horizontal = 4.dp),
+                        )
+                        Text(
+                            text = post.num.toString(),
+                            style = MaterialTheme.typography.labelSmall,
+                            fontFamily = FontFamily.Monospace,
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                        )
                     }
-                    Text(
-                        text = formatTimestamp(post.timestamp).ifBlank { post.date },
-                        style = MaterialTheme.typography.labelSmall,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        maxLines = 1,
-                        overflow = TextOverflow.Ellipsis,
-                        modifier = Modifier
-                            .padding(start = 8.dp)
-                            .weight(1f),
-                    )
-                    Text(
-                        text = post.num.toString(),
-                        style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
-                        color = MaterialTheme.colorScheme.onSurfaceVariant,
-                        modifier = Modifier.padding(start = 8.dp),
-                    )
                 }
 
                 BookmarkMenu(

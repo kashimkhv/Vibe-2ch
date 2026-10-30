@@ -62,11 +62,12 @@ internal fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
     return ThreadSummary(
         boardId = boardId,
         num = op.num,
-        // Движок отдаёт имя и тему с HTML-сущностями («Аноним&nbsp;»), а в UI
-        // они выводятся как обычный текст — раскрываем здесь, на границе DTO.
-        subject = decodeHtmlEntities(op.subject).trim(),
+        // Движок отдаёт имя и тему с HTML-сущностями и разметкой
+        // («Аноним&nbsp;ID:&nbsp;<span id=…>Имя</span>»), а в UI они выводятся
+        // как обычный текст — чистим здесь, на границе DTO.
+        subject = stripHtml(op.subject),
         commentHtml = op.comment,
-        name = decodeHtmlEntities(op.name).trim(),
+        name = displayName(op.name),
         date = op.date,
         timestamp = op.timestamp,
         postsCount = if (postsCount > 0) postsCount else posts.size,
@@ -89,18 +90,40 @@ internal fun List<PostDto>.toThreadPosts(boardId: String): List<Post> =
         dto.toDomain(boardId).let { if (index == 0) it.copy(isOp = true) else it }
     }
 
+/**
+ * Имя для шапки поста.
+ *
+ * `stripHtml` убирает разметку и сущности. Отдельно срезается приставка
+ * «Аноним ID:» — но только если после неё есть что показать: на /d/ имя
+ * анонима приходит как `Аноним ID: <span …>Ехидный Вертер</span>`, и в шапке
+ * нужен сам ник, он и так занимает всю ширину. Обычный «Аноним», имя с
+ * других досок и трип остаются как есть.
+ */
+internal fun displayName(raw: String): String {
+    val plain = stripHtml(raw)
+    val withoutPrefix = plain.replaceFirst(ANONYMOUS_ID_PREFIX, "")
+    return when {
+        withoutPrefix.isNotBlank() -> withoutPrefix
+        // Осталась одна приставка без ника — считаем анонимом.
+        plain.isNotBlank() -> "Аноним"
+        else -> plain
+    }
+}
+
+private val ANONYMOUS_ID_PREFIX = Regex("""^Аноним\s+ID:\s*""", RegexOption.IGNORE_CASE)
+
 internal fun PostDto.toDomain(boardId: String) = Post(
     // В ответе треда поле `board` заполнено, но если сервер его не прислал —
     // берём доску из маршрута, чтобы пост не остался без идентификатора.
     boardId = board.ifBlank { boardId },
     num = num,
     parent = parent,
-    name = decodeHtmlEntities(name).trim(),
-    subject = decodeHtmlEntities(subject).trim(),
+    name = displayName(name),
+    subject = stripHtml(subject),
     commentHtml = comment,
     date = date,
     timestamp = timestamp,
-    trip = decodeHtmlEntities(trip).trim().ifBlank { null },
+    trip = stripHtml(trip).ifBlank { null },
     isOp = isOp == 1,
     isSticky = sticky == 1,
     isClosed = closed == 1,

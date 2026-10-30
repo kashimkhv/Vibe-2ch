@@ -61,6 +61,43 @@ class RepositoryMappingTest {
     }
 
     @Test
+    fun `span markup and anonymous id prefix are removed from name`() {
+        // /d/ присылает имя анонима разметкой: «Аноним&nbsp;ID:&nbsp;<span …>Имя</span>».
+        // В шапке поста это обычный текст, а приставка «Аноним ID:» одинакова у
+        // всех и только съедает ширину — остаётся сам ник.
+        val post = PostDto(
+            num = 1,
+            name = "Аноним&nbsp;ID:&nbsp;<span id=\"id_tag_c91eae86\" " +
+                "style=\"color:rgb(86,168,79);\">Ехидный&nbsp;Вертер</span>",
+        ).toDomain("d")
+
+        assertEquals("Ехидный Вертер", post.name)
+    }
+
+    @Test
+    fun `plain anonymous name is not touched`() {
+        // На остальных досках имя — обычный «Аноним»; его трогать нельзя.
+        assertEquals("Аноним", PostDto(num = 1, name = "Аноним&nbsp;").toDomain("b").name)
+        assertEquals(
+            "Аноним",
+            PostDto(
+                num = 1,
+                name = "Аноним&nbsp;ID:&nbsp;",
+            ).toDomain("d").name,
+        )
+    }
+
+    @Test
+    fun `anonymous id without nickname keeps its id`() {
+        // Без ника (например, короткий ID в /b/) приставку тоже убираем,
+        // но сам идентификатор показываем.
+        assertEquals(
+            "3fA2b",
+            PostDto(num = 1, name = "Аноним&nbsp;ID:&nbsp;3fA2b").toDomain("b").name,
+        )
+    }
+
+    @Test
     fun `attachment type is recognized by extension`() {
         val post = PostDto(
             num = 1,
