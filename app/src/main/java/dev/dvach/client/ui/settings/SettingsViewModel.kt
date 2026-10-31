@@ -67,6 +67,10 @@ class SettingsViewModel @Inject constructor(
         repository.setThumbnailBackground(enabled)
     }
 
+    fun setVerticalMediaPaging(enabled: Boolean) = viewModelScope.launch {
+        repository.setVerticalMediaPaging(enabled)
+    }
+
     fun setAutoRevealSpoilers(enabled: Boolean) = viewModelScope.launch {
         repository.setAutoRevealSpoilers(enabled)
     }

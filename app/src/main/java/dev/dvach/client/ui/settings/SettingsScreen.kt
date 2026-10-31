@@ -161,6 +161,14 @@ fun SettingsScreen(
                 )
 
                 SwitchRow(
+                    title = "Листать медиа вертикально",
+                    subtitle = "Как в TikTok: свайп вверх-вниз. Выключено — листание " +
+                        "вбок, как в галерее",
+                    checked = settings.verticalMediaPaging,
+                    onCheckedChange = viewModel::setVerticalMediaPaging,
+                )
+
+                SwitchRow(
                     title = "Раскрывать спойлеры",
                     subtitle = "Скрытый текст показывается сразу, без тапа по плашке",
                     checked = settings.autoRevealSpoilers,

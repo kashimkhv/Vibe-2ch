@@ -20,12 +20,16 @@ import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.flow.MutableStateFlow
+import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
 import okhttp3.Request
+import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.di.MediaClient
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.ui.navigation.MediaRoute
@@ -48,6 +52,7 @@ class MediaViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     @MediaClient private val client: OkHttpClient,
     private val playlist: MediaPlaylist,
+    settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -78,6 +83,14 @@ class MediaViewModel @Inject constructor(
 
     private val _download = MutableStateFlow<DownloadState>(DownloadState.Idle)
     val download: StateFlow<DownloadState> = _download.asStateFlow()
+
+    /**
+     * Направление листания в галерее. По умолчанию вбок, как в обычной
+     * галерее; включённая настройка делает ленту вертикальной, как в TikTok.
+     */
+    val verticalPaging: StateFlow<Boolean> = settingsRepository.settings
+        .map { it.verticalMediaPaging }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
 
     /**
      * Плеер живёт во ViewModel, чтобы переживать поворот экрана, и создаётся

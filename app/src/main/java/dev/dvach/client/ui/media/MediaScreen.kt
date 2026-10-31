@@ -20,6 +20,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
+import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -49,6 +50,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChanged
 import androidx.compose.ui.layout.ContentScale
@@ -75,7 +77,8 @@ import kotlin.math.roundToInt
 
 /**
  * Полноэкранный просмотр вложений треда: картинка с зумом и панорамированием
- * или видео-плеер Media3. Вложения листаются свайпом вбок — как в галерее.
+ * или видео-плеер. Вложения листаются свайпом — вбок, как в галерее, или
+ * вверх-вниз, как в TikTok: направление задаётся настройкой.
  */
 @OptIn(UnstableApi::class, ExperimentalFoundationApi::class)
 @Composable
@@ -87,6 +90,7 @@ fun MediaScreen(
     val page by viewModel.page.collectAsStateWithLifecycle()
     val player by viewModel.playerFlow.collectAsStateWithLifecycle()
     val downloadState by viewModel.download.collectAsStateWithLifecycle()
+    val verticalPaging by viewModel.verticalPaging.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
 
     val pagerState = rememberPagerState(initialPage = viewModel.initialPage) { items.size }
@@ -126,36 +130,45 @@ fun MediaScreen(
             sizePx = IntSize(constraints.maxWidth, constraints.maxHeight),
         )
 
-        HorizontalPager(
-            state = pagerState,
-            modifier = Modifier.fillMaxSize(),
-            userScrollEnabled = !zoomed,
-            // Соседи держим в композиции: их картинки грузятся в том же размере,
-            // что и текущая, и к моменту свайпа уже лежат в памяти Coil.
-            beyondViewportPageCount = 1,
-            key = { index -> items[index].url },
-        ) { index ->
-            val item = items[index]
-            val isCurrent = index == pagerState.currentPage
-            when {
-                // Видео приближается так же, как картинка: те же жесты и тот же
-                // слой трансформации, просто под ним не `AsyncImage`, а плеер.
-                item.isVideo && isCurrent && player != null -> Zoomable(
-                    resetKey = item.url,
-                    onZoomChange = { zoom -> if (index == pagerState.currentPage) zoomed = zoom },
-                    onTap = toggleChrome,
-                ) {
-                    VideoSurface(player!!)
-                }
-                item.isVideo -> VideoPlaceholder(item)
-                else -> ZoomableImage(
-                    url = item.url,
-                    contentDescription = item.name,
+        // Направление листания зависит от настройки: вбок — как в галерее,
+        // вверх-вниз — как в TikTok. Пейджеры отличаются только осью, поэтому
+        // страница вынесена в [MediaPage] и собирается одинаково.
+        if (verticalPaging) {
+            VerticalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !zoomed,
+                beyondViewportPageCount = 1,
+                key = { index -> items[index].url },
+            ) { index ->
+                MediaPage(
+                    item = items[index],
+                    isCurrent = index == pagerState.currentPage,
+                    player = player,
                     onZoomChange = { zoom ->
                         if (index == pagerState.currentPage) zoomed = zoom
                     },
                     onTap = toggleChrome,
-                    modifier = Modifier.fillMaxSize(),
+                )
+            }
+        } else {
+            HorizontalPager(
+                state = pagerState,
+                modifier = Modifier.fillMaxSize(),
+                userScrollEnabled = !zoomed,
+                // Соседи держим в композиции: их картинки грузятся в том же размере,
+                // что и текущая, и к моменту свайпа уже лежат в памяти Coil.
+                beyondViewportPageCount = 1,
+                key = { index -> items[index].url },
+            ) { index ->
+                MediaPage(
+                    item = items[index],
+                    isCurrent = index == pagerState.currentPage,
+                    player = player,
+                    onZoomChange = { zoom ->
+                        if (index == pagerState.currentPage) zoomed = zoom
+                    },
+                    onTap = toggleChrome,
                 )
             }
         }
@@ -183,6 +196,37 @@ fun MediaScreen(
         SnackbarHost(
             hostState = snackbarHostState,
             modifier = Modifier.align(Alignment.BottomCenter).padding(bottom = 96.dp),
+        )
+    }
+}
+
+/** Страница галереи: видео с плеером, заглушка соседнего видео или картинка. */
+@OptIn(UnstableApi::class)
+@Composable
+private fun MediaPage(
+    item: Attachment,
+    isCurrent: Boolean,
+    player: ExoPlayer?,
+    onZoomChange: (Boolean) -> Unit,
+    onTap: () -> Unit,
+) {
+    when {
+        // Видео приближается так же, как картинка: те же жесты и тот же
+        // слой трансформации, просто под ним не `AsyncImage`, а плеер.
+        item.isVideo && isCurrent && player != null -> Zoomable(
+            resetKey = item.url,
+            onZoomChange = onZoomChange,
+            onTap = onTap,
+        ) {
+            VideoSurface(player)
+        }
+        item.isVideo -> VideoPlaceholder(item)
+        else -> ZoomableImage(
+            url = item.url,
+            contentDescription = item.name,
+            onZoomChange = onZoomChange,
+            onTap = onTap,
+            modifier = Modifier.fillMaxSize(),
         )
     }
 }
@@ -404,7 +448,8 @@ private fun ZoomableImage(
  *
  * @param onTap одинарный тап по медиа: просмотрщик прячет и показывает свой
  *   интерфейс. Ждёт окончания двойного тапа, поэтому срабатывает с небольшой
- *   задержкой — иначе невозможно было бы отличить его от приближения.
+ *   задержкой — иначе невозможно было бы отличить его от приближения. Протяжка
+ *   тапом не считается: свайп вдоль пейджера и поперёк него интерфейс не трогает.
  */
 @Composable
 private fun Zoomable(
@@ -416,6 +461,10 @@ private fun Zoomable(
 ) {
     var scale by remember(resetKey) { mutableFloatStateOf(1f) }
     var offset by remember(resetKey) { mutableStateOf(Offset.Zero) }
+    // Протяжка уже началась: тапом это считать нельзя. Флаг ставится на
+    // Initial-проходе, поэтому детектор тапов видит его раньше, чем обработает
+    // отпускание пальца.
+    val dragged = remember(resetKey) { mutableStateOf(false) }
 
     fun applyScale(next: Float, pan: Offset, viewSize: IntSize) {
         val clamped = next.coerceIn(MIN_SCALE, MAX_SCALE)
@@ -435,6 +484,32 @@ private fun Zoomable(
 
     Box(
         modifier = modifier
+            // Следим за протяжкой отдельно от потребления жеста: при листании
+            // вбок вертикальный свайп, а при листании вверх-вниз горизонтальный
+            // никто не потребляет, и без этой проверки детектор тапов принял бы
+            // такой свайп за тап и спрятал интерфейс.
+            .pointerInput(resetKey) {
+                awaitPointerEventScope {
+                    while (true) {
+                        val down = awaitFirstDown(
+                            requireUnconsumed = false,
+                            pass = PointerEventPass.Initial,
+                        )
+                        dragged.value = false
+                        while (true) {
+                            val event = awaitPointerEvent(PointerEventPass.Initial)
+                            val change = event.changes.firstOrNull { it.id == down.id } ?: break
+                            if (!dragged.value &&
+                                (change.position - down.position).getDistance() >
+                                viewConfiguration.touchSlop
+                            ) {
+                                dragged.value = true
+                            }
+                            if (!change.pressed) break
+                        }
+                    }
+                }
+            }
             .pointerInput(resetKey) {
                 awaitEachGesture {
                     awaitFirstDown(requireUnconsumed = false)
@@ -456,7 +531,7 @@ private fun Zoomable(
             }
             .pointerInput(resetKey) {
                 detectTapGestures(
-                    onTap = { onTap() },
+                    onTap = { if (!dragged.value) onTap() },
                     onDoubleTap = { tap ->
                         if (scale > MIN_SCALE) {
                             applyScale(MIN_SCALE, Offset.Zero, size)
