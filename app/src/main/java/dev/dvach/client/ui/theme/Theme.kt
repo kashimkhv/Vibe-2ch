@@ -7,8 +7,10 @@ import androidx.compose.material3.Shapes
 import androidx.compose.material3.darkColorScheme
 import androidx.compose.material3.lightColorScheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.remember
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
+import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.ThemeMode
 
 /**
@@ -129,10 +131,19 @@ fun rememberDarkTheme(themeMode: ThemeMode): Boolean = when (themeMode) {
 @Composable
 fun DvachTheme(
     themeMode: ThemeMode = ThemeMode.LIGHT,
+    headingFont: FontChoice = FontChoice.SYSTEM,
+    metaFont: FontChoice = FontChoice.SYSTEM,
+    bodyFont: FontChoice = FontChoice.SYSTEM,
     content: @Composable () -> Unit,
 ) {
+    // Шрифты меняются в настройках — типографику пересобираем только когда
+    // выбор действительно другой, а не на каждую рекомпозицию.
+    val typography = remember(headingFont, metaFont, bodyFont) {
+        dvachTypography(headingFont, metaFont, bodyFont)
+    }
     MaterialTheme(
         colorScheme = if (rememberDarkTheme(themeMode)) DarkColors else LightColors,
+        typography = typography,
         shapes = DvachShapes,
         content = content,
     )

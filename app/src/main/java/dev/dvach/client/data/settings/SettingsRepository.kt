@@ -47,6 +47,12 @@ data class AppSettings(
     val verticalMediaPaging: Boolean = false,
     /** Скрытый текст (спойлеры) показывается сразу, без тапа по плашке. */
     val autoRevealSpoilers: Boolean = false,
+    /** Шрифт заголовков: шапки экранов, названия досок, темы постов. */
+    val headingFont: FontChoice = FontChoice.SYSTEM,
+    /** Шрифт мета-данных: ники, даты, номера постов, счётчики, подписи. */
+    val metaFont: FontChoice = FontChoice.SYSTEM,
+    /** Шрифт самого текста постов и описаний. */
+    val bodyFont: FontChoice = FontChoice.SYSTEM,
     val baseUrl: String = "https://2ch.hk",
 )
 
@@ -73,6 +79,11 @@ class SettingsRepository @Inject constructor(
         /** Галерея листает вложения вертикально (как в TikTok). */
         val VERTICAL_MEDIA = booleanPreferencesKey("vertical_media_paging")
         val AUTO_REVEAL = booleanPreferencesKey("auto_reveal_spoilers")
+
+        /** Выбранные шрифты: три независимые роли. */
+        val FONT_HEADINGS = stringPreferencesKey("font_headings")
+        val FONT_META = stringPreferencesKey("font_meta")
+        val FONT_BODY = stringPreferencesKey("font_body")
         val BASE_URL = stringPreferencesKey("base_url")
     }
 
@@ -115,6 +126,9 @@ class SettingsRepository @Inject constructor(
                 thumbnailBackground = prefs[Keys.THUMB_BACKGROUND] ?: true,
                 verticalMediaPaging = prefs[Keys.VERTICAL_MEDIA] ?: false,
                 autoRevealSpoilers = prefs[Keys.AUTO_REVEAL] ?: false,
+                headingFont = prefs.fontChoice(Keys.FONT_HEADINGS),
+                metaFont = prefs.fontChoice(Keys.FONT_META),
+                bodyFont = prefs.fontChoice(Keys.FONT_BODY),
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
         }
@@ -150,7 +164,26 @@ class SettingsRepository @Inject constructor(
     suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.dataStore.edit {
         it[Keys.AUTO_REVEAL] = enabled
     }
+
+    suspend fun setHeadingFont(font: FontChoice) = context.dataStore.edit {
+        it[Keys.FONT_HEADINGS] = font.name
+    }
+
+    suspend fun setMetaFont(font: FontChoice) = context.dataStore.edit {
+        it[Keys.FONT_META] = font.name
+    }
+
+    suspend fun setBodyFont(font: FontChoice) = context.dataStore.edit {
+        it[Keys.FONT_BODY] = font.name
+    }
 }
+
+/**
+ * Неизвестное имя шрифта (например, из старой версии приложения) не должно
+ * ронять чтение настроек: неизвестное значение — это системный шрифт.
+ */
+internal fun Preferences.fontChoice(key: Preferences.Key<String>): FontChoice =
+    this[key]?.let { runCatching { FontChoice.valueOf(it) }.getOrNull() } ?: FontChoice.SYSTEM
 
 private fun emptyPreferences(): Preferences =
     androidx.datastore.preferences.core.emptyPreferences()

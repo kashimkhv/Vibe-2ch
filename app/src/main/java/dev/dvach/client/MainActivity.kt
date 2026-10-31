@@ -48,7 +48,12 @@ class MainActivity : ComponentActivity() {
                 )
             }
 
-            DvachTheme(themeMode = settings.themeMode) {
+            DvachTheme(
+                themeMode = settings.themeMode,
+                headingFont = settings.headingFont,
+                metaFont = settings.metaFont,
+                bodyFont = settings.bodyFont,
+            ) {
                 DvachNavHost()
             }
         }

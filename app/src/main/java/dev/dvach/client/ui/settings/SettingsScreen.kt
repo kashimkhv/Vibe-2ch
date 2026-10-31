@@ -2,6 +2,7 @@ package dev.dvach.client.ui.settings
 
 import android.os.Build
 import androidx.compose.foundation.background
+import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -48,11 +49,13 @@ import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dev.dvach.client.BuildConfig
 import dev.dvach.client.data.cache.CacheUsage
+import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.ThemeMode
 import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.HtmlText
+import dev.dvach.client.ui.theme.fontFamily
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
 import dev.dvach.client.util.formatCacheSize
@@ -73,6 +76,7 @@ fun SettingsScreen(
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var confirmClear by remember { mutableStateOf(false) }
+    var fontPicker by remember { mutableStateOf<FontRole?>(null) }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -115,6 +119,32 @@ fun SettingsScreen(
                         onClick = { viewModel.setThemeMode(ThemeMode.DARK) },
                     )
                 }
+
+                HorizontalDivider()
+                SectionTitle("Шрифты")
+
+                FontsPreview()
+
+                FontRow(
+                    title = "Заголовки",
+                    subtitle = "Шапки экранов, названия досок, темы постов",
+                    choice = settings.headingFont,
+                    onClick = { fontPicker = FontRole.HEADINGS },
+                )
+
+                FontRow(
+                    title = "Мета-данные",
+                    subtitle = "Ники, даты, номера постов, счётчики",
+                    choice = settings.metaFont,
+                    onClick = { fontPicker = FontRole.META },
+                )
+
+                FontRow(
+                    title = "Текст постов",
+                    subtitle = "Сам текст постов и описания в настройках",
+                    choice = settings.bodyFont,
+                    onClick = { fontPicker = FontRole.BODY },
+                )
 
                 HorizontalDivider()
                 SectionTitle("Контент")
@@ -261,6 +291,26 @@ fun SettingsScreen(
             },
         )
     }
+
+    fontPicker?.let { role ->
+        FontPickerDialog(
+            role = role,
+            selected = when (role) {
+                FontRole.HEADINGS -> settings.headingFont
+                FontRole.META -> settings.metaFont
+                FontRole.BODY -> settings.bodyFont
+            },
+            onSelect = { font ->
+                when (role) {
+                    FontRole.HEADINGS -> viewModel.setHeadingFont(font)
+                    FontRole.META -> viewModel.setMetaFont(font)
+                    FontRole.BODY -> viewModel.setBodyFont(font)
+                }
+                fontPicker = null
+            },
+            onDismiss = { fontPicker = null },
+        )
+    }
 }
 
 /**
@@ -297,6 +347,140 @@ internal fun cacheDetails(usage: CacheUsage): String =
 
 private fun withLimit(bytes: Long, limitBytes: Long): String =
     if (limitBytes > 0) "${formatCacheSize(bytes)} из ${formatFileSize(limitBytes)}" else formatCacheSize(bytes)
+
+/**
+ * Живой пример: три роли рядом, каждая своим шрифтом. Показывать список
+ * названий без образца бессмысленно — по названию не понять, как шрифт
+ * выглядит в русском тексте.
+ */
+@Composable
+private fun FontsPreview() {
+    Column(
+        modifier = Modifier
+            .fillMaxWidth()
+            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .padding(horizontal = 20.dp, vertical = 12.dp),
+    ) {
+        Text(
+            text = "Тред про шрифты",
+            style = MaterialTheme.typography.titleMedium,
+        )
+        Text(
+            text = "Аноним · 31.10.26 03:43 · №337842318",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+        Text(
+            text = "Съешь ещё этих мягких французских булок, да выпей чаю. " +
+                "Так видно, как шрифт держит кириллицу: 0123456789.",
+            style = MaterialTheme.typography.bodyMedium,
+            modifier = Modifier.padding(top = 6.dp),
+        )
+    }
+}
+
+/**
+ * Строка выбора шрифта для одной роли. Текущий вариант подписан своим же
+ * шрифтом — сразу видно, что выбрано, не открывая список.
+ */
+@Composable
+private fun FontRow(
+    title: String,
+    subtitle: String,
+    choice: FontChoice,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Text(
+            text = choice.title,
+            style = MaterialTheme.typography.bodyLarge.copy(fontFamily = choice.fontFamily),
+            fontWeight = FontWeight.Medium,
+            color = MaterialTheme.colorScheme.primary,
+            maxLines = 1,
+            modifier = Modifier.padding(start = 12.dp),
+        )
+    }
+}
+
+/** Варианты шрифтов с образцом: при выборе сразу применяются и диалог закрывается. */
+@Composable
+private fun FontPickerDialog(
+    role: FontRole,
+    selected: FontChoice,
+    onSelect: (FontChoice) -> Unit,
+    onDismiss: () -> Unit,
+) {
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(2.dp),
+        title = { Text("Шрифт: ${role.title.lowercase()}") },
+        text = {
+            Column(modifier = Modifier.verticalScroll(rememberScrollState())) {
+                FontChoice.entries.forEach { font ->
+                    Row(
+                        modifier = Modifier
+                            .fillMaxWidth()
+                            .selectable(
+                                selected = font == selected,
+                                role = Role.RadioButton,
+                                onClick = { onSelect(font) },
+                            )
+                            .padding(vertical = 6.dp),
+                        verticalAlignment = Alignment.CenterVertically,
+                    ) {
+                        RadioButton(selected = font == selected, onClick = null)
+                        Column(modifier = Modifier.padding(start = 12.dp)) {
+                            Text(
+                                text = font.title,
+                                style = MaterialTheme.typography.bodyLarge
+                                    .copy(fontFamily = font.fontFamily),
+                                fontWeight = FontWeight.Medium,
+                            )
+                            Text(
+                                text = FONT_SAMPLE,
+                                style = MaterialTheme.typography.bodySmall
+                                    .copy(fontFamily = font.fontFamily),
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                            Text(
+                                text = font.note,
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            )
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(onClick = onDismiss) { Text("Закрыть") }
+        },
+    )
+}
+
+/** Роль шрифта: заголовки, мета-данные или текст постов. */
+private enum class FontRole(val title: String) {
+    HEADINGS("Заголовки"),
+    META("Мета-данные"),
+    BODY("Текст постов"),
+}
+
+/** Образец для списка шрифтов: кириллица, цифры и знаки препинания. */
+private const val FONT_SAMPLE = "Съешь ещё этих мягких французских булок — 0123456789"
 
 /**
  * Заголовок раздела — серая полоса во всю ширину, как подзаголовки списков

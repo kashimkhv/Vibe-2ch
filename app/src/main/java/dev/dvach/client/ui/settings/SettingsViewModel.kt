@@ -12,6 +12,7 @@ import kotlinx.coroutines.launch
 import dev.dvach.client.data.cache.CacheManager
 import dev.dvach.client.data.cache.CacheUsage
 import dev.dvach.client.data.settings.AppSettings
+import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.data.settings.ThemeMode
 import javax.inject.Inject
@@ -73,5 +74,17 @@ class SettingsViewModel @Inject constructor(
 
     fun setAutoRevealSpoilers(enabled: Boolean) = viewModelScope.launch {
         repository.setAutoRevealSpoilers(enabled)
+    }
+
+    fun setHeadingFont(font: FontChoice) = viewModelScope.launch {
+        repository.setHeadingFont(font)
+    }
+
+    fun setMetaFont(font: FontChoice) = viewModelScope.launch {
+        repository.setMetaFont(font)
+    }
+
+    fun setBodyFont(font: FontChoice) = viewModelScope.launch {
+        repository.setBodyFont(font)
     }
 }
