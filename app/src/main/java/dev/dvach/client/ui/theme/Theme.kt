@@ -12,6 +12,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.unit.dp
 import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.ThemeMode
+import dev.dvach.client.util.FONT_SCALE_DEFAULT
 
 /**
  * Палитра старого Material Design (2016–2018): плоские белые строки,
@@ -134,12 +135,29 @@ fun DvachTheme(
     headingFont: FontChoice = FontChoice.SYSTEM,
     metaFont: FontChoice = FontChoice.SYSTEM,
     bodyFont: FontChoice = FontChoice.SYSTEM,
+    headingScalePercent: Int = FONT_SCALE_DEFAULT,
+    metaScalePercent: Int = FONT_SCALE_DEFAULT,
+    bodyScalePercent: Int = FONT_SCALE_DEFAULT,
     content: @Composable () -> Unit,
 ) {
-    // Шрифты меняются в настройках — типографику пересобираем только когда
-    // выбор действительно другой, а не на каждую рекомпозицию.
-    val typography = remember(headingFont, metaFont, bodyFont) {
-        dvachTypography(headingFont, metaFont, bodyFont)
+    // Шрифты и их размеры меняются в настройках — типографику пересобираем
+    // только когда выбор действительно другой, а не на каждую рекомпозицию.
+    val typography = remember(
+        headingFont,
+        metaFont,
+        bodyFont,
+        headingScalePercent,
+        metaScalePercent,
+        bodyScalePercent,
+    ) {
+        dvachTypography(
+            heading = headingFont,
+            meta = metaFont,
+            body = bodyFont,
+            headingScalePercent = headingScalePercent,
+            metaScalePercent = metaScalePercent,
+            bodyScalePercent = bodyScalePercent,
+        )
     }
     MaterialTheme(
         colorScheme = if (rememberDarkTheme(themeMode)) DarkColors else LightColors,

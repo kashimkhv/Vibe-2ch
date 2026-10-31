@@ -56,6 +56,9 @@ import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.ui.theme.fontFamily
+import dev.dvach.client.util.FONT_SCALE_MAX
+import dev.dvach.client.util.FONT_SCALE_MIN
+import dev.dvach.client.util.FONT_SCALE_STEP
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
 import dev.dvach.client.util.formatCacheSize
@@ -132,6 +135,13 @@ fun SettingsScreen(
                     onClick = { fontPicker = FontRole.HEADINGS },
                 )
 
+                TextScaleRow(
+                    title = "Размер заголовков",
+                    subtitle = "Кегль заголовков в процентах от обычного",
+                    percent = settings.headingScalePercent,
+                    onChange = viewModel::setHeadingScale,
+                )
+
                 FontRow(
                     title = "Мета-данные",
                     subtitle = "Ники, даты, номера постов, счётчики",
@@ -139,11 +149,25 @@ fun SettingsScreen(
                     onClick = { fontPicker = FontRole.META },
                 )
 
+                TextScaleRow(
+                    title = "Размер мета-данных",
+                    subtitle = "Кегль ников, дат и счётчиков в процентах",
+                    percent = settings.metaScalePercent,
+                    onChange = viewModel::setMetaScale,
+                )
+
                 FontRow(
                     title = "Текст постов",
                     subtitle = "Сам текст постов и описания в настройках",
                     choice = settings.bodyFont,
                     onClick = { fontPicker = FontRole.BODY },
+                )
+
+                TextScaleRow(
+                    title = "Размер текста постов",
+                    subtitle = "Кегль текста постов в процентах от обычного",
+                    percent = settings.bodyScalePercent,
+                    onChange = viewModel::setBodyScale,
                 )
 
                 HorizontalDivider()
@@ -541,6 +565,49 @@ private fun ThumbnailScaleRow(
     enabled: Boolean,
     onChange: (Int) -> Unit,
 ) {
+    ScaleSliderRow(
+        title = title,
+        subtitle = subtitle,
+        percent = percent,
+        range = THUMBNAIL_SCALE_MIN..THUMBNAIL_SCALE_MAX,
+        step = THUMBNAIL_SCALE_STEP,
+        enabled = enabled,
+        onChange = onChange,
+    )
+}
+
+/** Размер шрифта одной роли: проценты от обычного кегля. */
+@Composable
+private fun TextScaleRow(
+    title: String,
+    subtitle: String,
+    percent: Int,
+    onChange: (Int) -> Unit,
+) {
+    ScaleSliderRow(
+        title = title,
+        subtitle = subtitle,
+        percent = percent,
+        range = FONT_SCALE_MIN..FONT_SCALE_MAX,
+        step = FONT_SCALE_STEP,
+        onChange = onChange,
+    )
+}
+
+/**
+ * Общий вид ползунка размера: подпись, текущий процент и дорожка. Размер
+ * превью и размер шрифта отличаются только диапазоном и подписями.
+ */
+@Composable
+private fun ScaleSliderRow(
+    title: String,
+    subtitle: String,
+    percent: Int,
+    range: IntRange,
+    step: Int,
+    enabled: Boolean = true,
+    onChange: (Int) -> Unit,
+) {
     Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
         Row(verticalAlignment = Alignment.CenterVertically) {
             Text(
@@ -559,15 +626,15 @@ private fun ThumbnailScaleRow(
             )
         }
         Text(
-            text = "$subtitle. От $THUMBNAIL_SCALE_MIN до $THUMBNAIL_SCALE_MAX %",
+            text = "$subtitle. От ${range.first} до ${range.last} %",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Slider(
             value = percent.toFloat(),
             onValueChange = { onChange(it.roundToInt()) },
-            valueRange = THUMBNAIL_SCALE_MIN.toFloat()..THUMBNAIL_SCALE_MAX.toFloat(),
-            steps = (THUMBNAIL_SCALE_MAX - THUMBNAIL_SCALE_MIN) / THUMBNAIL_SCALE_STEP - 1,
+            valueRange = range.first.toFloat()..range.last.toFloat(),
+            steps = (range.last - range.first) / step - 1,
             enabled = enabled,
             modifier = Modifier.padding(top = 4.dp),
         )

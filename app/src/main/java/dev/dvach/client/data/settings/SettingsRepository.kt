@@ -13,9 +13,11 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import dev.dvach.client.util.FONT_SCALE_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
+import dev.dvach.client.util.clampFontScale
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -53,6 +55,12 @@ data class AppSettings(
     val metaFont: FontChoice = FontChoice.SYSTEM,
     /** Шрифт самого текста постов и описаний. */
     val bodyFont: FontChoice = FontChoice.SYSTEM,
+    /** Размер заголовков в процентах от обычного. */
+    val headingScalePercent: Int = FONT_SCALE_DEFAULT,
+    /** Размер мета-данных в процентах от обычного. */
+    val metaScalePercent: Int = FONT_SCALE_DEFAULT,
+    /** Размер текста постов в процентах от обычного. */
+    val bodyScalePercent: Int = FONT_SCALE_DEFAULT,
     val baseUrl: String = "https://2ch.hk",
 )
 
@@ -84,6 +92,11 @@ class SettingsRepository @Inject constructor(
         val FONT_HEADINGS = stringPreferencesKey("font_headings")
         val FONT_META = stringPreferencesKey("font_meta")
         val FONT_BODY = stringPreferencesKey("font_body")
+
+        /** Размеры шрифтов в процентах — по одному на каждую роль. */
+        val FONT_SCALE_HEADINGS = intPreferencesKey("font_scale_headings")
+        val FONT_SCALE_META = intPreferencesKey("font_scale_meta")
+        val FONT_SCALE_BODY = intPreferencesKey("font_scale_body")
         val BASE_URL = stringPreferencesKey("base_url")
     }
 
@@ -129,6 +142,15 @@ class SettingsRepository @Inject constructor(
                 headingFont = prefs.fontChoice(Keys.FONT_HEADINGS),
                 metaFont = prefs.fontChoice(Keys.FONT_META),
                 bodyFont = prefs.fontChoice(Keys.FONT_BODY),
+                headingScalePercent = clampFontScale(
+                    prefs[Keys.FONT_SCALE_HEADINGS] ?: FONT_SCALE_DEFAULT,
+                ),
+                metaScalePercent = clampFontScale(
+                    prefs[Keys.FONT_SCALE_META] ?: FONT_SCALE_DEFAULT,
+                ),
+                bodyScalePercent = clampFontScale(
+                    prefs[Keys.FONT_SCALE_BODY] ?: FONT_SCALE_DEFAULT,
+                ),
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
         }
@@ -175,6 +197,18 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setBodyFont(font: FontChoice) = context.dataStore.edit {
         it[Keys.FONT_BODY] = font.name
+    }
+
+    suspend fun setHeadingScale(percent: Int) = context.dataStore.edit {
+        it[Keys.FONT_SCALE_HEADINGS] = clampFontScale(percent)
+    }
+
+    suspend fun setMetaScale(percent: Int) = context.dataStore.edit {
+        it[Keys.FONT_SCALE_META] = clampFontScale(percent)
+    }
+
+    suspend fun setBodyScale(percent: Int) = context.dataStore.edit {
+        it[Keys.FONT_SCALE_BODY] = clampFontScale(percent)
     }
 }
 

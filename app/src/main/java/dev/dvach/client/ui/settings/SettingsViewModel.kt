@@ -87,4 +87,16 @@ class SettingsViewModel @Inject constructor(
     fun setBodyFont(font: FontChoice) = viewModelScope.launch {
         repository.setBodyFont(font)
     }
+
+    fun setHeadingScale(percent: Int) = viewModelScope.launch {
+        repository.setHeadingScale(percent)
+    }
+
+    fun setMetaScale(percent: Int) = viewModelScope.launch {
+        repository.setMetaScale(percent)
+    }
+
+    fun setBodyScale(percent: Int) = viewModelScope.launch {
+        repository.setBodyScale(percent)
+    }
 }

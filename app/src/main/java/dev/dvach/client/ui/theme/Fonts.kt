@@ -1,11 +1,15 @@
 package dev.dvach.client.ui.theme
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.Font
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.unit.TextUnit
 import dev.dvach.client.R
 import dev.dvach.client.data.settings.FontChoice
+import dev.dvach.client.util.FONT_SCALE_DEFAULT
+import dev.dvach.client.util.clampFontScale
 
 /**
  * Шрифты из Google Fonts, у которых есть полноценная кириллица, а не только
@@ -100,26 +104,52 @@ fun dvachTypography(
     heading: FontChoice,
     meta: FontChoice,
     body: FontChoice,
+    headingScalePercent: Int = FONT_SCALE_DEFAULT,
+    metaScalePercent: Int = FONT_SCALE_DEFAULT,
+    bodyScalePercent: Int = FONT_SCALE_DEFAULT,
 ): Typography {
     val base = Typography()
     val headingFamily = heading.fontFamily
     val metaFamily = meta.fontFamily
     val bodyFamily = body.fontFamily
+    val headingScale = clampFontScale(headingScalePercent)
+    val metaScale = clampFontScale(metaScalePercent)
+    val bodyScale = clampFontScale(bodyScalePercent)
     return Typography(
-        displayLarge = base.displayLarge.copy(fontFamily = headingFamily),
-        displayMedium = base.displayMedium.copy(fontFamily = headingFamily),
-        displaySmall = base.displaySmall.copy(fontFamily = headingFamily),
-        headlineLarge = base.headlineLarge.copy(fontFamily = headingFamily),
-        headlineMedium = base.headlineMedium.copy(fontFamily = headingFamily),
-        headlineSmall = base.headlineSmall.copy(fontFamily = headingFamily),
-        titleLarge = base.titleLarge.copy(fontFamily = headingFamily),
-        titleMedium = base.titleMedium.copy(fontFamily = headingFamily),
-        titleSmall = base.titleSmall.copy(fontFamily = headingFamily),
-        labelLarge = base.labelLarge.copy(fontFamily = metaFamily),
-        labelMedium = base.labelMedium.copy(fontFamily = metaFamily),
-        labelSmall = base.labelSmall.copy(fontFamily = metaFamily),
-        bodyLarge = base.bodyLarge.copy(fontFamily = bodyFamily),
-        bodyMedium = base.bodyMedium.copy(fontFamily = bodyFamily),
-        bodySmall = base.bodySmall.copy(fontFamily = bodyFamily),
+        displayLarge = base.displayLarge.copy(fontFamily = headingFamily).scaled(headingScale),
+        displayMedium = base.displayMedium.copy(fontFamily = headingFamily).scaled(headingScale),
+        displaySmall = base.displaySmall.copy(fontFamily = headingFamily).scaled(headingScale),
+        headlineLarge = base.headlineLarge.copy(fontFamily = headingFamily).scaled(headingScale),
+        headlineMedium = base.headlineMedium.copy(fontFamily = headingFamily).scaled(headingScale),
+        headlineSmall = base.headlineSmall.copy(fontFamily = headingFamily).scaled(headingScale),
+        titleLarge = base.titleLarge.copy(fontFamily = headingFamily).scaled(headingScale),
+        titleMedium = base.titleMedium.copy(fontFamily = headingFamily).scaled(headingScale),
+        titleSmall = base.titleSmall.copy(fontFamily = headingFamily).scaled(headingScale),
+        labelLarge = base.labelLarge.copy(fontFamily = metaFamily).scaled(metaScale),
+        labelMedium = base.labelMedium.copy(fontFamily = metaFamily).scaled(metaScale),
+        labelSmall = base.labelSmall.copy(fontFamily = metaFamily).scaled(metaScale),
+        bodyLarge = base.bodyLarge.copy(fontFamily = bodyFamily).scaled(bodyScale),
+        bodyMedium = base.bodyMedium.copy(fontFamily = bodyFamily).scaled(bodyScale),
+        bodySmall = base.bodySmall.copy(fontFamily = bodyFamily).scaled(bodyScale),
     )
 }
+
+/**
+ * Масштабирует размер и межстрочный интервал стиля. Интервал растёт вместе
+ * с кеглем, иначе крупный текст слипается, а мелкий «разъезжается».
+ *
+ * Отступы между буквами тоже в sp, поэтому тянутся следом — иначе после
+ * увеличения подписи выглядели бы собранными в кучу.
+ */
+internal fun TextStyle.scaled(percent: Int): TextStyle {
+    if (percent == FONT_SCALE_DEFAULT) return this
+    val factor = percent / 100f
+    return copy(
+        fontSize = fontSize.scaledBy(factor),
+        lineHeight = lineHeight.scaledBy(factor),
+        letterSpacing = letterSpacing.scaledBy(factor),
+    )
+}
+
+private fun TextUnit.scaledBy(factor: Float): TextUnit =
+    if (this == TextUnit.Unspecified) this else this * factor
