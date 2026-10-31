@@ -12,10 +12,12 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.onStart
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
 import java.io.IOException
+import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
@@ -50,7 +52,30 @@ class SettingsRepository @Inject constructor(
         val BASE_URL = stringPreferencesKey("base_url")
     }
 
+    /** Миграция запускается один раз на процесс, сколько бы экранов ни читали настройки. */
+    private val listScaleMigrated = AtomicBoolean(false)
+
+    /**
+     * Старые версии хранили один общий размер превью. Переносим его в отдельный
+     * ключ списка ровно один раз: раньше список читал общий ключ как запасной,
+     * и из-за этого его ползунок двигался вместе с тредовым.
+     */
+    private suspend fun migrateListThumbnailScale() {
+        if (!listScaleMigrated.compareAndSet(false, true)) return
+        // Ошибка миграции не должна ронять поток настроек: останется значение
+        // по умолчанию, как будто ключа ещё нет.
+        runCatching {
+            context.dataStore.edit { prefs ->
+                if (Keys.LIST_THUMB_SCALE !in prefs) {
+                    prefs[Keys.LIST_THUMB_SCALE] =
+                        prefs[Keys.THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT
+                }
+            }
+        }
+    }
+
     val settings: Flow<AppSettings> = context.dataStore.data
+        .onStart { migrateListThumbnailScale() }
         .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
         .map { prefs ->
             AppSettings(
@@ -60,9 +85,7 @@ class SettingsRepository @Inject constructor(
                 thumbnailScalePercent = (prefs[Keys.THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT)
                     .coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
                 listThumbnailScalePercent = (
-                    prefs[Keys.LIST_THUMB_SCALE]
-                        ?: prefs[Keys.THUMB_SCALE]
-                        ?: THUMBNAIL_SCALE_DEFAULT
+                    prefs[Keys.LIST_THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT
                     ).coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
                 autoRevealSpoilers = prefs[Keys.AUTO_REVEAL] ?: false,
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",

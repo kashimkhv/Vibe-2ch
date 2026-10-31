@@ -92,6 +92,11 @@ fun MediaScreen(
     val pagerState = rememberPagerState(initialPage = viewModel.initialPage) { items.size }
     // Пока картинка приближена, свайп панорамирует её, а не листает страницы.
     var zoomed by remember { mutableStateOf(false) }
+    // Одинарный тап по медиа прячет верхнюю панель и контролы видео,
+    // повторный — возвращает. Так экран можно освободить от интерфейса,
+    // не выходя из галереи.
+    var chromeVisible by remember { mutableStateOf(true) }
+    val toggleChrome: () -> Unit = { chromeVisible = !chromeVisible }
 
     LaunchedEffect(pagerState) {
         snapshotFlow { pagerState.currentPage }.collect { viewModel.onPageChanged(it) }
@@ -138,6 +143,7 @@ fun MediaScreen(
                 item.isVideo && isCurrent && player != null -> Zoomable(
                     resetKey = item.url,
                     onZoomChange = { zoom -> if (index == pagerState.currentPage) zoomed = zoom },
+                    onTap = toggleChrome,
                 ) {
                     VideoSurface(player!!)
                 }
@@ -148,23 +154,26 @@ fun MediaScreen(
                     onZoomChange = { zoom ->
                         if (index == pagerState.currentPage) zoomed = zoom
                     },
+                    onTap = toggleChrome,
                     modifier = Modifier.fillMaxSize(),
                 )
             }
         }
 
-        OverlayBar(
-            title = current.name,
-            counter = if (items.size > 1) "${page + 1} / ${items.size}" else null,
-            downloading = downloadState is DownloadState.InProgress,
-            onBack = onBack,
-            onDownload = viewModel::download,
-            modifier = Modifier.align(Alignment.TopCenter),
-        )
+        if (chromeVisible) {
+            OverlayBar(
+                title = current.name,
+                counter = if (items.size > 1) "${page + 1} / ${items.size}" else null,
+                downloading = downloadState is DownloadState.InProgress,
+                onBack = onBack,
+                onDownload = viewModel::download,
+                modifier = Modifier.align(Alignment.TopCenter),
+            )
+        }
 
         // У PlayerView отключён встроенный контроллер: он перехватывает касания
         // и не даёт листать вложения. Вместо него — свои кнопки и перемотка.
-        if (current.isVideo && player != null) {
+        if (chromeVisible && current.isVideo && player != null) {
             VideoControls(
                 player = player!!,
                 modifier = Modifier.align(Alignment.BottomCenter),
@@ -358,9 +367,10 @@ private fun ZoomableImage(
     url: String,
     contentDescription: String,
     onZoomChange: (Boolean) -> Unit,
+    onTap: () -> Unit,
     modifier: Modifier = Modifier,
 ) {
-    Zoomable(resetKey = url, onZoomChange = onZoomChange, modifier = modifier) {
+    Zoomable(resetKey = url, onZoomChange = onZoomChange, onTap = onTap, modifier = modifier) {
         SubcomposeAsyncImage(
             model = url,
             contentDescription = contentDescription,
@@ -391,12 +401,17 @@ private fun ZoomableImage(
  * Жест устроен так, чтобы не мешать листанию: при 100 % один палец никого не
  * перехватывает, и свайп достаётся пейджеру. Взяли двумя пальцами — забираем
  * жест себе, а пейджер на это время выключается через [onZoomChange].
+ *
+ * @param onTap одинарный тап по медиа: просмотрщик прячет и показывает свой
+ *   интерфейс. Ждёт окончания двойного тапа, поэтому срабатывает с небольшой
+ *   задержкой — иначе невозможно было бы отличить его от приближения.
  */
 @Composable
 private fun Zoomable(
     resetKey: Any,
     onZoomChange: (Boolean) -> Unit,
     modifier: Modifier = Modifier,
+    onTap: () -> Unit = {},
     content: @Composable () -> Unit,
 ) {
     var scale by remember(resetKey) { mutableFloatStateOf(1f) }
@@ -441,6 +456,7 @@ private fun Zoomable(
             }
             .pointerInput(resetKey) {
                 detectTapGestures(
+                    onTap = { onTap() },
                     onDoubleTap = { tap ->
                         if (scale > MIN_SCALE) {
                             applyScale(MIN_SCALE, Offset.Zero, size)

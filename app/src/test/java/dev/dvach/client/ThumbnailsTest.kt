@@ -5,8 +5,8 @@ import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
-import dev.dvach.client.util.fitThumbnailSide
 import dev.dvach.client.util.scaleThumbnail
+import dev.dvach.client.util.thumbnailRowGap
 import org.junit.Assert.assertEquals
 import org.junit.Test
 
@@ -51,31 +51,29 @@ class ThumbnailsTest {
     }
 
     @Test
-    fun `four thumbs fit one row on a phone card`() {
-        // Карточка на типичном телефоне: 393 dp экрана минус 12 dp полей с каждой
-        // стороны — 369 dp. Четыре превью по 90 dp и три промежутка по 4 dp
-        // занимают 372 dp и на волосок не влезают, поэтому сторона — 89 dp;
-        // на чуть более широком экране (400 dp) размер остаётся прежним.
-        assertEquals(89, fitThumbnailSide(sideDp = 90, availableDp = 369, visible = 4))
-        assertEquals(90, fitThumbnailSide(sideDp = 90, availableDp = 400, visible = 4))
+    fun `four thumbs squeeze the gap to stay in one row`() {
+        // Карточка на телефоне: 393 dp экрана минус 12 dp полей с каждой стороны —
+        // 369 dp. Четыре превью по 90 dp и обычные 4 dp между ними занимают
+        // 372 dp, поэтому зазор ужимается до (369 - 360) / 3 = 3 dp.
+        assertEquals(3, thumbnailRowGap(sideDp = 90, availableDp = 369, visible = 4))
+        // На широком экране ничего ужимать не нужно.
+        assertEquals(4, thumbnailRowGap(sideDp = 90, availableDp = 400, visible = 4))
     }
 
     @Test
-    fun `large thumbs shrink to fit the row instead of wrapping`() {
-        // При 200 % превью в списке — 150 dp, четыре штуки не влезают.
-        // Сторона ужимается до (369 - 3 * 4) / 4 = 89 dp: одна строка, без переноса.
-        assertEquals(89, fitThumbnailSide(sideDp = 150, availableDp = 369, visible = 4))
-        // Три превью: (369 - 2 * 4) / 3 = 120 dp.
-        assertEquals(120, fitThumbnailSide(sideDp = 150, availableDp = 369, visible = 3))
+    fun `large thumbs keep their size and wrap instead of shrinking`() {
+        // При 200 % превью в списке — 150 dp: четыре штуки не влезают даже без
+        // зазора. Размер не трогаем (он задан настройкой), ряд переносится,
+        // а промежуток остаётся обычным.
+        assertEquals(4, thumbnailRowGap(sideDp = 150, availableDp = 369, visible = 4))
     }
 
     @Test
-    fun `narrow card and empty list do not break the size`() {
-        // Одна картинка на узкой карточке ужимается до её ширины, а не вылезает.
-        assertEquals(90, fitThumbnailSide(sideDp = 150, availableDp = 90, visible = 1))
-        // Нечего показывать — возвращаем исходный размер, а не мусор.
-        assertEquals(150, fitThumbnailSide(sideDp = 150, availableDp = 369, visible = 0))
-        // Нулевая ширина (до первого замера) тоже не должна давать 0 dp.
-        assertEquals(150, fitThumbnailSide(sideDp = 150, availableDp = 0, visible = 4))
+    fun `gap stays normal for one thumb and empty card`() {
+        // Одна картинка: ужимать нечего, зазор обычный.
+        assertEquals(4, thumbnailRowGap(sideDp = 150, availableDp = 369, visible = 1))
+        // Нулевая ширина (до первого замера) не должна давать отрицательный зазор.
+        assertEquals(4, thumbnailRowGap(sideDp = 90, availableDp = 0, visible = 4))
+        assertEquals(4, thumbnailRowGap(sideDp = 90, availableDp = 369, visible = 0))
     }
 }

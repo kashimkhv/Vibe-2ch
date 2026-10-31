@@ -54,6 +54,9 @@ fun DvachNavHost(
                 onThreadClick = { boardId, boardName, threadNum ->
                     navController.navigate(ThreadRoute(boardId, boardName, threadNum))
                 },
+                onOpenMedia = { file ->
+                    navController.navigate(MediaRoute(file.url, file.name, file.isVideo))
+                },
             )
         }
 

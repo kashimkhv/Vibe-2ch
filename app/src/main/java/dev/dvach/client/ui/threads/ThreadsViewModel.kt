@@ -12,8 +12,10 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import dev.dvach.client.data.ChanRepository
 import dev.dvach.client.data.settings.SettingsRepository
+import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.domain.model.ThreadsPage
+import dev.dvach.client.ui.media.MediaPlaylist
 import dev.dvach.client.ui.navigation.ThreadsRoute
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import javax.inject.Inject
@@ -41,6 +43,7 @@ data class ThreadsUiState(
 class ThreadsViewModel @Inject constructor(
     private val repository: ChanRepository,
     private val settings: SettingsRepository,
+    private val mediaPlaylist: MediaPlaylist,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -131,6 +134,25 @@ class ThreadsViewModel @Inject constructor(
     }
 
     fun refresh() = loadFirstPage()
+
+    /**
+     * Просмотрщик из списка тредов: листать предлагаем только вложения
+     * ОП-поста — тот пост, чьи превью и нажали.
+     */
+    fun prepareMedia(thread: ThreadSummary, file: Attachment) {
+        val files = thread.attachments
+        val index = files.indexOfFirst { it.url == file.url && it.name == file.name }
+        if (index >= 0) {
+            mediaPlaylist.set(files, index)
+        } else {
+            mediaPlaylist.set(listOf(file), 0)
+        }
+    }
+
+    /** Возврат из галереи: «долистали до файла» здесь ни на что не влияет. */
+    fun discardMediaSwipe() {
+        mediaPlaylist.consumeSwiped()
+    }
 }
 
 /**

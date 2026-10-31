@@ -168,6 +168,8 @@ private fun GifBadge(side: Dp, modifier: Modifier = Modifier) {
  *
  * @param maxVisible сколько превью показать; остальные сворачиваются в плашку
  *   «+N» на последнем — так ОП-пост в списке тредов не растягивает карточку.
+ * @param gap промежуток между ячейками; в списке тредов он ужимается, чтобы
+ *   четыре превью влезли в строку при обычном масштабе (см. `thumbnailRowGap`).
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -177,13 +179,14 @@ fun AttachmentThumbsRow(
     onClick: (Attachment) -> Unit,
     modifier: Modifier = Modifier,
     maxVisible: Int = Int.MAX_VALUE,
+    gap: Dp = 4.dp,
 ) {
     if (files.isEmpty()) return
     val visible = files.take(maxVisible)
     val hidden = files.size - visible.size
     FlowRow(
         modifier = modifier,
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(gap),
         verticalArrangement = Arrangement.spacedBy(4.dp),
     ) {
         visible.forEachIndexed { index, file ->

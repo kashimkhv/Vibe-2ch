@@ -45,9 +45,12 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
@@ -63,20 +66,26 @@ import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatTimestamp
 import dev.dvach.client.util.postsLabel
 import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
-import dev.dvach.client.util.fitThumbnailSide
 import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.stripHtml
+import dev.dvach.client.util.thumbnailRowGap
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
 @Composable
 fun ThreadsScreen(
     onBack: () -> Unit,
     onThreadClick: (boardId: String, boardName: String, threadNum: Int) -> Unit,
+    onOpenMedia: (Attachment) -> Unit = {},
     viewModel: ThreadsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
+
+    // Плейлист просмотрщика общий на приложение. Возврат из галереи в список
+    // не должен влиять на тред, который откроют позже: забываем, до чего
+    // долистали, — прокрутка к «последнему файлу» нужна только в треде.
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) { viewModel.discardMediaSwipe() }
 
     // Обновление — это новая лента с первой страницы, поэтому сначала наверх:
     // иначе список остался бы на прежней позиции и сразу догрузил бы всё обратно.
@@ -161,6 +170,10 @@ fun ThreadsScreen(
                                 onClick = {
                                     onThreadClick(thread.boardId, state.boardName, thread.num)
                                 },
+                                onOpenAttachment = { file ->
+                                    viewModel.prepareMedia(thread, file)
+                                    onOpenMedia(file)
+                                },
                             )
                         }
                         item(key = "threads-footer") {
@@ -232,6 +245,7 @@ private fun ThreadCard(
     listThumbnailScalePercent: Int,
     autoRevealSpoilers: Boolean,
     onClick: () -> Unit,
+    onOpenAttachment: (Attachment) -> Unit,
 ) {
     val plainComment = remember(thread.commentHtml) { stripHtml(thread.commentHtml) }
     val subject = thread.subject.trim()
@@ -295,23 +309,24 @@ private fun ThreadCard(
             // Превью ОП-поста — тот же компонент, что и в треде: квадратные ячейки,
             // картинка заполняет их целиком. В списке показываем не больше четырёх
             // (остальные в плашке «+N»), иначе карточка занимает весь экран.
-            // Четыре ячейки в строку не влезают при крупном масштабе превью,
-            // поэтому при нехватке места ячейка ужимается до ширины карточки.
+            // Размер ячейки один на все карточки: его задаёт настройка, а
+            // вписывается ряд за счёт промежутка (крупный масштаб переносит
+            // превью на вторую строку, но размер остаётся прежним).
             if (thread.attachments.isNotEmpty()) {
                 BoxWithConstraints {
-                    val configured =
+                    val side =
                         scaleThumbnail(THUMBNAIL_LIST_BASE_SIDE_DP, listThumbnailScalePercent)
-                    val visible = minOf(thread.attachments.size, THUMBNAILS_IN_LIST)
-                    val side = fitThumbnailSide(
-                        sideDp = configured,
+                    val gap = thumbnailRowGap(
+                        sideDp = side,
                         availableDp = maxWidth.value.toInt(),
-                        visible = visible,
+                        visible = THUMBNAILS_IN_LIST,
                     )
                     AttachmentThumbsRow(
                         files = thread.attachments,
                         side = side.dp,
                         maxVisible = THUMBNAILS_IN_LIST,
-                        onClick = { onClick() },
+                        gap = gap.dp,
+                        onClick = onOpenAttachment,
                     )
                 }
             }

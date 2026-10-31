@@ -34,19 +34,27 @@ fun scaleThumbnail(baseDp: Int, percent: Int): Int {
 }
 
 /**
- * Сторона превью с учётом ширины карточки списка тредов.
+ * Промежуток между превью в ряду списка тредов.
  *
- * При крупном масштабе превью четыре картинки в строку не влезают (4 × 150 dp
- * при 200 %), и FlowRow переносит лишние на вторую строку — карточка с
- * картинками вырастает вдвое, а список от этого «дёргается». Поэтому при
- * нехватке места сторона ужимается ровно до ширины ряда, чтобы все превью
- * остались в одной строке; при обычном масштабе возвращается [sideDp].
+ * Сторона ячейки в ленте одна на все карточки — иначе настройка «размер превью
+ * в списке» срабатывала бы по-разному: у треда с четырьмя картинками ячейка
+ * ужималась бы, а у треда с одной оставалась прежней. Поэтому при нехватке
+ * места ужимается не превью, а промежуток: четыре ячейки по 90 dp при 120 %
+ * занимают 372 dp, а в карточку влезает 368 — зазор 2 dp вместо 4 dp
+ * выравнивает ряд. Если не помогает и это (крупный масштаб), превью
+ * переносятся на вторую строку, но остаются одного размера — как задано
+ * в настройках.
  *
  * @param availableDp ширина, в которую должны влезть [visible] превью.
- * @param visible сколько превью показываем в ряду (до четырёх).
+ * @param maxGapDp обычный промежуток, если места хватает.
  */
-fun fitThumbnailSide(sideDp: Int, availableDp: Int, visible: Int, gapDp: Int = 4): Int {
-    if (visible <= 0 || availableDp <= 0) return sideDp
-    val fit = (availableDp - gapDp * (visible - 1)) / visible
-    return if (fit in 1 until sideDp) fit else sideDp
+fun thumbnailRowGap(
+    sideDp: Int,
+    availableDp: Int,
+    visible: Int,
+    maxGapDp: Int = 4,
+): Int {
+    if (visible <= 1 || availableDp <= 0) return maxGapDp
+    val fit = (availableDp - sideDp * visible) / (visible - 1)
+    return if (fit in 0 until maxGapDp) fit else maxGapDp
 }
