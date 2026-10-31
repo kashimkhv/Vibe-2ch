@@ -167,6 +167,7 @@ fun ThreadsScreen(
                                 thread = thread,
                                 listThumbnailScalePercent = state.listThumbnailScalePercent,
                                 autoRevealSpoilers = state.autoRevealSpoilers,
+                                cropThumbnails = state.cropThumbnails,
                                 onClick = {
                                     onThreadClick(thread.boardId, state.boardName, thread.num)
                                 },
@@ -244,6 +245,7 @@ private fun ThreadCard(
     thread: ThreadSummary,
     listThumbnailScalePercent: Int,
     autoRevealSpoilers: Boolean,
+    cropThumbnails: Boolean,
     onClick: () -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
 ) {
@@ -307,11 +309,12 @@ private fun ThreadCard(
             }
 
             // Превью ОП-поста — тот же компонент, что и в треде: квадратные ячейки,
-            // картинка заполняет их целиком. В списке показываем не больше четырёх
-            // (остальные в плашке «+N»), иначе карточка занимает весь экран.
-            // Размер ячейки один на все карточки: его задаёт настройка, а
-            // вписывается ряд за счёт промежутка (крупный масштаб переносит
-            // превью на вторую строку, но размер остаётся прежним).
+            // картинка заполняет их целиком или вписывается — по настройке.
+            // В списке показываем не больше четырёх (остальные в плашке «+N»),
+            // иначе карточка занимает весь экран. Размер ячейки один на все
+            // карточки: его задаёт настройка, а вписывается ряд за счёт
+            // промежутка (крупный масштаб переносит превью на вторую строку,
+            // но размер остаётся прежним).
             if (thread.attachments.isNotEmpty()) {
                 BoxWithConstraints {
                     val side =
@@ -326,6 +329,7 @@ private fun ThreadCard(
                         side = side.dp,
                         maxVisible = THUMBNAILS_IN_LIST,
                         gap = gap.dp,
+                        crop = cropThumbnails,
                         onClick = onOpenAttachment,
                     )
                 }

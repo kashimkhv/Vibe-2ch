@@ -361,6 +361,7 @@ fun ThreadScreen(
                                 onToggleBookmark = toggleBookmark,
                                 showThumbnails = settings.showThumbnails,
                                 thumbnailScalePercent = settings.thumbnailScalePercent,
+                                cropThumbnails = settings.cropThumbnails,
                                 autoRevealSpoilers = settings.autoRevealSpoilers,
                                 depth = node.depth,
                                 onPostClick = { ref, refThread ->

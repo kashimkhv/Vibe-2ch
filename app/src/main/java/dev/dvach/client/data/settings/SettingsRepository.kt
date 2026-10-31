@@ -30,6 +30,11 @@ data class AppSettings(
     val thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
     /** Размер превью ОП-поста в списке тредов — отдельный ползунок. */
     val listThumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
+    /**
+     * Превью заполняет квадрат с обрезкой краёв. Выключено — картинка
+     * вписывается в квадрат целиком, а по краям остаётся фон.
+     */
+    val cropThumbnails: Boolean = true,
     /** Скрытый текст (спойлеры) показывается сразу, без тапа по плашке. */
     val autoRevealSpoilers: Boolean = false,
     val baseUrl: String = "https://2ch.hk",
@@ -48,6 +53,9 @@ class SettingsRepository @Inject constructor(
 
         /** Появился вместе с отдельным ползунком для списка тредов. */
         val LIST_THUMB_SCALE = intPreferencesKey("list_thumbnail_scale_percent")
+
+        /** Превью обрезается до квадрата; выключено — вписывается целиком. */
+        val CROP_THUMBS = booleanPreferencesKey("crop_thumbnails")
         val AUTO_REVEAL = booleanPreferencesKey("auto_reveal_spoilers")
         val BASE_URL = stringPreferencesKey("base_url")
     }
@@ -87,6 +95,7 @@ class SettingsRepository @Inject constructor(
                 listThumbnailScalePercent = (
                     prefs[Keys.LIST_THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT
                     ).coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
+                cropThumbnails = prefs[Keys.CROP_THUMBS] ?: true,
                 autoRevealSpoilers = prefs[Keys.AUTO_REVEAL] ?: false,
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
@@ -106,6 +115,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setListThumbnailScale(percent: Int) = context.dataStore.edit {
         it[Keys.LIST_THUMB_SCALE] = percent.coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX)
+    }
+
+    suspend fun setCropThumbnails(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.CROP_THUMBS] = enabled
     }
 
     suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.dataStore.edit {

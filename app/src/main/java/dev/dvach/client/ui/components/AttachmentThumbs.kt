@@ -43,15 +43,17 @@ private val BadgePadding = 3.dp
  * и в самом треде картинка рисуется этим компонентом, поэтому выглядит она
  * одинаково. Углы прямые: в старом Material картинки не скруглялись.
  *
- * Превью — квадратная ячейка размером [side], картинка заполняет её целиком
- * (лишнее по краям подрезается по центру). Квадрат невидимый: ни рамки, ни
- * фона у загруженного превью нет, поэтому в списке и в треде картинки
- * выглядят одинаково и сетка не «прыгает» по высоте.
+ * Превью — квадратная ячейка размером [side]. По умолчанию картинка заполняет
+ * её целиком, а лишнее по краям подрезается по центру (crop). Если в настройках
+ * включено вписывание, картинка видна целиком, а незанятые поля квадрата
+ * закрашены фоном — квадрат остаётся того же размера, поэтому сетка в списке
+ * и в треде не «прыгает» от пропорций файла.
  *
  * В правом нижнем углу — значок типа файла: круглый «play» у видео, плашка
  * «GIF» у анимированной картинки. Других подписей у превью нет.
  *
  * @param hiddenCount сколько файлов не показано: на превью появляется «+N».
+ * @param crop обрезать края до квадрата; false — вписать картинку целиком.
  */
 @Composable
 fun AttachmentThumb(
@@ -60,6 +62,7 @@ fun AttachmentThumb(
     onClick: () -> Unit,
     modifier: Modifier = Modifier,
     hiddenCount: Int = 0,
+    crop: Boolean = true,
 ) {
     val badgeSize = (side.value * 0.24f).coerceIn(18f, 30f).dp
 
@@ -74,7 +77,9 @@ fun AttachmentThumb(
             AsyncImage(
                 model = file.thumbnailUrl,
                 contentDescription = file.name,
-                contentScale = ContentScale.Crop,
+                // Crop заполняет квадрат, Fit показывает файл целиком: фон ячейки
+                // в этом случае работает как поля вокруг картинки.
+                contentScale = if (crop) ContentScale.Crop else ContentScale.Fit,
                 modifier = Modifier.fillMaxSize(),
             )
             when {
@@ -170,6 +175,7 @@ private fun GifBadge(side: Dp, modifier: Modifier = Modifier) {
  *   «+N» на последнем — так ОП-пост в списке тредов не растягивает карточку.
  * @param gap промежуток между ячейками; в списке тредов он ужимается, чтобы
  *   четыре превью влезли в строку при обычном масштабе (см. `thumbnailRowGap`).
+ * @param crop обрезать превью до квадрата; false — вписывать целиком.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -180,6 +186,7 @@ fun AttachmentThumbsRow(
     modifier: Modifier = Modifier,
     maxVisible: Int = Int.MAX_VALUE,
     gap: Dp = 4.dp,
+    crop: Boolean = true,
 ) {
     if (files.isEmpty()) return
     val visible = files.take(maxVisible)
@@ -195,6 +202,7 @@ fun AttachmentThumbsRow(
                 side = side,
                 onClick = { onClick(file) },
                 hiddenCount = if (hidden > 0 && index == visible.lastIndex) hidden else 0,
+                crop = crop,
             )
         }
     }

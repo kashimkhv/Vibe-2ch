@@ -143,6 +143,15 @@ fun SettingsScreen(
                 )
 
                 SwitchRow(
+                    title = "Обрезать превью до квадрата",
+                    subtitle = "Выключите, чтобы картинка вписывалась целиком, — " +
+                        "по краям останется фон",
+                    checked = settings.cropThumbnails,
+                    enabled = settings.showThumbnails,
+                    onCheckedChange = viewModel::setCropThumbnails,
+                )
+
+                SwitchRow(
                     title = "Раскрывать спойлеры",
                     subtitle = "Скрытый текст показывается сразу, без тапа по плашке",
                     checked = settings.autoRevealSpoilers,
