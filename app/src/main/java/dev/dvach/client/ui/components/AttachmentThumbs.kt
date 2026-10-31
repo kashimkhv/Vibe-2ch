@@ -54,6 +54,8 @@ private val BadgePadding = 3.dp
  *
  * @param hiddenCount сколько файлов не показано: на превью появляется «+N».
  * @param crop обрезать края до квадрата; false — вписать картинку целиком.
+ * @param background рисовать подложку под картинкой. Без неё ячейка прозрачная:
+ *   в режиме вписывания поля вокруг картинки будут цвета поста или карточки.
  */
 @Composable
 fun AttachmentThumb(
@@ -63,6 +65,7 @@ fun AttachmentThumb(
     modifier: Modifier = Modifier,
     hiddenCount: Int = 0,
     crop: Boolean = true,
+    background: Boolean = true,
 ) {
     val badgeSize = (side.value * 0.24f).coerceIn(18f, 30f).dp
 
@@ -70,7 +73,9 @@ fun AttachmentThumb(
         modifier = modifier
             .size(side)
             .clip(Corner)
-            .background(MaterialTheme.colorScheme.surfaceVariant)
+            .background(
+                if (background) MaterialTheme.colorScheme.surfaceVariant else Color.Transparent,
+            )
             .clickable(onClick = onClick),
     ) {
         if (file.thumbnailUrl.isNotBlank()) {
@@ -176,6 +181,7 @@ private fun GifBadge(side: Dp, modifier: Modifier = Modifier) {
  * @param gap промежуток между ячейками; в списке тредов он ужимается, чтобы
  *   четыре превью влезли в строку при обычном масштабе (см. `thumbnailRowGap`).
  * @param crop обрезать превью до квадрата; false — вписывать целиком.
+ * @param background рисовать подложку под превью.
  */
 @OptIn(ExperimentalLayoutApi::class)
 @Composable
@@ -187,6 +193,7 @@ fun AttachmentThumbsRow(
     maxVisible: Int = Int.MAX_VALUE,
     gap: Dp = 4.dp,
     crop: Boolean = true,
+    background: Boolean = true,
 ) {
     if (files.isEmpty()) return
     val visible = files.take(maxVisible)
@@ -203,6 +210,7 @@ fun AttachmentThumbsRow(
                 onClick = { onClick(file) },
                 hiddenCount = if (hidden > 0 && index == visible.lastIndex) hidden else 0,
                 crop = crop,
+                background = background,
             )
         }
     }

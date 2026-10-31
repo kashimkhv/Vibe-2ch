@@ -63,6 +63,10 @@ class SettingsViewModel @Inject constructor(
         repository.setCropThumbnails(enabled)
     }
 
+    fun setThumbnailBackground(enabled: Boolean) = viewModelScope.launch {
+        repository.setThumbnailBackground(enabled)
+    }
+
     fun setAutoRevealSpoilers(enabled: Boolean) = viewModelScope.launch {
         repository.setAutoRevealSpoilers(enabled)
     }

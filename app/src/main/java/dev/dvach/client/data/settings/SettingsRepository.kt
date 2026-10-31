@@ -35,6 +35,11 @@ data class AppSettings(
      * вписывается в квадрат целиком, а по краям остаётся фон.
      */
     val cropThumbnails: Boolean = true,
+    /**
+     * Подложка под превью. В режиме вписывания она работает полями вокруг
+     * картинки; выключена — ячейка прозрачная, виден фон поста или карточки.
+     */
+    val thumbnailBackground: Boolean = true,
     /** Скрытый текст (спойлеры) показывается сразу, без тапа по плашке. */
     val autoRevealSpoilers: Boolean = false,
     val baseUrl: String = "https://2ch.hk",
@@ -56,6 +61,9 @@ class SettingsRepository @Inject constructor(
 
         /** Превью обрезается до квадрата; выключено — вписывается целиком. */
         val CROP_THUMBS = booleanPreferencesKey("crop_thumbnails")
+
+        /** Подложка под превью: фон ячейки или прозрачность. */
+        val THUMB_BACKGROUND = booleanPreferencesKey("thumbnail_background")
         val AUTO_REVEAL = booleanPreferencesKey("auto_reveal_spoilers")
         val BASE_URL = stringPreferencesKey("base_url")
     }
@@ -96,6 +104,7 @@ class SettingsRepository @Inject constructor(
                     prefs[Keys.LIST_THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT
                     ).coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
                 cropThumbnails = prefs[Keys.CROP_THUMBS] ?: true,
+                thumbnailBackground = prefs[Keys.THUMB_BACKGROUND] ?: true,
                 autoRevealSpoilers = prefs[Keys.AUTO_REVEAL] ?: false,
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
@@ -119,6 +128,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setCropThumbnails(enabled: Boolean) = context.dataStore.edit {
         it[Keys.CROP_THUMBS] = enabled
+    }
+
+    suspend fun setThumbnailBackground(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.THUMB_BACKGROUND] = enabled
     }
 
     suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.dataStore.edit {

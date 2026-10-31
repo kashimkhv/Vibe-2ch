@@ -50,6 +50,7 @@ fun PostCard(
     showThumbnails: Boolean = true,
     thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
     cropThumbnails: Boolean = true,
+    thumbnailBackground: Boolean = true,
     autoRevealSpoilers: Boolean = false,
     /** Уровень вложенности в дереве ответов: 0 — корень ветки. */
     depth: Int = 0,
@@ -191,6 +192,7 @@ fun PostCard(
                     side = scaleThumbnail(THUMBNAIL_BASE_SIDE_DP, thumbnailScalePercent).dp,
                     onClick = onOpenAttachment,
                     crop = cropThumbnails,
+                    background = thumbnailBackground,
                     modifier = Modifier.padding(top = 6.dp),
                 )
             }

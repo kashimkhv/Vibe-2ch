@@ -168,6 +168,7 @@ fun ThreadsScreen(
                                 listThumbnailScalePercent = state.listThumbnailScalePercent,
                                 autoRevealSpoilers = state.autoRevealSpoilers,
                                 cropThumbnails = state.cropThumbnails,
+                                thumbnailBackground = state.thumbnailBackground,
                                 onClick = {
                                     onThreadClick(thread.boardId, state.boardName, thread.num)
                                 },
@@ -246,6 +247,7 @@ private fun ThreadCard(
     listThumbnailScalePercent: Int,
     autoRevealSpoilers: Boolean,
     cropThumbnails: Boolean,
+    thumbnailBackground: Boolean,
     onClick: () -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
 ) {
@@ -330,6 +332,7 @@ private fun ThreadCard(
                         maxVisible = THUMBNAILS_IN_LIST,
                         gap = gap.dp,
                         crop = cropThumbnails,
+                        background = thumbnailBackground,
                         onClick = onOpenAttachment,
                     )
                 }

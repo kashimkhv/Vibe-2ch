@@ -152,6 +152,15 @@ fun SettingsScreen(
                 )
 
                 SwitchRow(
+                    title = "Фон ячейки превью",
+                    subtitle = "Подложка под картинкой; выключите, чтобы поля были " +
+                        "цвета поста или карточки",
+                    checked = settings.thumbnailBackground,
+                    enabled = settings.showThumbnails,
+                    onCheckedChange = viewModel::setThumbnailBackground,
+                )
+
+                SwitchRow(
                     title = "Раскрывать спойлеры",
                     subtitle = "Скрытый текст показывается сразу, без тапа по плашке",
                     checked = settings.autoRevealSpoilers,
