@@ -11,6 +11,7 @@ import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatFileSize
 import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postUrl
+import dev.dvach.client.util.threadUrl
 import dev.dvach.client.util.videosLabel
 
 class FormattersTest {
@@ -36,6 +37,16 @@ class FormattersTest {
             "https://2ch.hk/b/res/123.html#456",
             postUrl("b", 123, 456),
         )
+    }
+
+    @Test
+    fun `thread url is the post url without the anchor`() {
+        // «Поделиться» в контекстном меню отдаёт тред целиком, а не пост,
+        // на котором открыли меню: ссылка без якоря — тот же адрес, что и
+        // у `postUrl` с номером ОП-поста.
+        assertEquals("https://2ch.hk/b/res/123.html", threadUrl("b", 123))
+        // Ссылка на пост — это та же ссылка на тред плюс якорь.
+        assertEquals(threadUrl("asylum", 42), postUrl("asylum", 42).substringBefore('#'))
     }
 
     @Test

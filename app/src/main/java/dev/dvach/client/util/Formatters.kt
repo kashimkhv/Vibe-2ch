@@ -83,7 +83,11 @@ fun formatRelativeTime(timestampSeconds: Long, nowMillis: Long = System.currentT
 }
 
 fun postUrl(boardId: String, threadNum: Int, postNum: Int = threadNum): String =
-    "https://2ch.hk/$boardId/res/$threadNum.html#${postNum}"
+    "${threadUrl(boardId, threadNum)}#${postNum}"
+
+/** Ссылка на тред целиком — для «Поделиться». */
+fun threadUrl(boardId: String, threadNum: Int): String =
+    "https://2ch.hk/$boardId/res/$threadNum.html"
 
 /** Русские склонения: 1 пост, 2 поста, 11 постов. */
 fun plural(count: Int, one: String, few: String, many: String): String {

@@ -47,6 +47,10 @@ fun PostCard(
     onOpenAttachment: (Attachment) -> Unit,
     bookmarked: Boolean = false,
     onToggleBookmark: () -> Unit = {},
+    /** Ссылка на тред для пункта «Поделиться» в контекстном меню. */
+    shareUrl: String = "",
+    /** Заголовок треда — уходит в тему письма при отправке ссылки. */
+    shareTitle: String = "",
     showThumbnails: Boolean = true,
     thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
     cropThumbnails: Boolean = true,
@@ -196,9 +200,11 @@ fun PostCard(
                     }
                 }
 
-                BookmarkMenu(
+                ThreadMenu(
                     expanded = menuOpen,
                     bookmarked = bookmarked,
+                    shareUrl = shareUrl,
+                    shareTitle = shareTitle,
                     onDismiss = { menuOpen = false },
                     onToggle = onToggleBookmark,
                 )

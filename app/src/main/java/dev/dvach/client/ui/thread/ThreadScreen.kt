@@ -71,6 +71,7 @@ import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.ui.components.PrefetchThumbnails
 import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postsLabel
+import dev.dvach.client.util.threadUrl
 import dev.dvach.client.util.videosLabel
 
 @OptIn(ExperimentalMaterial3Api::class, ExperimentalFoundationApi::class)
@@ -274,9 +275,11 @@ fun ThreadScreen(
                             )
                         }
 
-                        BookmarkMenu(
+                        ThreadMenu(
                             expanded = titleMenuOpen,
                             bookmarked = bookmarked,
+                            shareUrl = threadUrl(boardId, threadNum),
+                            shareTitle = title,
                             onDismiss = { titleMenuOpen = false },
                             onToggle = toggleBookmark,
                         )
@@ -361,6 +364,8 @@ fun ThreadScreen(
                                 isHighlighted = post.num == highlighted,
                                 bookmarked = bookmarked,
                                 onToggleBookmark = toggleBookmark,
+                                shareUrl = threadUrl(boardId, threadNum),
+                                shareTitle = title,
                                 showThumbnails = settings.showThumbnails,
                                 thumbnailScalePercent = settings.thumbnailScalePercent,
                                 cropThumbnails = settings.cropThumbnails,
