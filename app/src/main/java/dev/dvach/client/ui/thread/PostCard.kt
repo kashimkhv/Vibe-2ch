@@ -54,6 +54,8 @@ fun PostCard(
     autoRevealSpoilers: Boolean = false,
     /** Поля текста: дополнительный отступ слева и справа от темы и текста поста. */
     textMargins: Dp = 0.dp,
+    /** Порядковый номер поста в треде: 1 — ОП. null — не показывать. */
+    ordinal: Int? = null,
     /** Уровень вложенности в дереве ответов: 0 — корень ветки. */
     depth: Int = 0,
 ) {
@@ -133,6 +135,19 @@ fun PostCard(
                         verticalAlignment = Alignment.CenterVertically,
                         modifier = Modifier.weight(1f, fill = false),
                     ) {
+                        // Порядковый номер поста в треде — по хронологии, а не по
+                        // номеру: номер поста — это его id на сервере (справа),
+                        // а здесь место в треде. Приглушённый и мелкий, чтобы
+                        // шапка не спорила с ником.
+                        ordinal?.let { number ->
+                            Text(
+                                text = "#$number",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                modifier = Modifier.padding(end = 6.dp),
+                            )
+                        }
                         Text(
                             text = post.name.ifBlank { "Аноним" },
                             style = MaterialTheme.typography.labelLarge,

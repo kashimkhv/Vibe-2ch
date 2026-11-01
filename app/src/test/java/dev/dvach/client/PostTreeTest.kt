@@ -5,6 +5,7 @@ import org.junit.Test
 import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.thread.MAX_TREE_DEPTH
 import dev.dvach.client.ui.thread.buildPostTree
+import dev.dvach.client.ui.thread.postOrdinals
 import dev.dvach.client.ui.thread.scrollIndexFor
 
 class PostTreeTest {
@@ -34,8 +35,27 @@ class PostTreeTest {
     )
 
     @Test
-    fun `reply to another anon is nested under it`() {
+    fun `ordinals follow chronology, not the tree order`() {
+        // В дереве пост 4 встаёт сразу под 2 — «номер на экране» был бы 3.
+        // Порядковый номер берётся из хронологии: ОП — 1, первый ответ — 2.
         val posts = listOf(
+            post(1, isOp = true),
+            post(2),
+            post(3),
+            post(4, quotes = listOf(2)),
+        )
+        val ordinals = postOrdinals(posts)
+        val tree = buildPostTree(posts)
+
+        assertEquals(mapOf(1 to 1, 2 to 2, 3 to 3, 4 to 4), ordinals)
+        assertEquals(listOf(1, 2, 4, 3), tree.map { it.post.num })
+        assertEquals(listOf(1, 2, 4, 3), tree.map { ordinals[it.post.num] })
+        // Пустой тред — пустая карта, а не падение на первом элементе.
+        assertEquals(emptyMap<Int, Int>(), postOrdinals(emptyList()))
+    }
+
+    @Test
+    fun `reply to another anon is nested under it`() {        val posts = listOf(
             post(1, isOp = true),
             post(2, quotes = listOf(1)),
             post(3, quotes = listOf(2)),

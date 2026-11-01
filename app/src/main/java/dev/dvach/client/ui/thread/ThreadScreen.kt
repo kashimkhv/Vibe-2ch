@@ -95,6 +95,8 @@ fun ThreadScreen(
 
     // Дерево ответов: пост встаёт сразу под тем, кого цитирует.
     val nodes = remember(state.posts) { buildPostTree(state.posts) }
+    // Порядковые номера считаются по хронологии, а не по месту в дереве.
+    val ordinals = remember(state.posts) { postOrdinals(state.posts) }
 
     // Пост, к которому надо прокрутить после пересборки дерева: при переходе
     // по цитате ветка может быть свёрнута, и позиция в списке ещё не та.
@@ -365,6 +367,7 @@ fun ThreadScreen(
                                 thumbnailBackground = settings.thumbnailBackground,
                                 autoRevealSpoilers = settings.autoRevealSpoilers,
                                 textMargins = settings.textMarginsDp.dp,
+                                ordinal = ordinals[post.num],
                                 depth = node.depth,
                                 onPostClick = { ref, refThread ->
                                     if (refThread != null && refThread != threadNum) {
