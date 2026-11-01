@@ -66,7 +66,7 @@ import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatTimestamp
 import dev.dvach.client.util.postsLabel
 import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
-import dev.dvach.client.util.scaleThumbnail
+import dev.dvach.client.util.listThumbnailSide
 import dev.dvach.client.util.stripHtml
 import dev.dvach.client.util.thumbnailRowGap
 
@@ -166,6 +166,7 @@ fun ThreadsScreen(
                             ThreadCard(
                                 thread = thread,
                                 listThumbnailScalePercent = state.listThumbnailScalePercent,
+                                enlargeFewListThumbnails = state.enlargeFewListThumbnails,
                                 autoRevealSpoilers = state.autoRevealSpoilers,
                                 cropThumbnails = state.cropThumbnails,
                                 thumbnailBackground = state.thumbnailBackground,
@@ -245,6 +246,7 @@ private const val THUMBNAILS_IN_LIST = 4
 private fun ThreadCard(
     thread: ThreadSummary,
     listThumbnailScalePercent: Int,
+    enlargeFewListThumbnails: Boolean,
     autoRevealSpoilers: Boolean,
     cropThumbnails: Boolean,
     thumbnailBackground: Boolean,
@@ -317,15 +319,21 @@ private fun ThreadCard(
             // иначе карточка занимает весь экран. Размер ячейки один на все
             // карточки: его задаёт настройка, а вписывается ряд за счёт
             // промежутка (крупный масштаб переносит превью на вторую строку,
-            // но размер остаётся прежним).
+            // но размер остаётся прежним). Если вложений меньше трёх, ячейка
+            // вдвое крупнее — одинокая картинка не оставляет полстроки пустой.
             if (thread.attachments.isNotEmpty()) {
                 BoxWithConstraints {
-                    val side =
-                        scaleThumbnail(THUMBNAIL_LIST_BASE_SIDE_DP, listThumbnailScalePercent)
+                    val side = listThumbnailSide(
+                        baseDp = THUMBNAIL_LIST_BASE_SIDE_DP,
+                        percent = listThumbnailScalePercent,
+                        fileCount = thread.attachments.size,
+                        enlargeFew = enlargeFewListThumbnails,
+                    )
+                    val visible = minOf(thread.attachments.size, THUMBNAILS_IN_LIST)
                     val gap = thumbnailRowGap(
                         sideDp = side,
                         availableDp = maxWidth.value.toInt(),
-                        visible = THUMBNAILS_IN_LIST,
+                        visible = visible,
                     )
                     AttachmentThumbsRow(
                         files = thread.attachments,

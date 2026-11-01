@@ -33,6 +33,11 @@ data class AppSettings(
     /** Размер превью ОП-поста в списке тредов — отдельный ползунок. */
     val listThumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
     /**
+     * Превью ОП-поста в списке вдвое крупнее, если вложений меньше трёх:
+     * один-два файла иначе занимают только часть строки.
+     */
+    val enlargeFewListThumbnails: Boolean = true,
+    /**
      * Превью заполняет квадрат с обрезкой краёв. Выключено — картинка
      * вписывается в квадрат целиком, а по краям остаётся фон.
      */
@@ -81,6 +86,9 @@ class SettingsRepository @Inject constructor(
 
         /** Появился вместе с отдельным ползунком для списка тредов. */
         val LIST_THUMB_SCALE = intPreferencesKey("list_thumbnail_scale_percent")
+
+        /** Крупные превью в списке, если у ОП-поста меньше трёх вложений. */
+        val LIST_THUMB_FEW_LARGE = booleanPreferencesKey("list_thumbnail_few_large")
 
         /** Превью обрезается до квадрата; выключено — вписывается целиком. */
         val CROP_THUMBS = booleanPreferencesKey("crop_thumbnails")
@@ -144,6 +152,7 @@ class SettingsRepository @Inject constructor(
                 listThumbnailScalePercent = (
                     prefs[Keys.LIST_THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT
                     ).coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
+                enlargeFewListThumbnails = prefs[Keys.LIST_THUMB_FEW_LARGE] ?: true,
                 cropThumbnails = prefs[Keys.CROP_THUMBS] ?: true,
                 thumbnailBackground = prefs[Keys.THUMB_BACKGROUND] ?: true,
                 verticalMediaPaging = prefs[Keys.VERTICAL_MEDIA] ?: false,
@@ -181,6 +190,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setListThumbnailScale(percent: Int) = context.dataStore.edit {
         it[Keys.LIST_THUMB_SCALE] = percent.coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX)
+    }
+
+    suspend fun setEnlargeFewListThumbnails(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.LIST_THUMB_FEW_LARGE] = enabled
     }
 
     suspend fun setCropThumbnails(enabled: Boolean) = context.dataStore.edit {

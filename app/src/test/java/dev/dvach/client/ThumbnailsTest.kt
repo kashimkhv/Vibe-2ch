@@ -5,6 +5,7 @@ import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
+import dev.dvach.client.util.listThumbnailSide
 import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.thumbnailRowGap
 import org.junit.Assert.assertEquals
@@ -66,6 +67,52 @@ class ThumbnailsTest {
         // зазора. Размер не трогаем (он задан настройкой), ряд переносится,
         // а промежуток остаётся обычным.
         assertEquals(4, thumbnailRowGap(sideDp = 150, availableDp = 369, visible = 4))
+    }
+
+    @Test
+    fun `few attachments double the list thumb`() {
+        // Один-два файла не заполняют строку: при включённой настройке ячейка
+        // вдвое крупнее — 90 dp при обычных 120 % превращаются в 180 dp.
+        assertEquals(
+            180,
+            listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, THUMBNAIL_SCALE_DEFAULT, 1, true),
+        )
+        assertEquals(
+            180,
+            listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, THUMBNAIL_SCALE_DEFAULT, 2, true),
+        )
+        // Три и больше — обычный размер: ряд и так заполнен.
+        assertEquals(
+            90,
+            listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, THUMBNAIL_SCALE_DEFAULT, 3, true),
+        )
+        assertEquals(
+            90,
+            listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, THUMBNAIL_SCALE_DEFAULT, 4, true),
+        )
+    }
+
+    @Test
+    fun `few attachments stay normal when the setting is off`() {
+        assertEquals(
+            90,
+            listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, THUMBNAIL_SCALE_DEFAULT, 1, false),
+        )
+        // Выключенная настройка не зависит от числа файлов.
+        assertEquals(
+            90,
+            listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, THUMBNAIL_SCALE_DEFAULT, 2, false),
+        )
+    }
+
+    @Test
+    fun `doubling applies after the slider`() {
+        // Сначала процент, потом множитель: 75 * 150 % = 113 dp, вдвое — 226 dp.
+        // Иначе шаг зависел бы от ползунка: 200 % давало бы уже 300 dp.
+        assertEquals(226, listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, 150, 2, true))
+        assertEquals(113, listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, 150, 3, true))
+        // Процент зажимается и здесь — через scaleThumbnail.
+        assertEquals(300, listThumbnailSide(THUMBNAIL_LIST_BASE_SIDE_DP, 1000, 1, true))
     }
 
     @Test

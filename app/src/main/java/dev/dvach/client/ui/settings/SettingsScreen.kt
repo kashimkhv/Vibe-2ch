@@ -218,6 +218,15 @@ fun SettingsScreen(
                 )
 
                 SwitchRow(
+                    title = "Крупные превью, если вложений мало",
+                    subtitle = "Меньше трёх вложений — превью в списке тредов вдвое " +
+                        "крупнее: карточка заполняется плотнее, без пустой половины строки",
+                    checked = settings.enlargeFewListThumbnails,
+                    enabled = settings.showThumbnails,
+                    onCheckedChange = viewModel::setEnlargeFewListThumbnails,
+                )
+
+                SwitchRow(
                     title = "Обрезать превью до квадрата",
                     subtitle = "Выключите, чтобы картинка вписывалась целиком, — " +
                         "по краям останется фон",

@@ -60,6 +60,10 @@ class SettingsViewModel @Inject constructor(
         repository.setListThumbnailScale(percent)
     }
 
+    fun setEnlargeFewListThumbnails(enabled: Boolean) = viewModelScope.launch {
+        repository.setEnlargeFewListThumbnails(enabled)
+    }
+
     fun setCropThumbnails(enabled: Boolean) = viewModelScope.launch {
         repository.setCropThumbnails(enabled)
     }

@@ -34,6 +34,39 @@ fun scaleThumbnail(baseDp: Int, percent: Int): Int {
 }
 
 /**
+ * «Мало вложений» — один или два файла. Такой ОП-пост занимает один ряд из
+ * одного-двух превью, и справа остаётся пустое место.
+ */
+const val THUMBNAIL_FEW_FILES_LIMIT = 3
+
+/** Во сколько раз крупнее превью, когда вложений меньше [THUMBNAIL_FEW_FILES_LIMIT]. */
+const val THUMBNAIL_FEW_FILES_MULTIPLIER = 2
+
+/**
+ * Сторона превью ОП-поста в списке тредов.
+ *
+ * Сначала базовый размер умножается на процент из настроек, и только потом —
+ * на множитель для карточек с малым числом вложений: иначе «вдвое крупнее»
+ * зависело бы от ползунка и на 200 % давало бы совсем другой шаг.
+ *
+ * @param fileCount сколько вложений у ОП-поста.
+ * @param enlargeFew включена ли настройка «Крупные превью, если вложений мало».
+ */
+fun listThumbnailSide(
+    baseDp: Int,
+    percent: Int,
+    fileCount: Int,
+    enlargeFew: Boolean,
+): Int {
+    val side = scaleThumbnail(baseDp, percent)
+    return if (enlargeFew && fileCount < THUMBNAIL_FEW_FILES_LIMIT) {
+        side * THUMBNAIL_FEW_FILES_MULTIPLIER
+    } else {
+        side
+    }
+}
+
+/**
  * Промежуток между превью в ряду списка тредов.
  *
  * Сторона ячейки в ленте одна на все карточки — иначе настройка «размер превью

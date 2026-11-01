@@ -35,6 +35,8 @@ data class ThreadsUiState(
     val canGoNext: Boolean = false,
     /** Размер превью ОП-поста в списке, в процентах; у него отдельная настройка. */
     val listThumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
+    /** Превью ОП-поста вдвое крупнее, если вложений меньше трёх. */
+    val enlargeFewListThumbnails: Boolean = true,
     /** Превью ОП-поста обрезается до квадрата, а не вписывается в него. */
     val cropThumbnails: Boolean = true,
     /** Подложка под превью ОП-поста в списке. */
@@ -67,6 +69,7 @@ class ThreadsViewModel @Inject constructor(
                 _state.update {
                     it.copy(
                         listThumbnailScalePercent = appSettings.listThumbnailScalePercent,
+                        enlargeFewListThumbnails = appSettings.enlargeFewListThumbnails,
                         cropThumbnails = appSettings.cropThumbnails,
                         thumbnailBackground = appSettings.thumbnailBackground,
                         autoRevealSpoilers = appSettings.autoRevealSpoilers,
