@@ -200,7 +200,6 @@ private fun GroupHeader(text: String, highlighted: Boolean = false) {
             Text(
                 text = text.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
                 letterSpacing = 0.8.sp,
                 color = if (highlighted) {
                     MaterialTheme.colorScheme.onPrimaryContainer
@@ -259,7 +258,6 @@ private fun BoardRow(
                 Text(
                     text = board.name,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.Medium,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
                 )

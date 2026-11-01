@@ -24,7 +24,6 @@ import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
-import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
@@ -134,7 +133,11 @@ fun PostCard(
                         Text(
                             text = post.name.ifBlank { "Аноним" },
                             style = MaterialTheme.typography.labelLarge,
-                            fontWeight = if (post.isOp) FontWeight.Bold else FontWeight.Medium,
+                            fontWeight = if (post.isOp) {
+                                FontWeight.Bold
+                            } else {
+                                MaterialTheme.typography.labelLarge.fontWeight
+                            },
                             color = if (post.isOp) MaterialTheme.colorScheme.primary else MaterialTheme.colorScheme.onSurface,
                             maxLines = 1,
                             overflow = TextOverflow.Ellipsis,
@@ -170,7 +173,6 @@ fun PostCard(
                         Text(
                             text = post.num.toString(),
                             style = MaterialTheme.typography.labelSmall,
-                            fontFamily = FontFamily.Monospace,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
@@ -201,7 +203,6 @@ fun PostCard(
                 Text(
                     text = subject,
                     style = MaterialTheme.typography.titleSmall,
-                    fontWeight = FontWeight.SemiBold,
                     modifier = Modifier.padding(top = 4.dp),
                 )
             }

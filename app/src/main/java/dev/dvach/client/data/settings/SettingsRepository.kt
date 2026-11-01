@@ -61,6 +61,10 @@ data class AppSettings(
     val metaScalePercent: Int = FONT_SCALE_DEFAULT,
     /** Размер текста постов в процентах от обычного. */
     val bodyScalePercent: Int = FONT_SCALE_DEFAULT,
+    /** Жирное начертание для каждой роли независимо. */
+    val headingBold: Boolean = false,
+    val metaBold: Boolean = false,
+    val bodyBold: Boolean = false,
     val baseUrl: String = "https://2ch.hk",
 )
 
@@ -97,6 +101,11 @@ class SettingsRepository @Inject constructor(
         val FONT_SCALE_HEADINGS = intPreferencesKey("font_scale_headings")
         val FONT_SCALE_META = intPreferencesKey("font_scale_meta")
         val FONT_SCALE_BODY = intPreferencesKey("font_scale_body")
+
+        /** Жирное начертание — тоже по одному на роль. */
+        val FONT_BOLD_HEADINGS = booleanPreferencesKey("font_bold_headings")
+        val FONT_BOLD_META = booleanPreferencesKey("font_bold_meta")
+        val FONT_BOLD_BODY = booleanPreferencesKey("font_bold_body")
         val BASE_URL = stringPreferencesKey("base_url")
     }
 
@@ -151,6 +160,9 @@ class SettingsRepository @Inject constructor(
                 bodyScalePercent = clampFontScale(
                     prefs[Keys.FONT_SCALE_BODY] ?: FONT_SCALE_DEFAULT,
                 ),
+                headingBold = prefs[Keys.FONT_BOLD_HEADINGS] ?: false,
+                metaBold = prefs[Keys.FONT_BOLD_META] ?: false,
+                bodyBold = prefs[Keys.FONT_BOLD_BODY] ?: false,
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
         }
@@ -209,6 +221,18 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setBodyScale(percent: Int) = context.dataStore.edit {
         it[Keys.FONT_SCALE_BODY] = clampFontScale(percent)
+    }
+
+    suspend fun setHeadingBold(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.FONT_BOLD_HEADINGS] = enabled
+    }
+
+    suspend fun setMetaBold(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.FONT_BOLD_META] = enabled
+    }
+
+    suspend fun setBodyBold(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.FONT_BOLD_BODY] = enabled
     }
 }
 

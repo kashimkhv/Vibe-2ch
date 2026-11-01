@@ -138,10 +138,14 @@ fun DvachTheme(
     headingScalePercent: Int = FONT_SCALE_DEFAULT,
     metaScalePercent: Int = FONT_SCALE_DEFAULT,
     bodyScalePercent: Int = FONT_SCALE_DEFAULT,
+    headingBold: Boolean = false,
+    metaBold: Boolean = false,
+    bodyBold: Boolean = false,
     content: @Composable () -> Unit,
 ) {
-    // Шрифты и их размеры меняются в настройках — типографику пересобираем
-    // только когда выбор действительно другой, а не на каждую рекомпозицию.
+    // Шрифты, их размеры и жирность меняются в настройках — типографику
+    // пересобираем только когда выбор действительно другой, а не на каждую
+    // рекомпозицию.
     val typography = remember(
         headingFont,
         metaFont,
@@ -149,6 +153,9 @@ fun DvachTheme(
         headingScalePercent,
         metaScalePercent,
         bodyScalePercent,
+        headingBold,
+        metaBold,
+        bodyBold,
     ) {
         dvachTypography(
             heading = headingFont,
@@ -157,6 +164,9 @@ fun DvachTheme(
             headingScalePercent = headingScalePercent,
             metaScalePercent = metaScalePercent,
             bodyScalePercent = bodyScalePercent,
+            headingBold = headingBold,
+            metaBold = metaBold,
+            bodyBold = bodyBold,
         )
     }
     MaterialTheme(

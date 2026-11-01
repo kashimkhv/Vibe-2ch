@@ -142,6 +142,13 @@ fun SettingsScreen(
                     onChange = viewModel::setHeadingScale,
                 )
 
+                SwitchRow(
+                    title = "Жирные заголовки",
+                    subtitle = "Жирное начертание для шапок, названий досок и тем постов",
+                    checked = settings.headingBold,
+                    onCheckedChange = viewModel::setHeadingBold,
+                )
+
                 FontRow(
                     title = "Мета-данные",
                     subtitle = "Ники, даты, номера постов, счётчики",
@@ -156,6 +163,13 @@ fun SettingsScreen(
                     onChange = viewModel::setMetaScale,
                 )
 
+                SwitchRow(
+                    title = "Жирные мета-данные",
+                    subtitle = "Жирное начертание для ников, дат и счётчиков",
+                    checked = settings.metaBold,
+                    onCheckedChange = viewModel::setMetaBold,
+                )
+
                 FontRow(
                     title = "Текст постов",
                     subtitle = "Сам текст постов и описания в настройках",
@@ -168,6 +182,13 @@ fun SettingsScreen(
                     subtitle = "Кегль текста постов в процентах от обычного",
                     percent = settings.bodyScalePercent,
                     onChange = viewModel::setBodyScale,
+                )
+
+                SwitchRow(
+                    title = "Жирный текст постов",
+                    subtitle = "Жирное начертание для самого текста постов",
+                    checked = settings.bodyBold,
+                    onCheckedChange = viewModel::setBodyBold,
                 )
 
                 HorizontalDivider()
@@ -432,7 +453,6 @@ private fun FontRow(
         Text(
             text = choice.title,
             style = MaterialTheme.typography.bodyLarge.copy(fontFamily = choice.fontFamily),
-            fontWeight = FontWeight.Medium,
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
             modifier = Modifier.padding(start = 12.dp),
@@ -523,7 +543,6 @@ private fun SectionTitle(text: String) {
             Text(
                 text = text.uppercase(),
                 style = MaterialTheme.typography.labelMedium,
-                fontWeight = FontWeight.Medium,
                 letterSpacing = 0.8.sp,
                 color = MaterialTheme.colorScheme.onSurfaceVariant,
             )

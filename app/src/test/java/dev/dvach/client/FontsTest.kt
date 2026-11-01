@@ -1,6 +1,7 @@
 package dev.dvach.client
 
 import androidx.compose.material3.Typography
+import androidx.compose.ui.text.font.FontWeight
 import androidx.datastore.preferences.core.mutablePreferencesOf
 import androidx.datastore.preferences.core.stringPreferencesKey
 import dev.dvach.client.data.settings.FontChoice
@@ -74,6 +75,64 @@ class FontsTest {
         assertEquals(base.titleMedium.fontSize.value, typography.titleMedium.fontSize.value, 0.01f)
         assertEquals(base.bodyLarge.lineHeight.value, typography.bodyLarge.lineHeight.value, 0.01f)
     }
+
+    @Test
+    fun `bold role is applied to its own styles only`() {
+        // Жирность заголовков не должна жирнить мета-данные и текст постов:
+        // иначе переключатель роли превращается в глобальный.
+        val base = Typography()
+        val typography = dvachTypography(
+            heading = FontChoice.SYSTEM,
+            meta = FontChoice.SYSTEM,
+            body = FontChoice.SYSTEM,
+            headingBold = true,
+        )
+
+        assertEquals(FontWeight.Bold, typography.titleLarge.fontWeight)
+        assertEquals(FontWeight.Bold, typography.titleMedium.fontWeight)
+        assertEquals(FontWeight.Bold, typography.headlineSmall.fontWeight)
+        // У мета-данных и текста остались их собственные веса темы.
+        assertEquals(base.labelLarge.fontWeight, typography.labelLarge.fontWeight)
+        assertEquals(base.bodyLarge.fontWeight, typography.bodyLarge.fontWeight)
+    }
+
+    @Test
+    fun `meta and body bold do not touch each other`() {
+        val base = Typography()
+        val typography = dvachTypography(
+            heading = FontChoice.SYSTEM,
+            meta = FontChoice.SYSTEM,
+            body = FontChoice.SYSTEM,
+            metaBold = true,
+        )
+
+        assertEquals(FontWeight.Bold, typography.labelSmall.fontWeight)
+        assertEquals(FontWeight.Bold, typography.labelLarge.fontWeight)
+        assertEquals(base.bodyMedium.fontWeight, typography.bodyMedium.fontWeight)
+        assertEquals(base.titleLarge.fontWeight, typography.titleLarge.fontWeight)
+
+        val bodyTypography = dvachTypography(
+            heading = FontChoice.SYSTEM,
+            meta = FontChoice.SYSTEM,
+            body = FontChoice.SYSTEM,
+            bodyBold = true,
+        )
+        assertEquals(FontWeight.Bold, bodyTypography.bodyLarge.fontWeight)
+        assertEquals(base.labelLarge.fontWeight, bodyTypography.labelLarge.fontWeight)
+    }
+
+    @Test
+    fun `bold off keeps the default weights`() {
+        // Выключенный переключатель ничего не навязывает: остаются веса
+        // типографики Material, где заголовки уже чуть плотнее текста.
+        val base = Typography()
+        val typography = dvachTypography(FontChoice.SYSTEM, FontChoice.SYSTEM, FontChoice.SYSTEM)
+        assertEquals(base.titleLarge.fontWeight, typography.titleLarge.fontWeight)
+        assertEquals(base.titleMedium.fontWeight, typography.titleMedium.fontWeight)
+        assertEquals(base.labelLarge.fontWeight, typography.labelLarge.fontWeight)
+        assertEquals(base.bodyLarge.fontWeight, typography.bodyLarge.fontWeight)
+    }
+
     @Test
     fun `every choice has a note and a distinct family`() {
         val families = FontChoice.entries.map { it.fontFamily }

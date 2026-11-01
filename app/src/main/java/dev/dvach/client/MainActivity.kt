@@ -56,6 +56,9 @@ class MainActivity : ComponentActivity() {
                 headingScalePercent = settings.headingScalePercent,
                 metaScalePercent = settings.metaScalePercent,
                 bodyScalePercent = settings.bodyScalePercent,
+                headingBold = settings.headingBold,
+                metaBold = settings.metaBold,
+                bodyBold = settings.bodyBold,
             ) {
                 DvachNavHost()
             }

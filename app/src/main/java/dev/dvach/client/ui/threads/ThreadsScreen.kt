@@ -279,7 +279,9 @@ private fun ThreadCard(
                 Text(
                     text = thread.name.ifBlank { "Аноним" },
                     style = MaterialTheme.typography.labelLarge,
-                    fontWeight = FontWeight.Medium,
+                    // Имя в карточке — ник ОП-поста. В самом треде он тоже
+                    // жирный: это структурное выделение, а не настройка роли.
+                    fontWeight = FontWeight.Bold,
                     color = MaterialTheme.colorScheme.onSurface,
                     maxLines = 1,
                     overflow = TextOverflow.Ellipsis,
@@ -304,7 +306,6 @@ private fun ThreadCard(
                     Text(
                         text = thread.num.toString(),
                         style = MaterialTheme.typography.labelSmall,
-                        fontFamily = FontFamily.Monospace,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                     )
                 }

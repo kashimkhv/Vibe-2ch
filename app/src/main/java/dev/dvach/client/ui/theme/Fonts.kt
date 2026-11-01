@@ -107,6 +107,9 @@ fun dvachTypography(
     headingScalePercent: Int = FONT_SCALE_DEFAULT,
     metaScalePercent: Int = FONT_SCALE_DEFAULT,
     bodyScalePercent: Int = FONT_SCALE_DEFAULT,
+    headingBold: Boolean = false,
+    metaBold: Boolean = false,
+    bodyBold: Boolean = false,
 ): Typography {
     val base = Typography()
     val headingFamily = heading.fontFamily
@@ -116,22 +119,32 @@ fun dvachTypography(
     val metaScale = clampFontScale(metaScalePercent)
     val bodyScale = clampFontScale(bodyScalePercent)
     return Typography(
-        displayLarge = base.displayLarge.copy(fontFamily = headingFamily).scaled(headingScale),
-        displayMedium = base.displayMedium.copy(fontFamily = headingFamily).scaled(headingScale),
-        displaySmall = base.displaySmall.copy(fontFamily = headingFamily).scaled(headingScale),
-        headlineLarge = base.headlineLarge.copy(fontFamily = headingFamily).scaled(headingScale),
-        headlineMedium = base.headlineMedium.copy(fontFamily = headingFamily).scaled(headingScale),
-        headlineSmall = base.headlineSmall.copy(fontFamily = headingFamily).scaled(headingScale),
-        titleLarge = base.titleLarge.copy(fontFamily = headingFamily).scaled(headingScale),
-        titleMedium = base.titleMedium.copy(fontFamily = headingFamily).scaled(headingScale),
-        titleSmall = base.titleSmall.copy(fontFamily = headingFamily).scaled(headingScale),
-        labelLarge = base.labelLarge.copy(fontFamily = metaFamily).scaled(metaScale),
-        labelMedium = base.labelMedium.copy(fontFamily = metaFamily).scaled(metaScale),
-        labelSmall = base.labelSmall.copy(fontFamily = metaFamily).scaled(metaScale),
-        bodyLarge = base.bodyLarge.copy(fontFamily = bodyFamily).scaled(bodyScale),
-        bodyMedium = base.bodyMedium.copy(fontFamily = bodyFamily).scaled(bodyScale),
-        bodySmall = base.bodySmall.copy(fontFamily = bodyFamily).scaled(bodyScale),
+        displayLarge = base.displayLarge.forRole(headingFamily, headingScale, headingBold),
+        displayMedium = base.displayMedium.forRole(headingFamily, headingScale, headingBold),
+        displaySmall = base.displaySmall.forRole(headingFamily, headingScale, headingBold),
+        headlineLarge = base.headlineLarge.forRole(headingFamily, headingScale, headingBold),
+        headlineMedium = base.headlineMedium.forRole(headingFamily, headingScale, headingBold),
+        headlineSmall = base.headlineSmall.forRole(headingFamily, headingScale, headingBold),
+        titleLarge = base.titleLarge.forRole(headingFamily, headingScale, headingBold),
+        titleMedium = base.titleMedium.forRole(headingFamily, headingScale, headingBold),
+        titleSmall = base.titleSmall.forRole(headingFamily, headingScale, headingBold),
+        labelLarge = base.labelLarge.forRole(metaFamily, metaScale, metaBold),
+        labelMedium = base.labelMedium.forRole(metaFamily, metaScale, metaBold),
+        labelSmall = base.labelSmall.forRole(metaFamily, metaScale, metaBold),
+        bodyLarge = base.bodyLarge.forRole(bodyFamily, bodyScale, bodyBold),
+        bodyMedium = base.bodyMedium.forRole(bodyFamily, bodyScale, bodyBold),
+        bodySmall = base.bodySmall.forRole(bodyFamily, bodyScale, bodyBold),
     )
+}
+
+/** Семейство, размер и начертание одной роли — в одном месте, чтобы не забыть. */
+private fun TextStyle.forRole(
+    family: FontFamily,
+    scalePercent: Int,
+    bold: Boolean,
+): TextStyle {
+    val styled = copy(fontFamily = family).scaled(scalePercent)
+    return if (bold) styled.copy(fontWeight = FontWeight.Bold) else styled
 }
 
 /**

@@ -99,4 +99,16 @@ class SettingsViewModel @Inject constructor(
     fun setBodyScale(percent: Int) = viewModelScope.launch {
         repository.setBodyScale(percent)
     }
+
+    fun setHeadingBold(enabled: Boolean) = viewModelScope.launch {
+        repository.setHeadingBold(enabled)
+    }
+
+    fun setMetaBold(enabled: Boolean) = viewModelScope.launch {
+        repository.setMetaBold(enabled)
+    }
+
+    fun setBodyBold(enabled: Boolean) = viewModelScope.launch {
+        repository.setBodyBold(enabled)
+    }
 }
