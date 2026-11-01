@@ -65,7 +65,6 @@ import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
-import dev.dvach.client.ui.components.rememberDvachFlingBehavior
 import dev.dvach.client.ui.components.SCROLLBAR_WIDTH
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
@@ -354,7 +353,6 @@ fun ThreadScreen(
                     else -> LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
-                        flingBehavior = rememberDvachFlingBehavior(),
                     ) {
                         items(items = nodes, key = { it.post.num }) { node ->
                             val post = node.post

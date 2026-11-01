@@ -54,7 +54,6 @@ import dev.dvach.client.data.settings.ThemeMode
 import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
-import dev.dvach.client.ui.components.rememberDvachFlingBehavior
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.ui.theme.fontFamily
 import dev.dvach.client.util.FONT_SCALE_MAX
@@ -108,7 +107,7 @@ fun SettingsScreen(
             Column(
                 modifier = Modifier
                     .fillMaxSize()
-                    .verticalScroll(scrollState, flingBehavior = rememberDvachFlingBehavior()),
+                    .verticalScroll(scrollState),
             ) {
                 SectionTitle("Оформление")
 

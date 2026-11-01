@@ -51,7 +51,6 @@ import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
-import dev.dvach.client.ui.components.rememberDvachFlingBehavior
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -133,11 +132,7 @@ private fun BoardsList(
     val pinnedIds = state.pinnedBoardIds.toSet()
     val listState = rememberLazyListState()
     Box(modifier = Modifier.fillMaxSize()) {
-        LazyColumn(
-            state = listState,
-            modifier = Modifier.fillMaxSize(),
-            flingBehavior = rememberDvachFlingBehavior(),
-        ) {
+        LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
             // Закреплённые — всегда первыми: до нужной доски не надо листать категории.
             if (state.pinnedBoards.isNotEmpty()) {
                 item(key = "header-pinned") {
