@@ -11,7 +11,15 @@ import dev.dvach.client.ui.theme.fontFamily
 import dev.dvach.client.util.FONT_SCALE_DEFAULT
 import dev.dvach.client.util.FONT_SCALE_MAX
 import dev.dvach.client.util.FONT_SCALE_MIN
+import dev.dvach.client.util.LINE_SPACING_DEFAULT
+import dev.dvach.client.util.LINE_SPACING_MAX
+import dev.dvach.client.util.LINE_SPACING_MIN
+import dev.dvach.client.util.TEXT_MARGIN_DEFAULT
+import dev.dvach.client.util.TEXT_MARGIN_MAX
+import dev.dvach.client.util.TEXT_MARGIN_MIN
 import dev.dvach.client.util.clampFontScale
+import dev.dvach.client.util.clampLineSpacing
+import dev.dvach.client.util.clampTextMargin
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -134,8 +142,82 @@ class FontsTest {
     }
 
     @Test
-    fun `every choice has a note and a distinct family`() {
-        val families = FontChoice.entries.map { it.fontFamily }
+    fun `line spacing stretches body line height only`() {
+        // Отдельная настройка чтения: плотность вёрстки меняется у текста постов,
+        // а кегль, заголовки и мета-данные остаются как были.
+        val base = Typography()
+        val typography = dvachTypography(
+            heading = FontChoice.SYSTEM,
+            meta = FontChoice.SYSTEM,
+            body = FontChoice.SYSTEM,
+            bodyLineSpacingPercent = 150,
+        )
+
+        assertEquals(base.bodyLarge.fontSize.value, typography.bodyLarge.fontSize.value, 0.01f)
+        assertEquals(
+            base.bodyLarge.lineHeight.value * 1.5f,
+            typography.bodyLarge.lineHeight.value,
+            0.01f,
+        )
+        assertEquals(
+            base.bodySmall.lineHeight.value * 1.5f,
+            typography.bodySmall.lineHeight.value,
+            0.01f,
+        )
+        // Заголовки и мета-данные настройка не трогает.
+        assertEquals(base.titleLarge.lineHeight.value, typography.titleLarge.lineHeight.value, 0.01f)
+        assertEquals(base.labelLarge.lineHeight.value, typography.labelLarge.lineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun `line spacing is applied after the font scale`() {
+        // Сначала кегль, потом интервал: 150 % размера и 80 % интервала дают
+        // строку короче обычной, хотя текст крупнее.
+        val base = Typography()
+        val typography = dvachTypography(
+            heading = FontChoice.SYSTEM,
+            meta = FontChoice.SYSTEM,
+            body = FontChoice.SYSTEM,
+            bodyScalePercent = 150,
+            bodyLineSpacingPercent = 80,
+        )
+
+        assertEquals(base.bodyMedium.fontSize.value * 1.5f, typography.bodyMedium.fontSize.value, 0.01f)
+        assertEquals(
+            base.bodyMedium.lineHeight.value * 1.5f * 0.8f,
+            typography.bodyMedium.lineHeight.value,
+            0.01f,
+        )
+    }
+
+    @Test
+    fun `line spacing of a hundred percent changes nothing`() {
+        val base = Typography()
+        val typography = dvachTypography(
+            heading = FontChoice.SYSTEM,
+            meta = FontChoice.SYSTEM,
+            body = FontChoice.SYSTEM,
+            bodyLineSpacingPercent = 100,
+        )
+
+        assertEquals(base.bodyMedium.lineHeight.value, typography.bodyMedium.lineHeight.value, 0.01f)
+        assertEquals(base.bodySmall.lineHeight.value, typography.bodySmall.lineHeight.value, 0.01f)
+    }
+
+    @Test
+    fun `line spacing and text margins are clamped`() {
+        // Значения приходят из DataStore, где могло остаться что угодно.
+        assertEquals(LINE_SPACING_MAX, clampLineSpacing(1000))
+        assertEquals(LINE_SPACING_MIN, clampLineSpacing(0))
+        assertEquals(LINE_SPACING_DEFAULT, clampLineSpacing(100))
+        assertEquals(TEXT_MARGIN_MAX, clampTextMargin(100))
+        assertEquals(TEXT_MARGIN_MIN, clampTextMargin(-8))
+        assertEquals(TEXT_MARGIN_DEFAULT, clampTextMargin(0))
+        assertEquals(16, clampTextMargin(16))
+    }
+
+    @Test
+    fun `every choice has a note and a distinct family`() {        val families = FontChoice.entries.map { it.fontFamily }
         assertTrue(FontChoice.entries.all { it.note.isNotBlank() })
         assertEquals("семейства не должны повторяться", families.size, families.toSet().size)
     }

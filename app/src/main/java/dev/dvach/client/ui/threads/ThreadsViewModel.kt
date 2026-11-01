@@ -17,6 +17,7 @@ import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.domain.model.ThreadsPage
 import dev.dvach.client.ui.media.MediaPlaylist
 import dev.dvach.client.ui.navigation.ThreadsRoute
+import dev.dvach.client.util.TEXT_MARGIN_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import javax.inject.Inject
 
@@ -43,6 +44,8 @@ data class ThreadsUiState(
     val thumbnailBackground: Boolean = true,
     /** Спойлеры в превью ОП-поста раскрыты сразу. */
     val autoRevealSpoilers: Boolean = false,
+    /** Поля текста карточки — та же настройка чтения, что и в треде. */
+    val textMarginsDp: Int = TEXT_MARGIN_DEFAULT,
 )
 
 @HiltViewModel
@@ -73,6 +76,7 @@ class ThreadsViewModel @Inject constructor(
                         cropThumbnails = appSettings.cropThumbnails,
                         thumbnailBackground = appSettings.thumbnailBackground,
                         autoRevealSpoilers = appSettings.autoRevealSpoilers,
+                        textMarginsDp = appSettings.textMarginsDp,
                     )
                 }
             }

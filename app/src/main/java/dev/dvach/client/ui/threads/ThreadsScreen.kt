@@ -43,6 +43,7 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
 import androidx.lifecycle.Lifecycle
@@ -170,6 +171,7 @@ fun ThreadsScreen(
                                 autoRevealSpoilers = state.autoRevealSpoilers,
                                 cropThumbnails = state.cropThumbnails,
                                 thumbnailBackground = state.thumbnailBackground,
+                                textMargins = state.textMarginsDp.dp,
                                 onClick = {
                                     onThreadClick(thread.boardId, state.boardName, thread.num)
                                 },
@@ -250,6 +252,7 @@ private fun ThreadCard(
     autoRevealSpoilers: Boolean,
     cropThumbnails: Boolean,
     thumbnailBackground: Boolean,
+    textMargins: Dp,
     onClick: () -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
 ) {
@@ -354,6 +357,10 @@ private fun ThreadCard(
                         style = MaterialTheme.typography.titleSmall,
                         maxLines = 2,
                         overflow = TextOverflow.Ellipsis,
+                        modifier = Modifier.padding(
+                            start = textMargins,
+                            end = textMargins,
+                        ),
                     )
                 }
                 HtmlText(
@@ -363,6 +370,10 @@ private fun ThreadCard(
                     overflow = TextOverflow.Ellipsis,
                     linksEnabled = false,
                     autoRevealSpoilers = autoRevealSpoilers,
+                    modifier = Modifier.padding(
+                        start = textMargins,
+                        end = textMargins,
+                    ),
                 )
                 Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                     Text(

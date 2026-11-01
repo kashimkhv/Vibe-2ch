@@ -26,6 +26,7 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.Dp
 import androidx.compose.ui.unit.dp
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.Post
@@ -51,6 +52,8 @@ fun PostCard(
     cropThumbnails: Boolean = true,
     thumbnailBackground: Boolean = true,
     autoRevealSpoilers: Boolean = false,
+    /** Поля текста: дополнительный отступ слева и справа от темы и текста поста. */
+    textMargins: Dp = 0.dp,
     /** Уровень вложенности в дереве ответов: 0 — корень ветки. */
     depth: Int = 0,
 ) {
@@ -203,7 +206,11 @@ fun PostCard(
                 Text(
                     text = subject,
                     style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(
+                        top = 4.dp,
+                        start = textMargins,
+                        end = textMargins,
+                    ),
                 )
             }
 
@@ -212,7 +219,11 @@ fun PostCard(
                     html = post.commentHtml,
                     onPostClick = onPostClick,
                     autoRevealSpoilers = autoRevealSpoilers,
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(
+                        top = 4.dp,
+                        start = textMargins,
+                        end = textMargins,
+                    ),
                 )
             }
 
@@ -221,7 +232,11 @@ fun PostCard(
                     text = "Пост забанен",
                     style = MaterialTheme.typography.labelSmall,
                     color = MaterialTheme.colorScheme.error,
-                    modifier = Modifier.padding(top = 4.dp),
+                    modifier = Modifier.padding(
+                        top = 4.dp,
+                        start = textMargins,
+                        end = textMargins,
+                    ),
                 )
             }
         }

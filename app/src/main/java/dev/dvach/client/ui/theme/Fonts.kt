@@ -9,7 +9,9 @@ import androidx.compose.ui.unit.TextUnit
 import dev.dvach.client.R
 import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.util.FONT_SCALE_DEFAULT
+import dev.dvach.client.util.LINE_SPACING_DEFAULT
 import dev.dvach.client.util.clampFontScale
+import dev.dvach.client.util.clampLineSpacing
 
 /**
  * Шрифты из Google Fonts, у которых есть полноценная кириллица, а не только
@@ -110,6 +112,7 @@ fun dvachTypography(
     headingBold: Boolean = false,
     metaBold: Boolean = false,
     bodyBold: Boolean = false,
+    bodyLineSpacingPercent: Int = LINE_SPACING_DEFAULT,
 ): Typography {
     val base = Typography()
     val headingFamily = heading.fontFamily
@@ -118,6 +121,7 @@ fun dvachTypography(
     val headingScale = clampFontScale(headingScalePercent)
     val metaScale = clampFontScale(metaScalePercent)
     val bodyScale = clampFontScale(bodyScalePercent)
+    val bodyLineSpacing = clampLineSpacing(bodyLineSpacingPercent)
     return Typography(
         displayLarge = base.displayLarge.forRole(headingFamily, headingScale, headingBold),
         displayMedium = base.displayMedium.forRole(headingFamily, headingScale, headingBold),
@@ -131,9 +135,14 @@ fun dvachTypography(
         labelLarge = base.labelLarge.forRole(metaFamily, metaScale, metaBold),
         labelMedium = base.labelMedium.forRole(metaFamily, metaScale, metaBold),
         labelSmall = base.labelSmall.forRole(metaFamily, metaScale, metaBold),
-        bodyLarge = base.bodyLarge.forRole(bodyFamily, bodyScale, bodyBold),
-        bodyMedium = base.bodyMedium.forRole(bodyFamily, bodyScale, bodyBold),
-        bodySmall = base.bodySmall.forRole(bodyFamily, bodyScale, bodyBold),
+        // Интервал применяется после масштаба: ползунок размера уже растянул
+        // lineHeight вместе с кеглем, а здесь он тянется ещё раз — отдельно.
+        bodyLarge = base.bodyLarge.forRole(bodyFamily, bodyScale, bodyBold)
+            .lineSpaced(bodyLineSpacing),
+        bodyMedium = base.bodyMedium.forRole(bodyFamily, bodyScale, bodyBold)
+            .lineSpaced(bodyLineSpacing),
+        bodySmall = base.bodySmall.forRole(bodyFamily, bodyScale, bodyBold)
+            .lineSpaced(bodyLineSpacing),
     )
 }
 
@@ -162,6 +171,19 @@ internal fun TextStyle.scaled(percent: Int): TextStyle {
         lineHeight = lineHeight.scaledBy(factor),
         letterSpacing = letterSpacing.scaledBy(factor),
     )
+}
+
+/**
+ * Меняет только межстрочный интервал стиля, не трогая кегль.
+ *
+ * Отдельная настройка чтения: размер строки выбирается ползунком шрифта, а
+ * плотность вёрстки — этим множителем. Стили без заданного `lineHeight`
+ * (`TextUnit.Unspecified`) пропускаются: выдумывать интервал там не из чего.
+ */
+internal fun TextStyle.lineSpaced(percent: Int): TextStyle {
+    if (percent == LINE_SPACING_DEFAULT) return this
+    if (lineHeight == TextUnit.Unspecified) return this
+    return copy(lineHeight = lineHeight * (percent / 100f))
 }
 
 private fun TextUnit.scaledBy(factor: Float): TextUnit =

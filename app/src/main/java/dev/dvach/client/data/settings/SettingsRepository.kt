@@ -14,10 +14,14 @@ import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
 import dev.dvach.client.util.FONT_SCALE_DEFAULT
+import dev.dvach.client.util.LINE_SPACING_DEFAULT
+import dev.dvach.client.util.TEXT_MARGIN_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
 import dev.dvach.client.util.clampFontScale
+import dev.dvach.client.util.clampLineSpacing
+import dev.dvach.client.util.clampTextMargin
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -70,6 +74,10 @@ data class AppSettings(
     val headingBold: Boolean = false,
     val metaBold: Boolean = false,
     val bodyBold: Boolean = false,
+    /** Межстрочный интервал текста постов, в процентах от обычного. */
+    val lineSpacingPercent: Int = LINE_SPACING_DEFAULT,
+    /** Дополнительный отступ слева и справа у текста постов, в dp. */
+    val textMarginsDp: Int = TEXT_MARGIN_DEFAULT,
     val baseUrl: String = "https://2ch.hk",
 )
 
@@ -114,6 +122,10 @@ class SettingsRepository @Inject constructor(
         val FONT_BOLD_HEADINGS = booleanPreferencesKey("font_bold_headings")
         val FONT_BOLD_META = booleanPreferencesKey("font_bold_meta")
         val FONT_BOLD_BODY = booleanPreferencesKey("font_bold_body")
+
+        /** Чтение: плотность строк и боковые поля текста. */
+        val FONT_LINE_SPACING = intPreferencesKey("font_line_spacing")
+        val TEXT_MARGINS = intPreferencesKey("text_margins")
         val BASE_URL = stringPreferencesKey("base_url")
     }
 
@@ -172,6 +184,12 @@ class SettingsRepository @Inject constructor(
                 headingBold = prefs[Keys.FONT_BOLD_HEADINGS] ?: false,
                 metaBold = prefs[Keys.FONT_BOLD_META] ?: false,
                 bodyBold = prefs[Keys.FONT_BOLD_BODY] ?: false,
+                lineSpacingPercent = clampLineSpacing(
+                    prefs[Keys.FONT_LINE_SPACING] ?: LINE_SPACING_DEFAULT,
+                ),
+                textMarginsDp = clampTextMargin(
+                    prefs[Keys.TEXT_MARGINS] ?: TEXT_MARGIN_DEFAULT,
+                ),
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
         }
@@ -246,6 +264,14 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setBodyBold(enabled: Boolean) = context.dataStore.edit {
         it[Keys.FONT_BOLD_BODY] = enabled
+    }
+
+    suspend fun setLineSpacing(percent: Int) = context.dataStore.edit {
+        it[Keys.FONT_LINE_SPACING] = clampLineSpacing(percent)
+    }
+
+    suspend fun setTextMargins(dp: Int) = context.dataStore.edit {
+        it[Keys.TEXT_MARGINS] = clampTextMargin(dp)
     }
 }
 

@@ -59,6 +59,7 @@ class MainActivity : ComponentActivity() {
                 headingBold = settings.headingBold,
                 metaBold = settings.metaBold,
                 bodyBold = settings.bodyBold,
+                bodyLineSpacingPercent = settings.lineSpacingPercent,
             ) {
                 DvachNavHost()
             }

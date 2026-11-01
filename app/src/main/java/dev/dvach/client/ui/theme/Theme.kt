@@ -13,6 +13,7 @@ import androidx.compose.ui.unit.dp
 import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.ThemeMode
 import dev.dvach.client.util.FONT_SCALE_DEFAULT
+import dev.dvach.client.util.LINE_SPACING_DEFAULT
 
 /**
  * Палитра старого Material Design (2016–2018): плоские белые строки,
@@ -141,6 +142,7 @@ fun DvachTheme(
     headingBold: Boolean = false,
     metaBold: Boolean = false,
     bodyBold: Boolean = false,
+    bodyLineSpacingPercent: Int = LINE_SPACING_DEFAULT,
     content: @Composable () -> Unit,
 ) {
     // Шрифты, их размеры и жирность меняются в настройках — типографику
@@ -156,6 +158,7 @@ fun DvachTheme(
         headingBold,
         metaBold,
         bodyBold,
+        bodyLineSpacingPercent,
     ) {
         dvachTypography(
             heading = headingFont,
@@ -167,6 +170,7 @@ fun DvachTheme(
             headingBold = headingBold,
             metaBold = metaBold,
             bodyBold = bodyBold,
+            bodyLineSpacingPercent = bodyLineSpacingPercent,
         )
     }
     MaterialTheme(

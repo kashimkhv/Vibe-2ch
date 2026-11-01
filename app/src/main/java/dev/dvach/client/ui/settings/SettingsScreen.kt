@@ -59,6 +59,12 @@ import dev.dvach.client.ui.theme.fontFamily
 import dev.dvach.client.util.FONT_SCALE_MAX
 import dev.dvach.client.util.FONT_SCALE_MIN
 import dev.dvach.client.util.FONT_SCALE_STEP
+import dev.dvach.client.util.LINE_SPACING_MAX
+import dev.dvach.client.util.LINE_SPACING_MIN
+import dev.dvach.client.util.LINE_SPACING_STEP
+import dev.dvach.client.util.TEXT_MARGIN_MAX
+import dev.dvach.client.util.TEXT_MARGIN_MIN
+import dev.dvach.client.util.TEXT_MARGIN_STEP
 import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
 import dev.dvach.client.util.formatCacheSize
@@ -189,6 +195,29 @@ fun SettingsScreen(
                     subtitle = "Жирное начертание для самого текста постов",
                     checked = settings.bodyBold,
                     onCheckedChange = viewModel::setBodyBold,
+                )
+
+                HorizontalDivider()
+                SectionTitle("Чтение")
+
+                ScaleSliderRow(
+                    title = "Межстрочный интервал",
+                    subtitle = "Расстояние между строками текста постов; кегль не меняется",
+                    value = settings.lineSpacingPercent,
+                    range = LINE_SPACING_MIN..LINE_SPACING_MAX,
+                    step = LINE_SPACING_STEP,
+                    onChange = viewModel::setLineSpacing,
+                )
+
+                ScaleSliderRow(
+                    title = "Поля текста",
+                    subtitle = "Отступ слева и справа у текста постов и карточек ленты; " +
+                        "превью остаются во всю ширину",
+                    value = settings.textMarginsDp,
+                    range = TEXT_MARGIN_MIN..TEXT_MARGIN_MAX,
+                    step = TEXT_MARGIN_STEP,
+                    unit = "dp",
+                    onChange = viewModel::setTextMargins,
                 )
 
                 HorizontalDivider()
@@ -596,7 +625,7 @@ private fun ThumbnailScaleRow(
     ScaleSliderRow(
         title = title,
         subtitle = subtitle,
-        percent = percent,
+        value = percent,
         range = THUMBNAIL_SCALE_MIN..THUMBNAIL_SCALE_MAX,
         step = THUMBNAIL_SCALE_STEP,
         enabled = enabled,
@@ -615,7 +644,7 @@ private fun TextScaleRow(
     ScaleSliderRow(
         title = title,
         subtitle = subtitle,
-        percent = percent,
+        value = percent,
         range = FONT_SCALE_MIN..FONT_SCALE_MAX,
         step = FONT_SCALE_STEP,
         onChange = onChange,
@@ -623,16 +652,18 @@ private fun TextScaleRow(
 }
 
 /**
- * Общий вид ползунка размера: подпись, текущий процент и дорожка. Размер
- * превью и размер шрифта отличаются только диапазоном и подписями.
+ * Общий вид ползунка размера: подпись, текущее значение и дорожка. Размер
+ * превью и шрифта измеряется в процентах, поля текста — в dp, поэтому единица
+ * измерения вынесена в параметр.
  */
 @Composable
 private fun ScaleSliderRow(
     title: String,
     subtitle: String,
-    percent: Int,
+    value: Int,
     range: IntRange,
     step: Int,
+    unit: String = "%",
     enabled: Boolean = true,
     onChange: (Int) -> Unit,
 ) {
@@ -644,7 +675,7 @@ private fun ScaleSliderRow(
                 modifier = Modifier.weight(1f),
             )
             Text(
-                text = "$percent %",
+                text = "$value $unit",
                 style = MaterialTheme.typography.labelLarge,
                 color = if (enabled) {
                     MaterialTheme.colorScheme.primary
@@ -654,12 +685,12 @@ private fun ScaleSliderRow(
             )
         }
         Text(
-            text = "$subtitle. От ${range.first} до ${range.last} %",
+            text = "$subtitle. От ${range.first} до ${range.last} $unit",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
         )
         Slider(
-            value = percent.toFloat(),
+            value = value.toFloat(),
             onValueChange = { onChange(it.roundToInt()) },
             valueRange = range.first.toFloat()..range.last.toFloat(),
             steps = (range.last - range.first) / step - 1,

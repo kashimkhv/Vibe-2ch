@@ -115,4 +115,12 @@ class SettingsViewModel @Inject constructor(
     fun setBodyBold(enabled: Boolean) = viewModelScope.launch {
         repository.setBodyBold(enabled)
     }
+
+    fun setLineSpacing(percent: Int) = viewModelScope.launch {
+        repository.setLineSpacing(percent)
+    }
+
+    fun setTextMargins(dp: Int) = viewModelScope.launch {
+        repository.setTextMargins(dp)
+    }
 }

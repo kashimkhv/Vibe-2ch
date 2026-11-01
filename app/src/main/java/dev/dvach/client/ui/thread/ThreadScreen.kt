@@ -364,6 +364,7 @@ fun ThreadScreen(
                                 cropThumbnails = settings.cropThumbnails,
                                 thumbnailBackground = settings.thumbnailBackground,
                                 autoRevealSpoilers = settings.autoRevealSpoilers,
+                                textMargins = settings.textMarginsDp.dp,
                                 depth = node.depth,
                                 onPostClick = { ref, refThread ->
                                     if (refThread != null && refThread != threadNum) {
