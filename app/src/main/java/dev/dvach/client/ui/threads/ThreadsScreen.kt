@@ -57,6 +57,7 @@ import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.DvachScrollbar
+import dev.dvach.client.ui.components.rememberDvachFlingBehavior
 import dev.dvach.client.ui.components.PrefetchThumbnails
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
@@ -162,6 +163,7 @@ fun ThreadsScreen(
                     LazyColumn(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
+                        flingBehavior = rememberDvachFlingBehavior(),
                     ) {
                         items(items = state.threads, key = { it.num }) { thread ->
                             ThreadCard(

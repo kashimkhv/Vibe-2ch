@@ -37,6 +37,7 @@ import dev.dvach.client.data.local.BookmarkEntity
 import dev.dvach.client.ui.components.dvachShadow
 import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.DvachScrollbar
+import dev.dvach.client.ui.components.rememberDvachFlingBehavior
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.util.formatRelativeTime
 
@@ -69,7 +70,11 @@ fun BookmarksScreen(
             EmptyBox("Пока пусто. Открывайте треды и добавляйте их в избранное.", modifier = Modifier.padding(padding))
         } else {
             Box(modifier = Modifier.padding(padding).fillMaxSize()) {
-                LazyColumn(state = listState, modifier = Modifier.fillMaxSize()) {
+                LazyColumn(
+                    state = listState,
+                    modifier = Modifier.fillMaxSize(),
+                    flingBehavior = rememberDvachFlingBehavior(),
+                ) {
                     items(items = bookmarks, key = { it.id }) { bookmark ->
                         BookmarkRow(
                             bookmark = bookmark,
