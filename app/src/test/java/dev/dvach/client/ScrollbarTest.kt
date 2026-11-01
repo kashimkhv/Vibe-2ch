@@ -3,9 +3,11 @@ package dev.dvach.client
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
+import dev.dvach.client.ui.components.nextThumbFraction
 import dev.dvach.client.ui.components.scrollProgress
 import dev.dvach.client.ui.components.scrollSeek
 import dev.dvach.client.ui.components.scrollSpan
+import dev.dvach.client.ui.components.viewportFractionOf
 import kotlin.math.abs
 import kotlin.math.roundToInt
 
@@ -129,5 +131,50 @@ class ScrollbarTest {
         // вчетверо больше содержимого, иначе в треде с картинками бегунок
         // обгонял бы список.
         assertEquals(1200f, scrollSpan(count = 4, visibleCount = 2, itemSize = 600f), 0.001f)
+    }
+
+    @Test
+    fun `thumb length is the visible share of the content`() {
+        // Экран 500 px, двадцать постов по 100 px: видно четверть содержимого.
+        assertEquals(0.25f, viewportFractionOf(500f, 100f, 20), 0.001f)
+        // Содержимое короче экрана — бегунок занимает всю дорожку.
+        assertEquals(1f, viewportFractionOf(500f, 100f, 5), 0.001f)
+        // Оценки нет вовсе: размеры ещё не пришли — тоже вся дорожка.
+        assertEquals(1f, viewportFractionOf(500f, 0f, 0), 0.001f)
+        assertEquals(1f, viewportFractionOf(0f, 100f, 20), 0.001f)
+    }
+
+    @Test
+    fun `thumb length does not change while the list is moving`() {
+        // В треде живая оценка скачет: рядом «Да.» в строку и простыня
+        // с картинками. Пока список едет, длина бегунка должна стоять.
+        var fraction = 0.14f
+        repeat(10) { fraction = nextThumbFraction(fraction, 0.22f, scrolling = true) }
+        assertEquals(0.14f, fraction, 0f)
+    }
+
+    @Test
+    fun `thumb length catches up with the estimate between stops`() {
+        val before = 0.14f
+        val after = nextThumbFraction(before, 0.22f, scrolling = false)
+        assertTrue("длина должна расти", after > before)
+        assertTrue("и не перескакивать цель", after < 0.22f)
+        // Шаг — ровно доля разницы, а не вся разница.
+        assertEquals(before + (0.22f - before) * 0.3f, after, 0.0001f)
+    }
+
+    @Test
+    fun `thumb length takes the first estimate as is`() {
+        // Пока бегунок ни разу не считался, показываем то, что есть, — иначе
+        // при открытии треда он появился бы из нуля.
+        assertEquals(0.2f, nextThumbFraction(-1f, 0.2f, scrolling = true), 0f)
+        assertEquals(0.35f, nextThumbFraction(-1f, 0.35f, scrolling = false), 0f)
+    }
+
+    @Test
+    fun `repeated stops converge to the estimate`() {
+        var fraction = 0.1f
+        repeat(30) { fraction = nextThumbFraction(fraction, 0.5f, scrolling = false) }
+        assertEquals(0.5f, fraction, 0.005f)
     }
 }

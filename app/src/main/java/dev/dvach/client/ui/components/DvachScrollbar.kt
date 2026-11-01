@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -100,20 +101,33 @@ fun DvachScrollbar(
     if (!state.canScrollBackward && !state.canScrollForward) return
 
     val viewport = (layout.viewportEndOffset - layout.viewportStartOffset).toFloat()
-    // Длина бегунка — доля содержимого, которая влезла на экран. У `LazyColumn`
-    // нет высоты всего содержимого, поэтому она оценивается по средней высоте
-    // видимых постов: цифра приблизительная и гуляет на десятки процентов от
-    // экрана к экрану, поэтому её ещё и сглаживаем (см. ScrollbarRail). Точнее
-    // не сделать, а на длинном треде всё равно перекроет MIN_THUMB_HEIGHT.
-    val averageSize = visible.sumOf { it.size }.toFloat() / visible.size
-    val viewportFraction = if (averageSize > 0f) {
-        (viewport / (averageSize * total)).coerceIn(0f, 1f)
-    } else {
-        1f
-    }
-
     // Средняя высота видимого поста — единственная оценка того, сколько
-    // пикселей содержимого приходится на один пост.
+    // пикселей содержимого приходится на один пост: высоты всего списка
+    // `LazyColumn` не знает.
+    val averageSize = visible.sumOf { it.size }.toFloat() / visible.size
+    // Длина бегунка — доля содержимого, которая влезла на экран. В треде эта
+    // оценка «здесь и сейчас» гуляет в полтора раза: рядом стоят «Да.» в одну
+    // строку и простыня с четырьмя картинками, а смена набора видимых постов
+    // меняет среднюю на сотни пикселей. Раньше это и было видно как «бегунок
+    // всё время меняет длину»: каждый пост, вошедший в кадр, пересчитывал её
+    // заново.
+    //
+    // Поэтому живая оценка не показывается сразу: пока список едет, длина
+    // бегунка не меняется вообще, а между остановками подтягивается к новой
+    // на долю (см. [nextThumbFraction]). Так же ведут себя списки с известной
+    // высотой содержимого — там длина бегунка просто постоянна.
+    val liveFraction = viewportFractionOf(
+        viewport = viewport,
+        averageItemSize = averageSize,
+        count = total,
+    )
+    val scrolling = state.isScrollInProgress
+    var stableFraction by remember { mutableFloatStateOf(-1f) }
+    LaunchedEffect(scrolling, liveFraction) {
+        stableFraction = nextThumbFraction(stableFraction, liveFraction, scrolling)
+    }
+    val viewportFraction = if (stableFraction < 0f) liveFraction else stableFraction
+
     val live = LazyMapping(total, visible.size, averageSize)
     // На время протяжки шкалу фиксируем: пока палец тянет, высоты постов и их
     // число на экране успевают измениться, и скорость списка «поплыла» бы —
@@ -243,6 +257,43 @@ internal fun scrollSeek(
     val limit = (itemSize - 1f).toInt().coerceIn(0, Int.MAX_VALUE)
     val offset = (inside * itemSize).roundToInt().coerceIn(0, limit)
     return ScrollSeek(index, offset)
+}
+
+/**
+ * Доля содержимого, видимая на экране, — из неё получается длина бегунка.
+ *
+ * [averageItemSize] — средняя высота видимого элемента, [count] — сколько
+ * элементов в списке всего. Если оценка невозможна (пустые размеры), бегунок
+ * занимает всю дорожку: лучше так, чем делить на ноль.
+ */
+internal fun viewportFractionOf(viewport: Float, averageItemSize: Float, count: Int): Float {
+    if (viewport <= 0f || averageItemSize <= 0f || count <= 0) return 1f
+    return (viewport / (averageItemSize * count)).coerceIn(0f, 1f)
+}
+
+/**
+ * Сколько разницы с новой оценкой длины бегунка съедаем за одну остановку.
+ *
+ * 0.3 — компромисс: заметные скачки оценки (пост с картинками против строчки
+ * текста) доходят до бегунка не целиком и не сразу, но за несколько остановок
+ * длина всё же честно догоняет содержимое. Больше — бегунок снова начнёт
+ * «дышать», меньше — на длинном треде он так и останется на первой оценке.
+ */
+internal const val THUMB_ESTIMATE_GAIN = 0.3f
+
+/**
+ * Следующая длина бегунка: пока список едет, она не меняется, между
+ * остановками — подтягивается к живой оценке.
+ *
+ * [current] — что показано сейчас (-1, пока не задано), [live] — что говорит
+ * текущий кадр, [scrolling] — двигается ли список (палец, флинг или анимация
+ * прокрутки к посту). Движок зовёт это на каждой остановке и на каждом новом
+ * значении оценки, поэтому логика вынесена в чистую функцию и покрыта тестами.
+ */
+internal fun nextThumbFraction(current: Float, live: Float, scrolling: Boolean): Float = when {
+    current < 0f -> live
+    scrolling -> current
+    else -> current + (live - current) * THUMB_ESTIMATE_GAIN
 }
 
 /** Наибольшая позиция, с которой список ещё прокручивается. */
