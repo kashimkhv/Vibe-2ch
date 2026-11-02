@@ -3,10 +3,11 @@ package dev.dvach.client
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertTrue
 import org.junit.Test
-import dev.dvach.client.ui.components.nextThumbFraction
+import dev.dvach.client.ui.components.ItemHeightSample
 import dev.dvach.client.ui.components.scrollProgress
 import dev.dvach.client.ui.components.scrollSeek
 import dev.dvach.client.ui.components.scrollSpan
+import dev.dvach.client.ui.components.thumbFractionOf
 import dev.dvach.client.ui.components.viewportFractionOf
 import kotlin.math.abs
 import kotlin.math.roundToInt
@@ -145,36 +146,61 @@ class ScrollbarTest {
     }
 
     @Test
-    fun `thumb length does not change while the list is moving`() {
-        // В треде живая оценка скачет: рядом «Да.» в строку и простыня
-        // с картинками. Пока список едет, длина бегунка должна стоять.
-        var fraction = 0.14f
-        repeat(10) { fraction = nextThumbFraction(fraction, 0.22f, scrolling = true) }
-        assertEquals(0.14f, fraction, 0f)
+    fun `thumb length shows the live estimate until it is locked`() {
+        // Пока длину не зафиксировали (первый кадр), показываем то, что есть,
+        // иначе при открытии треда бегунок появился бы из нуля.
+        assertEquals(0.2f, thumbFractionOf(locked = -1f, live = 0.2f), 0f)
+        assertEquals(0.35f, thumbFractionOf(locked = -1f, live = 0.35f), 0f)
     }
 
     @Test
-    fun `thumb length catches up with the estimate between stops`() {
-        val before = 0.14f
-        val after = nextThumbFraction(before, 0.22f, scrolling = false)
-        assertTrue("длина должна расти", after > before)
-        assertTrue("и не перескакивать цель", after < 0.22f)
-        // Шаг — ровно доля разницы, а не вся разница.
-        assertEquals(before + (0.22f - before) * 0.3f, after, 0.0001f)
+    fun `locked thumb length does not follow later estimates`() {
+        // Перемотка меняет то, какие посты в кадре, а с ними и живую оценку.
+        // Показанная длина после фиксации не должна за ней ходить.
+        val locked = 0.14f
+        assertEquals(locked, thumbFractionOf(locked, live = 0.44f), 0f)
+        assertEquals(locked, thumbFractionOf(locked, live = 0.05f), 0f)
+        // Ноль — это тоже фиксация (бегунок занимает всю дорожку в коротком
+        // треде), а не «ещё не фиксировали».
+        assertEquals(0f, thumbFractionOf(locked = 0f, live = 0.4f), 0f)
     }
 
     @Test
-    fun `thumb length takes the first estimate as is`() {
-        // Пока бегунок ни разу не считался, показываем то, что есть, — иначе
-        // при открытии треда он появился бы из нуля.
-        assertEquals(0.2f, nextThumbFraction(-1f, 0.2f, scrolling = true), 0f)
-        assertEquals(0.35f, nextThumbFraction(-1f, 0.35f, scrolling = false), 0f)
+    fun `height sample remembers every post it has seen`() {
+        val sample = ItemHeightSample()
+        sample.observe(listOf(0 to 400f, 1 to 200f, 2 to 900f, 3 to 300f))
+        assertEquals(450f, sample.average(), 0.001f)
+        // Тот же пост, попавший в кадр ещё раз, не должен тянуть среднюю к себе.
+        sample.observe(listOf(0 to 400f, 1 to 200f, 2 to 900f, 3 to 300f))
+        assertEquals(450f, sample.average(), 0.001f)
     }
 
     @Test
-    fun `repeated stops converge to the estimate`() {
-        var fraction = 0.1f
-        repeat(30) { fraction = nextThumbFraction(fraction, 0.5f, scrolling = false) }
-        assertEquals(0.5f, fraction, 0.005f)
+    fun `height sample does not depend on where the list is`() {
+        // Середина треда: рядом простыня с картинками. Оценка по видимым
+        // прыгнула бы здесь вверх, и бегунок стал бы короче.
+        val sample = ItemHeightSample()
+        sample.observe((0..15).map { it to 300f })
+        val before = viewportFractionOf(2000f, sample.average(), count = 502)
+
+        // Перемотка в конец: в кадр попали совсем другие посты — короткие.
+        sample.observe((480..501).map { it to 120f })
+        val after = viewportFractionOf(2000f, sample.average(), count = 502)
+
+        // Средняя по всему треду почти не двинулась — и длина бегунка тоже.
+        assertTrue("до перемотки $before, после $after", abs(after - before) < 0.01f)
+
+        // Для сравнения: та же оценка только по новым видимым постам
+        // промахнулась бы мимо прежней в разы.
+        val onlyVisible = viewportFractionOf(2000f, 120f, count = 502)
+        assertTrue(onlyVisible > before * 2f)
+    }
+
+    @Test
+    fun `empty height sample gives no estimate`() {
+        val sample = ItemHeightSample()
+        assertEquals(0f, sample.average(), 0f)
+        sample.observe(listOf(0 to 0f, 1 to -5f))
+        assertEquals(0f, sample.average(), 0f)
     }
 }
