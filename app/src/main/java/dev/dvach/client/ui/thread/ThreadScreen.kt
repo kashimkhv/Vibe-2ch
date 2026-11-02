@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.PaddingValues
+import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
@@ -21,7 +22,10 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Chat
+import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowUp
+import androidx.compose.material.icons.filled.Movie
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
@@ -49,10 +53,13 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.input.pointer.PointerEventPass
 import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.input.pointer.positionChange
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
@@ -69,6 +76,7 @@ import dev.dvach.client.ui.components.SCROLLBAR_WIDTH
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.ui.components.PrefetchThumbnails
+import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postsLabel
 import dev.dvach.client.util.threadUrl
@@ -252,27 +260,37 @@ fun ThreadScreen(
                                 maxLines = 1,
                                 overflow = TextOverflow.Ellipsis,
                             )
-                            Text(
-                                text = buildString {
-                                    append("/$boardId/ · №$threadNum")
-                                    if (state.posts.isNotEmpty()) {
-                                        append(" · ")
-                                        append(postsLabel(state.posts.size))
-                                    }
-                                    if (imagesCount > 0) {
-                                        append(" · ")
-                                        append(imagesLabel(imagesCount))
-                                    }
-                                    if (videosCount > 0) {
-                                        append(" · ")
-                                        append(videosLabel(videosCount))
-                                    }
-                                },
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
+                            Row(verticalAlignment = Alignment.CenterVertically) {
+                                Text(
+                                    text = "/$boardId/ · №$threadNum",
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                                if (state.posts.isNotEmpty()) {
+                                    ThreadStat(
+                                        icon = Icons.Default.Chat,
+                                        count = state.posts.size,
+                                        description = postsLabel(state.posts.size),
+                                    )
+                                }
+                                if (imagesCount > 0) {
+                                    ThreadStat(
+                                        icon = Icons.Default.Image,
+                                        count = imagesCount,
+                                        description = imagesLabel(imagesCount),
+                                    )
+                                }
+                                if (videosCount > 0) {
+                                    ThreadStat(
+                                        icon = Icons.Default.Movie,
+                                        count = videosCount,
+                                        description = videosLabel(videosCount),
+                                    )
+                                }
+                            }
                         }
 
                         ThreadMenu(
@@ -459,6 +477,41 @@ private fun EndOfThreadHint() {
             text = "Потяните вверх, чтобы обновить",
             style = MaterialTheme.typography.labelSmall,
             color = MaterialTheme.colorScheme.onSurfaceVariant,
+        )
+    }
+}
+
+/**
+ * Счётчик в подзаголовке треда: тематическая иконка и число.
+ *
+ * Иконка — вместо слова («36 постов», «5 картинок»), чтобы подзаголовок влезал
+ * в одну строку даже на длинном треде: три надписи словами занимали половину
+ * ширины шапки. Слово никуда не делось — оно ушло в `description` для TalkBack,
+ * поэтому незрячий пользователь слышит «36 постов», а не «36».
+ */
+@Composable
+private fun ThreadStat(
+    icon: ImageVector,
+    count: Int,
+    description: String,
+) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .padding(start = 10.dp)
+            .semantics(mergeDescendants = true) { contentDescription = description },
+    ) {
+        Icon(
+            imageVector = icon,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.size(13.dp),
+        )
+        Text(
+            text = formatCount(count),
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.onSurfaceVariant,
+            modifier = Modifier.padding(start = 3.dp),
         )
     }
 }
