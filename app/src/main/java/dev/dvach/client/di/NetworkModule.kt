@@ -2,6 +2,7 @@ package dev.dvach.client.di
 
 import android.content.Context
 import android.os.Build
+import android.util.Log
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.disk.DiskCache
@@ -16,9 +17,13 @@ import dagger.hilt.components.SingletonComponent
 import kotlinx.serialization.json.Json
 import okhttp3.Cache
 import okhttp3.Dispatcher
+import okhttp3.Interceptor
 import okhttp3.MediaType.Companion.toMediaType
+import okhttp3.MultipartBody
 import okhttp3.OkHttpClient
+import okhttp3.Response
 import okhttp3.logging.HttpLoggingInterceptor
+import okio.Buffer
 import retrofit2.Retrofit
 import okio.Path.Companion.toOkioPath
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
@@ -80,6 +85,7 @@ object NetworkModule {
                 )
             }
             .addInterceptor(logging)
+            .addInterceptor(PostingLoggingInterceptor())
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(45, TimeUnit.SECONDS)
@@ -133,6 +139,44 @@ object NetworkModule {
  * размер видно в настройках, и он не скачет от свободного места на диске.
  */
 private const val IMAGE_DISK_CACHE_BYTES = 256L * 1024 * 1024
+
+/**
+ * Ответ `/user/posting` в лог. Body-логирование целиком не включаем: оно
+ * печатает base64 капчи и картинки постов (десятки килобайт), а на отказе
+ * движка (`result: 0`) тело — единственное, что объясняет причину.
+ */
+private class PostingLoggingInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val request = chain.request()
+        if (BuildConfig.DEBUG && request.url.encodedPath.endsWith("/user/posting")) {
+            Log.i("Posting", "→ ${request.url} ${(request.body as? MultipartBody)?.describe().orEmpty()}")
+        }
+        val response = chain.proceed(request)
+        if (BuildConfig.DEBUG && request.url.encodedPath.endsWith("/user/posting")) {
+            val body = runCatching { response.peekBody(16L * 1024).string() }.getOrDefault("<нет тела>")
+            Log.i("Posting", "← ${response.code}: $body")
+        }
+        return response
+    }
+}
+
+/** Поля формы без содержимого: короткие значения печатаем, длинные — только размер. */
+private fun MultipartBody.describe(): String = parts.joinToString(", ") { part ->
+    val name = part.headers
+        ?.get("Content-Disposition")
+        ?.substringAfter("name=\"", "")
+        ?.substringBefore("\"")
+        .orEmpty()
+    val length = part.body.contentLength()
+    val value = if (length in 0..48) {
+        val buffer = Buffer()
+        part.body.writeTo(buffer)
+        "=" + buffer.readUtf8()
+    } else {
+        ""
+    }
+    "$name$value($length Б)"
+}
 
 /**
  * Общая сборка Coil-загрузчика: картинки ходят через тот же OkHttp (общий кэш и UA),

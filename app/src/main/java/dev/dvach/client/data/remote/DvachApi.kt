@@ -74,10 +74,16 @@ interface DvachApi {
      * Все поля — `RequestBody`, а не строки: иначе конвертер Retrofit обернул
      * бы их в JSON-кавычки. `file[]` — имя поля, которое ждёт движок; файл
      * необязателен (`null` — часть не добавляется).
+     *
+     * `task=post` и `2ch_challenge` есть в форме самого сайта: без задачи
+     * «доказательства работы» движок отвечает `result: 0` без пояснений.
+     * `nc=1` отключает кэш, как в веб-клиенте.
      */
     @Multipart
     @POST("user/posting")
     suspend fun posting(
+        @Query("nc") nc: String,
+        @Part("task") task: RequestBody,
         @Part("captcha_type") captchaType: RequestBody,
         @Part("board") board: RequestBody,
         @Part("thread") thread: RequestBody?,
@@ -86,6 +92,6 @@ interface DvachApi {
         @Part("subject") subject: RequestBody?,
         @Part("comment") comment: RequestBody,
         @Part("emoji_captcha_id") captchaId: RequestBody,
+        @Part("2ch_challenge") challenge: RequestBody?,
         @Part file: MultipartBody.Part?,
-    ): PostingDto
-}
+    ): PostingDto}

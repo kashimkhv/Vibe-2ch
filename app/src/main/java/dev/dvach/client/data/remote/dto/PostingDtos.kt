@@ -16,6 +16,9 @@ data class ApiErrorDto(
  * Ответ `GET /api/captcha/emoji/id`. Для анонима `result = 1` и есть `id`,
  * по которому запрашивается картинка. Остальные `result` — «пасскод», «капча
  * отключена», «слишком часто» и т.п., их разбирает репозиторий.
+ *
+ * `challenge` — задача «доказательства работы»: её решение уходит в пост
+ * отдельным полем `2ch_challenge`, иначе движок пост не принимает.
  */
 @Serializable
 data class CaptchaDto(
@@ -23,7 +26,16 @@ data class CaptchaDto(
     val type: String = "",
     val id: String = "",
     val input: String = "",
+    val challenge: ChallengeDto? = null,
     val error: ApiErrorDto? = null,
+)
+
+/** Задача для поля `2ch_challenge`: sha512(template с числом вместо `%d`) == hash. */
+@Serializable
+data class ChallengeDto(
+    val template: String = "",
+    val hash: String = "",
+    val limit: Int = 0,
 )
 
 /**

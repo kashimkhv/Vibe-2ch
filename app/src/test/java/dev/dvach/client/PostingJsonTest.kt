@@ -45,8 +45,18 @@ class PostingJsonTest {
         assertEquals("emoji", captcha.type)
         assertEquals("emoji", captcha.input)
         assertTrue(captcha.id.isNotBlank())
-        // Паспортную часть токена (challenge) не разбираем: он не нужен клиенту.
         assertNull(captcha.error)
+    }
+
+    @Test
+    fun `captcha id brings the proof of work task`() {
+        val captcha = json.decodeFromString<CaptchaDto>(fixture("captcha-id.json"))
+        val challenge = checkNotNull(captcha.challenge)
+
+        // Шаблон с подстановкой и хеш на 128 символов — форма задачи движка.
+        assertTrue(challenge.template.contains("%d"))
+        assertEquals(128, challenge.hash.length)
+        assertTrue(challenge.limit > 0)
     }
 
     @Test

@@ -25,6 +25,7 @@ import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.local.MyPostEntity
 import dev.dvach.client.domain.MAX_UPLOAD_BYTES
 import dev.dvach.client.domain.model.Board
+import dev.dvach.client.domain.model.CaptchaChallenge
 import dev.dvach.client.domain.model.CaptchaStep
 import dev.dvach.client.domain.model.OutgoingFile
 import dev.dvach.client.domain.model.PostDraft
@@ -42,9 +43,13 @@ sealed interface CaptchaUi {
         val id: String,
         val image: String,
         val keyboard: List<String>,
+        val challenge: CaptchaChallenge? = null,
     ) : CaptchaUi
 
-    data class Solved(val token: String) : CaptchaUi
+    data class Solved(
+        val token: String,
+        val challenge: CaptchaChallenge? = null,
+    ) : CaptchaUi
 
     data class Failed(val message: String) : CaptchaUi
 }
@@ -158,7 +163,12 @@ class ComposerViewModel @Inject constructor(
         _state.update { it.copy(captchaBusy = true) }
         viewModelScope.launch {
             val step = postingRepository.click(puzzle.id, index)
-            _state.update { it.copy(captchaBusy = false, captcha = step.toUi()) }
+            _state.update {
+                it.copy(
+                    captchaBusy = false,
+                    captcha = step.toUi(fallback = puzzle.challenge),
+                )
+            }
         }
     }
 
@@ -211,8 +221,8 @@ class ComposerViewModel @Inject constructor(
             _state.update { it.copy(error = commentProblem) }
             return
         }
-        val token = (current.captcha as? CaptchaUi.Solved)?.token
-        if (token == null) {
+        val solved = current.captcha as? CaptchaUi.Solved
+        if (solved == null) {
             _state.update { it.copy(error = "Сначала решите капчу") }
             return
         }
@@ -227,7 +237,8 @@ class ComposerViewModel @Inject constructor(
                     email = current.email,
                     subject = current.subject,
                     comment = current.comment,
-                    captchaToken = token,
+                    captchaToken = solved.token,
+                    challenge = solved.challenge,
                     file = current.file,
                 ),
             )
@@ -312,9 +323,17 @@ class ComposerViewModel @Inject constructor(
         return OutgoingFile(name = name, mimeType = mime, bytes = bytes)
     }
 
-    private fun CaptchaStep.toUi(): CaptchaUi = when (this) {
-        is CaptchaStep.Puzzle -> CaptchaUi.Puzzle(id = id, image = image, keyboard = keyboard)
-        is CaptchaStep.Solved -> CaptchaUi.Solved(token = token)
+    private fun CaptchaStep.toUi(fallback: CaptchaChallenge? = null): CaptchaUi = when (this) {
+        is CaptchaStep.Puzzle -> CaptchaUi.Puzzle(
+            id = id,
+            image = image,
+            keyboard = keyboard,
+            challenge = challenge ?: fallback,
+        )
+        is CaptchaStep.Solved -> CaptchaUi.Solved(
+            token = token,
+            challenge = challenge ?: fallback,
+        )
         is CaptchaStep.Failed -> CaptchaUi.Failed(message = message)
     }
 

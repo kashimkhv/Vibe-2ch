@@ -1,6 +1,19 @@
 package dev.dvach.client.domain.model
 
 /**
+ * Задача «доказательства работы» из ответа `/api/captcha/emoji/id`.
+ *
+ * Вместе с постом движок ждёт поле `2ch_challenge` — число, при подстановке
+ * которого в [template] вместо `%d` sha512 даёт [hash]. Пока задача не решена,
+ * пост не принимается, поэтому она едет рядом с капчей.
+ */
+data class CaptchaChallenge(
+    val template: String,
+    val hash: String,
+    val limit: Int,
+)
+
+/**
  * Состояние эмодзи-капчи. Решает её человек: движок показывает картинку
  * с символами и клавиатуру, по которой нужно кликать. Клик по верному символу
  * присылает следующую картинку, последний — `emoji_captcha_id` для постинга.
@@ -11,13 +24,17 @@ sealed interface CaptchaStep {
         val id: String,
         val image: String,
         val keyboard: List<String>,
+        val challenge: CaptchaChallenge? = null,
     ) : CaptchaStep
 
     /**
      * Капча решена: [token] — тот самый `emoji_captcha_id`, который уходит
      * в форму постинга. Живёт ограниченное время (движок даёт около 5 минут).
      */
-    data class Solved(val token: String) : CaptchaStep
+    data class Solved(
+        val token: String,
+        val challenge: CaptchaChallenge? = null,
+    ) : CaptchaStep
 
     /** Капча недоступна: пасскод, отключена на доске, сеть и т.п. */
     data class Failed(val message: String) : CaptchaStep
@@ -42,6 +59,8 @@ data class PostDraft(
     val subject: String,
     val comment: String,
     val captchaToken: String,
+    /** Задача движка, которую нужно решить до отправки; null — движок не просил. */
+    val challenge: CaptchaChallenge? = null,
     val file: OutgoingFile?,
 )
 

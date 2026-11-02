@@ -3,9 +3,14 @@ package dev.dvach.client.data
 import dev.dvach.client.data.remote.DvachApi
 import dev.dvach.client.data.remote.dto.CaptchaClickDto
 import dev.dvach.client.data.remote.dto.CaptchaShowDto
+import dev.dvach.client.data.remote.dto.ChallengeDto
+import dev.dvach.client.domain.model.CaptchaChallenge
 import dev.dvach.client.domain.model.CaptchaStep
 import dev.dvach.client.domain.model.PostDraft
 import dev.dvach.client.domain.model.PostingOutcome
+import dev.dvach.client.domain.solveChallenge
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.withContext
 import okhttp3.MediaType.Companion.toMediaTypeOrNull
 import okhttp3.MultipartBody
 import okhttp3.RequestBody.Companion.toRequestBody
@@ -36,7 +41,7 @@ class NetworkPostingRepository @Inject constructor(
             if (id.result != 1 || id.id.isBlank()) {
                 CaptchaStep.Failed(captchaProblem(id.result, id.error?.message))
             } else {
-                api.captchaShow(id.id).toStep(id.id)
+                api.captchaShow(id.id).toStep(id.id, id.challenge?.toModel())
             }
         } catch (error: IOException) {
             CaptchaStep.Failed("Нет связи с сервером: ${error.message ?: "проверьте сеть"}")
@@ -57,7 +62,19 @@ class NetworkPostingRepository @Inject constructor(
 
     override suspend fun submit(draft: PostDraft): PostingOutcome =
         try {
+            // Задачу «доказательства работы» решаем перебором: движок в ответе
+            // на /api/captcha/emoji/id даёт хеш и шаблон, а в пост ждёт число.
+            val proof = draft.challenge?.let { challenge ->
+                withContext(Dispatchers.Default) { solveChallenge(challenge) }
+            }
+            if (draft.challenge != null && proof == null) {
+                return PostingOutcome.Failed(
+                    "Не удалось решить задачу движка — обновите капчу и попробуйте снова",
+                )
+            }
             val response = api.posting(
+                nc = "1",
+                task = "post".toPart(),
                 captchaType = "emoji_captcha".toPart(),
                 board = draft.boardId.toPart(),
                 thread = draft.threadNum?.toString()?.toPart(),
@@ -66,6 +83,7 @@ class NetworkPostingRepository @Inject constructor(
                 subject = draft.subject.trim().takeIf { it.isNotEmpty() }?.toPart(),
                 comment = draft.comment.toPart(),
                 captchaId = draft.captchaToken.toPart(),
+                challenge = proof?.toPart(),
                 file = draft.file?.toPart(),
             )
             when {
@@ -90,15 +108,24 @@ class NetworkPostingRepository @Inject constructor(
 /**
  * Ответ `/show` и `/click` в один тип: `success` — капча решена, иначе
  * следующая картинка. Пустая картинка означает, что движок ответил ошибкой.
+ *
+ * [challenge] приходит только вместе с ID капчи, поэтому едет в обоих
+ * состояниях: пока капча не отправлена, задача нужна для поля `2ch_challenge`.
  */
-private fun CaptchaShowDto.toStep(captchaId: String): CaptchaStep = when {
-    success.isNotBlank() -> CaptchaStep.Solved(success)
+private fun CaptchaShowDto.toStep(
+    captchaId: String,
+    challenge: CaptchaChallenge? = null,
+): CaptchaStep = when {
+    success.isNotBlank() -> CaptchaStep.Solved(success, challenge)
     image.isNotBlank() && keyboard.isNotEmpty() ->
-        CaptchaStep.Puzzle(id = captchaId, image = image, keyboard = keyboard)
+        CaptchaStep.Puzzle(id = captchaId, image = image, keyboard = keyboard, challenge = challenge)
     else -> CaptchaStep.Failed(
         error?.message ?: "Капча не загрузилась, попробуйте ещё раз",
     )
 }
+
+private fun ChallengeDto.toModel(): CaptchaChallenge =
+    CaptchaChallenge(template = template, hash = hash, limit = limit)
 
 private fun String.toPart() = toRequestBody("text/plain; charset=utf-8".toMediaTypeOrNull())
 
