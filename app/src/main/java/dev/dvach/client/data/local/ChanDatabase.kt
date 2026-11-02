@@ -11,8 +11,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         HistoryEntity::class,
         PinnedBoardEntity::class,
         ThreadScrollEntity::class,
+        MyPostEntity::class,
     ],
-    version = 3,
+    version = 4,
     exportSchema = true,
 )
 abstract class ChanDatabase : RoomDatabase() {
@@ -48,6 +49,23 @@ val MIGRATION_2_3 = object : Migration(2, 3) {
                 "`scroll_offset` INTEGER NOT NULL, " +
                 "`updated_at` INTEGER NOT NULL, " +
                 "PRIMARY KEY(`thread_key`))",
+        )
+    }
+}
+
+/**
+ * v4: свои посты для подсветки «мой пост». Миграция ручная — без неё Room
+ * сотрёт закладки, историю, позиции чтения и закреплённые доски.
+ */
+val MIGRATION_3_4 = object : Migration(3, 4) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `my_posts` (" +
+                "`board_id` TEXT NOT NULL, " +
+                "`thread_num` INTEGER NOT NULL, " +
+                "`post_num` INTEGER NOT NULL, " +
+                "`created_at` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`board_id`, `post_num`))",
         )
     }
 }

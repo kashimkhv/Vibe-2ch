@@ -19,6 +19,8 @@ data class Board(
     val enableLikes: Boolean,
     val enableSage: Boolean,
     val fileTypes: List<String>,
+    /** Предел размера файла в килобайтах, как его отдаёт движок. 0 — не задан. */
+    val maxFilesSize: Int = 0,
 )
 
 data class ThreadsPage(

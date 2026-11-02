@@ -55,4 +55,18 @@ interface ChanDao {
             "(SELECT thread_key FROM thread_scroll ORDER BY updated_at DESC LIMIT :limit)"
     )
     suspend fun trimThreadScroll(limit: Int)
+
+    /** Номера своих постов в треде — для подсветки «мой пост». */
+    @Query("SELECT post_num FROM my_posts WHERE board_id = :boardId AND thread_num = :threadNum")
+    fun myPosts(boardId: String, threadNum: Int): Flow<List<Int>>
+
+    @Upsert
+    suspend fun addMyPost(post: MyPostEntity)
+
+    /** Старые свои посты не нужны: храним только последние [limit] штук. */
+    @Query(
+        "DELETE FROM my_posts WHERE rowid NOT IN " +
+            "(SELECT rowid FROM my_posts ORDER BY created_at DESC LIMIT :limit)"
+    )
+    suspend fun trimMyPosts(limit: Int)
 }

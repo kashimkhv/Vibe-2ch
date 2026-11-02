@@ -45,3 +45,17 @@ data class ThreadScrollEntity(
     @ColumnInfo(name = "scroll_offset") val scrollOffset: Int,
     @ColumnInfo(name = "updated_at") val updatedAt: Long,
 )
+
+/**
+ * Свои посты: «мой пост» подсвечивается в треде и после перезапуска.
+ *
+ * Номер поста уникален в пределах доски, а не всего двача, поэтому ключ
+ * составной: доска + номер. Тред в ключе не нужен — пост не переезжает.
+ */
+@Entity(tableName = "my_posts", primaryKeys = ["board_id", "post_num"])
+data class MyPostEntity(
+    @ColumnInfo(name = "board_id") val boardId: String,
+    @ColumnInfo(name = "thread_num") val threadNum: Int,
+    @ColumnInfo(name = "post_num") val postNum: Int,
+    @ColumnInfo(name = "created_at") val createdAt: Long,
+)

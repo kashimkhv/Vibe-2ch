@@ -21,6 +21,10 @@ import javax.inject.Singleton
 
 interface ChanRepository {
     suspend fun boards(): List<Board>
+
+    /** Одна доска по id: нужна форме ответа (поля, лимиты, разрешённые файлы). */
+    suspend fun board(boardId: String): Board?
+
     suspend fun index(boardId: String, page: Int): ThreadsPage
     suspend fun thread(boardId: String, threadNum: Int): List<Post>
 }
@@ -35,6 +39,9 @@ class NetworkChanRepository @Inject constructor(
             .filter { it.id.isNotBlank() }
             .map { it.toDomain() }
             .sortedWith(compareBy({ it.category }, { it.name }))
+
+    override suspend fun board(boardId: String): Board? =
+        api.boards().firstOrNull { it.id == boardId }?.toDomain()
 
     override suspend fun index(boardId: String, page: Int): ThreadsPage =
         // В приложении страницы с нуля, в API — с единицы.
@@ -164,6 +171,7 @@ private fun BoardDto.toDomain() = Board(
     enableLikes = enableLikes,
     enableSage = enableSage,
     fileTypes = fileTypes,
+    maxFilesSize = maxFilesSize,
 )
 
 /**

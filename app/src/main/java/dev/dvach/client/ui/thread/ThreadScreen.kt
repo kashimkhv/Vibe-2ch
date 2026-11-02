@@ -22,6 +22,7 @@ import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Chat
 import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.KeyboardArrowUp
@@ -88,10 +89,13 @@ fun ThreadScreen(
     onBack: () -> Unit,
     onOpenThread: (threadNum: Int, highlight: Int) -> Unit = { _, _ -> },
     onOpenMedia: (Attachment) -> Unit = {},
+    /** Ответ в тред: [replyTo] — пост, на который отвечаем (0 — просто ответ). */
+    onReply: (replyTo: Int) -> Unit = {},
     viewModel: ThreadViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
     val bookmarked by viewModel.isBookmarked.collectAsStateWithLifecycle()
+    val myPosts by viewModel.myPosts.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
 
     val listState = rememberLazyListState()
@@ -111,10 +115,24 @@ fun ThreadScreen(
     // по цитате ветка может быть свёрнута, и позиция в списке ещё не та.
     var pendingScroll by remember { mutableStateOf<PendingScroll?>(null) }
 
+    // Номер своего поста, к которому уже перешли после отправки: пока он задан,
+    // восстановление прежней позиции чтения не должно перебивать переход.
+    var revealedPost by remember { mutableIntStateOf(0) }
+
     // Позицию восстанавливаем один раз: дальше список живёт своей жизнью.
     var restoredScroll by remember { mutableStateOf(false) }
 
     val refreshing = state.isLoading && state.posts.isNotEmpty()
+
+    // Вернулись из формы поста: если только что написали в этот тред, тред
+    // перезагружается, а к новому посту прокручиваем — иначе непонятно, куда
+    // он встал. Объявлено до восстановления позиции, чтобы переход был важнее.
+    LaunchedEffect(Unit) {
+        viewModel.consumePosted()?.let { posted ->
+            revealedPost = posted
+            pendingScroll = PendingScroll(posted, animate = false)
+        }
+    }
 
     // «Потянуть вверх в конце треда» — обновление: тянем список за последний
     // пост, отпускаем — тред перезагружается.
@@ -142,6 +160,7 @@ fun ThreadScreen(
         if (restoredScroll || !state.scrollLoaded || nodes.isEmpty()) return@LaunchedEffect
         restoredScroll = true
         if (initialHighlight > 0) return@LaunchedEffect
+        if (revealedPost > 0) return@LaunchedEffect
         // Если в просмотрщике долистали до другого поста — встаём на него:
         // позиция в треде следует за листанием медиа.
         val viewedPost = viewModel.consumeMediaPost()
@@ -184,7 +203,7 @@ fun ThreadScreen(
 
     // Прокрутка выполняется уже по готовому дереву, поэтому цитата попадает
     // точно в пост, даже если ветка была свёрнута и только что раскрылась.
-    LaunchedEffect(nodes, pendingScroll) {
+    LaunchedEffect(nodes, pendingScroll, state.isLoading) {
         val target = pendingScroll ?: return@LaunchedEffect
         val index = nodes.indexOfFirst { it.post.num == target.num }
         if (index >= 0) {
@@ -194,10 +213,14 @@ fun ThreadScreen(
                 listState.scrollToItem(index)
             }
             highlighted = target.num
+            // Сбрасываем запрос последним: если сделать это до прокрутки, смена
+            // ключа перезапустит эффект и отменит анимацию.
+            pendingScroll = null
+        } else if (!state.isLoading) {
+            // Тред загружен, а поста в нём нет — ждать больше нечего. Пока идёт
+            // перезагрузка после отправки, пост ещё может прийти.
+            pendingScroll = null
         }
-        // Сбрасываем запрос последним: если сделать это до прокрутки, смена
-        // ключа перезапустит эффект и отменит анимацию.
-        pendingScroll = null
     }
 
     // Подсветка гаснет сама, отдельным эффектом: перезапуск прокрутки не должен
@@ -300,6 +323,7 @@ fun ThreadScreen(
                             shareTitle = title,
                             onDismiss = { titleMenuOpen = false },
                             onToggle = toggleBookmark,
+                            onReply = { onReply(threadNum) },
                         )
                     }
                 },
@@ -308,9 +332,17 @@ fun ThreadScreen(
                         Icon(Icons.AutoMirrored.Filled.ArrowBack, contentDescription = "Назад")
                     }
                 },
-                // Кнопок в шапке нет: обновление — свайпом сверху вниз (или снизу
-                // вверх в конце треда), закладки — через долгое нажатие на заголовок
-                // или на пост.
+                // В шапке только «Ответить»: обновление — свайпом сверху вниз (или
+                // снизу вверх в конце треда), закладки — долгим нажатием на
+                // заголовок или на пост.
+                actions = {
+                    IconButton(onClick = { onReply(0) }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Reply,
+                            contentDescription = "Ответить в тред",
+                        )
+                    }
+                },
             )
         },
     ) { padding ->
@@ -379,9 +411,11 @@ fun ThreadScreen(
                             val post = node.post
                             PostCard(
                                 post = post,
+                                isMine = post.num in myPosts,
                                 isHighlighted = post.num == highlighted,
                                 bookmarked = bookmarked,
                                 onToggleBookmark = toggleBookmark,
+                                onReply = { onReply(post.num) },
                                 shareUrl = threadUrl(boardId, threadNum),
                                 shareTitle = title,
                                 showThumbnails = settings.showThumbnails,

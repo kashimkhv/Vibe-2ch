@@ -14,6 +14,7 @@ import androidx.navigation.compose.rememberNavController
 import dev.dvach.client.ui.bookmarks.BookmarksScreen
 import dev.dvach.client.ui.boards.BoardsScreen
 import dev.dvach.client.ui.media.MediaScreen
+import dev.dvach.client.ui.posting.ComposerScreen
 import dev.dvach.client.ui.settings.SettingsScreen
 import dev.dvach.client.ui.thread.ThreadScreen
 import dev.dvach.client.ui.threads.ThreadsScreen
@@ -57,6 +58,10 @@ fun DvachNavHost(
                 onOpenMedia = { file ->
                     navController.navigate(MediaRoute(file.url, file.name, file.isVideo))
                 },
+                onCreateThread = {
+                    val route = it.toRoute<ThreadsRoute>()
+                    navController.navigate(ComposerRoute(route.boardId, route.boardName))
+                },
             )
         }
 
@@ -66,10 +71,37 @@ fun DvachNavHost(
                 onOpenMedia = { file ->
                     navController.navigate(MediaRoute(file.url, file.name, file.isVideo))
                 },
+                onReply = { replyTo ->
+                    val route = it.toRoute<ThreadRoute>()
+                    navController.navigate(
+                        ComposerRoute(
+                            boardId = route.boardId,
+                            boardName = route.boardName,
+                            threadNum = route.threadNum,
+                            quoteNum = replyTo,
+                        ),
+                    )
+                },
                 onOpenThread = { threadNum, highlight ->
                     val route = it.toRoute<ThreadRoute>()
                     navController.navigate(
                         ThreadRoute(route.boardId, route.boardName, threadNum, highlight),
+                    )
+                },
+            )
+        }
+
+        composable<ComposerRoute> {
+            ComposerScreen(
+                onBack = navController::popBackStack,
+                onPosted = navController::popBackStack,
+                onThreadCreated = { threadNum ->
+                    val route = it.toRoute<ComposerRoute>()
+                    // Форма уходит из бэкстека: возвращаться в неё после отправки
+                    // незачем, а «назад» из нового треда ведёт к списку тредов.
+                    navController.popBackStack()
+                    navController.navigate(
+                        ThreadRoute(route.boardId, route.boardName, threadNum, threadNum),
                     )
                 },
             )

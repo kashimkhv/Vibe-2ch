@@ -3,6 +3,7 @@ package dev.dvach.client.ui.thread
 import android.content.Context
 import android.content.Intent
 import androidx.compose.material.icons.Icons
+import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
 import androidx.compose.material.icons.filled.Share
@@ -15,11 +16,12 @@ import androidx.compose.ui.platform.LocalContext
 
 /**
  * Контекстное меню треда: открывается долгим нажатием на заголовок или на любой
- * пост. Закладка у треда одна (не у поста), поэтому её пункт один — и он же
+ * пост. «Ответить» начинает ответ в форме и цитирует пост, на котором открыли
+ * меню. Закладка у треда одна (не у поста), поэтому её пункт один — и он же
  * переключает состояние. «Поделиться» отдаёт ссылку на тред в системное меню
  * «Отправить»: оттуда её можно кинуть в мессенджер или скопировать.
  *
- * Оба пункта оформлены одинаково — иконка слева, текст справа: так меню читается
+ * Все пункты оформлены одинаково — иконка слева, текст справа: так меню читается
  * как список действий, а не как набор случайных строк.
  */
 @Composable
@@ -30,9 +32,20 @@ internal fun ThreadMenu(
     shareTitle: String,
     onDismiss: () -> Unit,
     onToggle: () -> Unit,
+    onReply: () -> Unit,
 ) {
     val context = LocalContext.current
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
+        DropdownMenuItem(
+            text = { Text("Ответить") },
+            leadingIcon = {
+                Icon(Icons.AutoMirrored.Filled.Reply, contentDescription = null)
+            },
+            onClick = {
+                onDismiss()
+                onReply()
+            },
+        )
         DropdownMenuItem(
             text = { Text(if (bookmarked) "Убрать из закладок" else "Сохранить в закладки") },
             leadingIcon = {

@@ -22,6 +22,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
@@ -45,6 +46,10 @@ fun PostCard(
     isHighlighted: Boolean,
     onPostClick: (postNum: Int, threadNum: Int?) -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
+    /** Свой пост: подсвечивается фоном, синей полосой слева и меткой «мой». */
+    isMine: Boolean = false,
+    /** Начать ответ на этот пост: форма откроется с цитатой `>>num`. */
+    onReply: () -> Unit = {},
     bookmarked: Boolean = false,
     onToggleBookmark: () -> Unit = {},
     /** Ссылка на тред для пункта «Поделиться» в контекстном меню. */
@@ -81,8 +86,12 @@ fun PostCard(
         // ОП — светло-голубая строка, ответы белые: иерархию задаёт не тень,
         // а подложка и разделитель.
         post.isOp -> MaterialTheme.colorScheme.primaryContainer
+        // Свой пост — приглушённая серая строка: видно, что он твой, но
+        // внимание он не оттягивает у остальных, как подсветка перехода.
+        isMine -> MaterialTheme.colorScheme.surfaceVariant
         else -> MaterialTheme.colorScheme.surface
     }
+    val mineStripe = MaterialTheme.colorScheme.primary
 
     val guideColor = MaterialTheme.colorScheme.outlineVariant
 
@@ -92,7 +101,17 @@ fun PostCard(
     Column(
         modifier = Modifier
             .fillMaxWidth()
-            .background(container),
+            .background(container)
+            .drawBehind {
+                // Синяя полоса у своего поста — по ней он находится глазом
+                // даже в длинном треде, где прокрутили мимо.
+                if (isMine) {
+                    drawRect(
+                        color = mineStripe,
+                        size = Size(MINE_STRIPE_DP.dp.toPx(), size.height),
+                    )
+                }
+            },
     ) {
         Column(
             modifier = Modifier
@@ -152,6 +171,20 @@ fun PostCard(
                                 modifier = Modifier.padding(end = 6.dp),
                             )
                         }
+                        if (isMine) {
+                            Text(
+                                text = "мой",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                                modifier = Modifier
+                                    .padding(end = 6.dp)
+                                    .background(
+                                        MaterialTheme.colorScheme.primary.copy(alpha = 0.12f),
+                                    )
+                                    .padding(horizontal = 4.dp, vertical = 1.dp),
+                            )
+                        }
                         Text(
                             text = post.name.ifBlank { "Аноним" },
                             style = MaterialTheme.typography.labelLarge,
@@ -207,6 +240,7 @@ fun PostCard(
                     shareTitle = shareTitle,
                     onDismiss = { menuOpen = false },
                     onToggle = onToggleBookmark,
+                    onReply = onReply,
                 )
             }
 
@@ -275,4 +309,7 @@ fun PostCard(
  * дерево читается без линий-коннекторов, а глубина ограничена в [buildPostTree].
  */
 private const val TREE_INDENT_DP = 16
+
+/** Ширина синей полосы у своего поста. */
+private const val MINE_STRIPE_DP = 3
 

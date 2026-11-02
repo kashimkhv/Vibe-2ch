@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -77,6 +78,8 @@ fun ThreadsScreen(
     onBack: () -> Unit,
     onThreadClick: (boardId: String, boardName: String, threadNum: Int) -> Unit,
     onOpenMedia: (Attachment) -> Unit = {},
+    /** Создать новый тред на этой доске: открывает форму поста. */
+    onCreateThread: () -> Unit = {},
     viewModel: ThreadsViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -131,6 +134,9 @@ fun ThreadsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = onCreateThread) {
+                        Icon(Icons.Default.Add, contentDescription = "Создать тред")
+                    }
                     IconButton(onClick = refreshFromTop) {
                         Icon(Icons.Default.Refresh, contentDescription = "Обновить")
                     }

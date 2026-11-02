@@ -9,10 +9,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import dev.dvach.client.data.ChanRepository
+import dev.dvach.client.data.PostedStore
 import dev.dvach.client.data.local.BookmarkEntity
 import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.local.HistoryEntity
@@ -49,6 +51,7 @@ class ThreadViewModel @Inject constructor(
     private val dao: ChanDao,
     private val scrollRepository: ThreadScrollRepository,
     private val mediaPlaylist: MediaPlaylist,
+    private val postedStore: PostedStore,
     settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
@@ -63,6 +66,11 @@ class ThreadViewModel @Inject constructor(
 
     val isBookmarked: StateFlow<Boolean> = dao.isBookmarked(route.boardId, route.threadNum)
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), false)
+
+    /** Номера своих постов в треде: по ним пост подсвечивается как «мой». */
+    val myPosts: StateFlow<Set<Int>> = dao.myPosts(route.boardId, route.threadNum)
+        .map { it.toSet() }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), emptySet())
 
     /** Ключ треда в базе: позиция чтения хранится по доске и номеру. */
     private val threadKey: String get() = "${route.boardId}/${route.threadNum}"
@@ -96,6 +104,17 @@ class ThreadViewModel @Inject constructor(
                     }
                 }
         }
+    }
+
+    /**
+     * Возврат из формы поста. Если только что написали в этот тред, отдаёт
+     * номер нового поста и перезагружает тред — экран прокрутит к нему.
+     * Номер забирается один раз: повторный возврат ничего не двигает.
+     */
+    fun consumePosted(): Int? {
+        val posted = postedStore.consume(route.boardId, route.threadNum) ?: return null
+        load()
+        return posted
     }
 
     /**

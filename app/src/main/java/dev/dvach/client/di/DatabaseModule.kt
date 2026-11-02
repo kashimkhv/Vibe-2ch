@@ -10,10 +10,13 @@ import dagger.hilt.android.qualifiers.ApplicationContext
 import dagger.hilt.components.SingletonComponent
 import dev.dvach.client.data.ChanRepository
 import dev.dvach.client.data.NetworkChanRepository
+import dev.dvach.client.data.NetworkPostingRepository
+import dev.dvach.client.data.PostingRepository
 import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.local.ChanDatabase
 import dev.dvach.client.data.local.MIGRATION_1_2
 import dev.dvach.client.data.local.MIGRATION_2_3
+import dev.dvach.client.data.local.MIGRATION_3_4
 import javax.inject.Singleton
 
 @Module
@@ -24,7 +27,7 @@ object DatabaseModule {
     @Singleton
     fun provideDatabase(@ApplicationContext context: Context): ChanDatabase =
         Room.databaseBuilder(context, ChanDatabase::class.java, "dvach.db")
-            .addMigrations(MIGRATION_1_2, MIGRATION_2_3)
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4)
             .build()
 
     @Provides
@@ -38,4 +41,8 @@ abstract class BindingsModule {
     @Binds
     @Singleton
     abstract fun bindChanRepository(impl: NetworkChanRepository): ChanRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPostingRepository(impl: NetworkPostingRepository): PostingRepository
 }

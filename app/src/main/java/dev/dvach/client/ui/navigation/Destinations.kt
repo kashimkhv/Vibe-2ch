@@ -31,3 +31,15 @@ data object BookmarksRoute
 
 @Serializable
 data object SettingsRoute
+
+/**
+ * Форма поста. `threadNum = 0` — создание нового треда; `quoteNum` — пост,
+ * на который отвечаем (попадёт в начало комментария as `>>123`).
+ */
+@Serializable
+data class ComposerRoute(
+    val boardId: String,
+    val boardName: String,
+    val threadNum: Int = 0,
+    val quoteNum: Int = 0,
+)

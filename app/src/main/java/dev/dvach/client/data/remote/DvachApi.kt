@@ -1,8 +1,19 @@
 package dev.dvach.client.data.remote
 
+import okhttp3.MultipartBody
+import okhttp3.RequestBody
+import retrofit2.http.Body
 import retrofit2.http.GET
+import retrofit2.http.Multipart
+import retrofit2.http.POST
+import retrofit2.http.Part
 import retrofit2.http.Path
+import retrofit2.http.Query
 import dev.dvach.client.data.remote.dto.BoardDto
+import dev.dvach.client.data.remote.dto.CaptchaClickDto
+import dev.dvach.client.data.remote.dto.CaptchaDto
+import dev.dvach.client.data.remote.dto.CaptchaShowDto
+import dev.dvach.client.data.remote.dto.PostingDto
 import dev.dvach.client.data.remote.dto.ThreadsPageDto
 
 /**
@@ -38,4 +49,43 @@ interface DvachApi {
         @Path("board") board: String,
         @Path("thread") thread: Int,
     ): ThreadsPageDto
+
+    /**
+     * ID новой эмодзи-капчи. `thread` нужен для ответа в тред, для нового
+     * треда параметр не передаётся.
+     */
+    @GET("api/captcha/emoji/id")
+    suspend fun captchaId(
+        @Query("board") board: String,
+        @Query("thread") thread: Int?,
+    ): CaptchaDto
+
+    /** Первая картинка капчи (что искать) и клавиатура (из чего выбирать). */
+    @GET("api/captcha/emoji/show")
+    suspend fun captchaShow(@Query("id") id: String): CaptchaShowDto
+
+    /** Клик по эмодзи: либо следующая картинка, либо `success`. */
+    @POST("api/captcha/emoji/click")
+    suspend fun captchaClick(@Body body: CaptchaClickDto): CaptchaShowDto
+
+    /**
+     * Отправка поста или нового треда.
+     *
+     * Все поля — `RequestBody`, а не строки: иначе конвертер Retrofit обернул
+     * бы их в JSON-кавычки. `file[]` — имя поля, которое ждёт движок; файл
+     * необязателен (`null` — часть не добавляется).
+     */
+    @Multipart
+    @POST("user/posting")
+    suspend fun posting(
+        @Part("captcha_type") captchaType: RequestBody,
+        @Part("board") board: RequestBody,
+        @Part("thread") thread: RequestBody?,
+        @Part("name") name: RequestBody?,
+        @Part("email") email: RequestBody?,
+        @Part("subject") subject: RequestBody?,
+        @Part("comment") comment: RequestBody,
+        @Part("emoji_captcha_id") captchaId: RequestBody,
+        @Part file: MultipartBody.Part?,
+    ): PostingDto
 }
