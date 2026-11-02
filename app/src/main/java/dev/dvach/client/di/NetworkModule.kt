@@ -168,7 +168,7 @@ private fun MultipartBody.describe(): String = parts.joinToString(", ") { part -
         ?.substringBefore("\"")
         .orEmpty()
     val length = part.body.contentLength()
-    val value = if (length in 0..48) {
+    val value = if (length in 0..160) {
         val buffer = Buffer()
         part.body.writeTo(buffer)
         "=" + buffer.readUtf8()

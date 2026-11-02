@@ -78,6 +78,11 @@ interface DvachApi {
      * `task=post` и `2ch_challenge` есть в форме самого сайта: без задачи
      * «доказательства работы» движок отвечает `result: 0` без пояснений.
      * `nc=1` отключает кэш, как в веб-клиенте.
+     *
+     * `name`, `email`, `subject`, `tags`, `usercode` уходят всегда, даже пустыми:
+     * форма сайта отправляет их в любом случае, а движок на отсутствии поля
+     * падает с `code = 666` («внутренняя ошибка сервера»). Пустая строка —
+     * то же самое, что незаполненное поле.
      */
     @Multipart
     @POST("user/posting")
@@ -87,9 +92,11 @@ interface DvachApi {
         @Part("captcha_type") captchaType: RequestBody,
         @Part("board") board: RequestBody,
         @Part("thread") thread: RequestBody?,
-        @Part("name") name: RequestBody?,
-        @Part("email") email: RequestBody?,
-        @Part("subject") subject: RequestBody?,
+        @Part("name") name: RequestBody,
+        @Part("email") email: RequestBody,
+        @Part("subject") subject: RequestBody,
+        @Part("tags") tags: RequestBody,
+        @Part("usercode") usercode: RequestBody,
         @Part("comment") comment: RequestBody,
         @Part("emoji_captcha_id") captchaId: RequestBody,
         @Part("2ch_challenge") challenge: RequestBody?,
