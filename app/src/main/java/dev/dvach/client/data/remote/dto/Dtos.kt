@@ -45,6 +45,7 @@ data class ThreadDto(
     val views: Int = 0,
     val sticky: Int = 0,
     val closed: Int = 0,
+    val endless: Int = 0,
 )
 
 @Serializable

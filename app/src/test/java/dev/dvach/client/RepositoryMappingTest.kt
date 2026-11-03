@@ -177,4 +177,56 @@ class RepositoryMappingTest {
         assertEquals(listOf(100, 101), posts.map { it.num })
         assertEquals(listOf("b", "b"), posts.map { it.boardId })
     }
+
+    @Test
+    fun `sticky is a rank not a flag`() {
+        // Движок ставит 1–69 (на /b/ 5 и 4, на /d/ 69–65), а не 0/1.
+        // Сравнение `== 1` не ловило почти ни один закреп.
+        assertEquals(
+            true,
+            ThreadDto(sticky = 5, posts = listOf(PostDto(num = 1))).toDomain("b")!!.isSticky,
+        )
+        assertEquals(
+            true,
+            ThreadDto(sticky = 69, posts = listOf(PostDto(num = 1))).toDomain("d")!!.isSticky,
+        )
+        assertEquals(
+            false,
+            ThreadDto(sticky = 0, posts = listOf(PostDto(num = 1))).toDomain("b")!!.isSticky,
+        )
+    }
+
+    @Test
+    fun `sticky rank of the op post pins the thread`() {
+        // /po/ и /d/ кладут ранг только в ОП-пост: у самого треда поля нет.
+        val thread = ThreadDto(
+            posts = listOf(PostDto(num = 54418917, sticky = 3)),
+        ).toDomain("po")
+
+        assertEquals(true, thread!!.isSticky)
+    }
+
+    @Test
+    fun `sticky rank of a post is mapped too`() {
+        assertEquals(true, PostDto(num = 1, sticky = 4).toDomain("b").isSticky)
+        assertEquals(false, PostDto(num = 1, sticky = 0).toDomain("b").isSticky)
+    }
+
+    @Test
+    fun `endless thread is marked as a bump limit`() {
+        // Бамп-лимит движок тоже держит сверху, но метка в ленте другая.
+        assertEquals(
+            true,
+            ThreadDto(endless = 1, posts = listOf(PostDto(num = 1))).toDomain("d")!!.isEndless,
+        )
+        // Иногда признак лежит в ОП-посте: у треда его нет.
+        assertEquals(
+            true,
+            ThreadDto(posts = listOf(PostDto(num = 451903, endless = 1))).toDomain("d")!!.isEndless,
+        )
+        assertEquals(
+            false,
+            ThreadDto(posts = listOf(PostDto(num = 1))).toDomain("b")!!.isEndless,
+        )
+    }
 }

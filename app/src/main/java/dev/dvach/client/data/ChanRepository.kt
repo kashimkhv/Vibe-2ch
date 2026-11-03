@@ -18,6 +18,8 @@ import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
 import javax.inject.Singleton
+import kotlinx.coroutines.async
+import kotlinx.coroutines.coroutineScope
 
 interface ChanRepository {
     suspend fun boards(): List<Board>
@@ -43,9 +45,30 @@ class NetworkChanRepository @Inject constructor(
     override suspend fun board(boardId: String): Board? =
         api.boards().firstOrNull { it.id == boardId }?.toDomain()
 
-    override suspend fun index(boardId: String, page: Int): ThreadsPage =
+    override suspend fun index(boardId: String, page: Int): ThreadsPage = coroutineScope {
+        // Закрепы движок отдаёт только в index.json: в постраничных файлах
+        // (/b/1.json, /b/2.json) их нет ни одного — проверено на /b/, /d/,
+        // /soc/, /media/, /r/. Тянем их параллельно со страницей, чтобы
+        // первая загрузка не ждала два запроса подряд.
+        val pins = if (page == 0) async { loadPinned(boardId) } else null
+
         // В приложении страницы с нуля, в API — с единицы.
-        api.indexPage(boardId, page + 1).toDomain(boardId)
+        val pageDto = api.indexPage(boardId, page + 1)
+        val threadsPage = pageDto.toDomain(boardId)
+        if (pins == null) threadsPage else threadsPage.withPinned(pins.await())
+    }
+
+    /**
+     * Закреплённые треды из `index.json`. Ошибку глотаем: без закрепов
+     * страница всё равно полезна, а падать из-за второго запроса незачем.
+     */
+    private suspend fun loadPinned(boardId: String): List<ThreadSummary> =
+        runCatching { api.index(boardId) }
+            .getOrNull()
+            ?.threads
+            ?.mapNotNull { it.toDomain(boardId) }
+            ?.filter { it.isSticky }
+            .orEmpty()
 
     override suspend fun thread(boardId: String, threadNum: Int): List<Post> =
         api.thread(boardId, threadNum)
@@ -63,6 +86,16 @@ private fun ThreadsPageDto.toDomain(boardId: String) = ThreadsPage(
     threadsPerPage = board?.threadsPerPage?.takeIf { it > 0 } ?: 20,
     maxPages = board?.maxPages?.takeIf { it > 0 } ?: Int.MAX_VALUE,
 )
+
+/**
+ * Ставит закреплённые треды перед страницей. Дубли по номеру отбрасываются:
+ * `index.json` и `1.json` у движка — разные снимки, и только что закреплённый
+ * тред может оказаться в обоих списках. Первым остаётся вариант из `pins`,
+ * у него точно выставлен признак закрепа.
+ */
+internal fun ThreadsPage.withPinned(pins: List<ThreadSummary>): ThreadsPage =
+    if (pins.isEmpty()) this
+    else copy(threads = (pins + threads).distinctBy { it.num })
 
 internal fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
     val op = posts.firstOrNull() ?: return null
@@ -86,7 +119,11 @@ internal fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
         // ставит свежие треды в самый низ.
         filesCount = maxOf(filesCount, op.files.size),
         views = views,
-        isSticky = sticky == 1,
+        // `sticky` — не флаг, а ранг закрепа: движок ставит 1–69, и любое
+        // ненулевое значение означает «держим сверху». На /po/ и /d/ ранг
+        // лежит только в ОП-посте, на уровне треда его нет вовсе.
+        isSticky = sticky > 0 || op.sticky > 0,
+        isEndless = endless == 1 || op.endless == 1,
         isClosed = closed == 1,
         attachments = op.files.map { it.toDomain() },
         replies = posts.drop(1).takeLast(3).map { it.toDomain(boardId) },
@@ -138,7 +175,8 @@ internal fun PostDto.toDomain(boardId: String) = Post(
     timestamp = timestamp,
     trip = stripHtml(trip).ifBlank { null },
     isOp = isOp == 1,
-    isSticky = sticky == 1,
+    // Как и у треда: ранг закрепа, а не булево 0/1.
+    isSticky = sticky > 0,
     isClosed = closed == 1,
     isBanned = banned == 1,
     files = files.map { it.toDomain() },

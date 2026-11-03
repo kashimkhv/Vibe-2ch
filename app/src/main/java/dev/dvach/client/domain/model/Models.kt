@@ -48,6 +48,12 @@ data class ThreadSummary(
     /** Все вложения ОП-поста: в превью треда показываем каждое. */
     val attachments: List<Attachment>,
     val replies: List<Post>,
+    /**
+     * Тред достиг бамп-лимита: движок держит его сверху, новые посты его
+     * больше не поднимают. Это не модераторский закреп, поэтому и пометка
+     * в ленте другая.
+     */
+    val isEndless: Boolean = false,
 )
 
 data class Post(

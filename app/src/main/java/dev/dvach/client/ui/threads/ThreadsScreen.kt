@@ -22,6 +22,7 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
+import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -432,7 +433,10 @@ private fun ThreadCard(
                         end = textMargins,
                     ),
                 )
-                Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                Row(
+                    verticalAlignment = Alignment.CenterVertically,
+                    horizontalArrangement = Arrangement.spacedBy(10.dp),
+                ) {
                     Text(
                         text = postsLabel(thread.postsCount),
                         style = MaterialTheme.typography.labelSmall,
@@ -452,12 +456,28 @@ private fun ThreadCard(
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                         )
                     }
-                    if (thread.isSticky) {
-                        Text(
-                            text = "закреплён",
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.primary,
-                        )
+                    if (thread.isSticky || thread.isEndless) {
+                        // Иконка как у закреплённых досок: цветом темы, вместо
+                        // ещё одной текстовой метки в начале строки.
+                        Row(
+                            verticalAlignment = Alignment.CenterVertically,
+                            horizontalArrangement = Arrangement.spacedBy(3.dp),
+                        ) {
+                            Icon(
+                                imageVector = Icons.Filled.PushPin,
+                                contentDescription = null,
+                                tint = MaterialTheme.colorScheme.primary,
+                                modifier = Modifier.size(12.dp),
+                            )
+                            Text(
+                                // Бамп-лимит — тоже закреп, но по другой причине:
+                                // тред набрал лимит постов и больше не бампает.
+                                text = if (thread.isEndless) "бамп-лимит" else "закреплён",
+                                style = MaterialTheme.typography.labelSmall,
+                                color = MaterialTheme.colorScheme.primary,
+                                maxLines = 1,
+                            )
+                        }
                     }
                     if (thread.isClosed) {
                         Text(
