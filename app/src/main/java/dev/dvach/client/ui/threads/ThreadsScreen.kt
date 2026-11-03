@@ -1,7 +1,8 @@
 package dev.dvach.client.ui.threads
 
+import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
@@ -24,7 +25,10 @@ import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.PushPin
 import androidx.compose.material.icons.filled.Refresh
+import androidx.compose.material.icons.filled.VisibilityOff
 import androidx.compose.material3.CircularProgressIndicator
+import androidx.compose.material3.DropdownMenu
+import androidx.compose.material3.DropdownMenuItem
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -78,7 +82,7 @@ import dev.dvach.client.util.listThumbnailSide
 import dev.dvach.client.util.stripHtml
 import dev.dvach.client.util.thumbnailRowGap
 
-@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class)
+@OptIn(ExperimentalMaterial3Api::class, ExperimentalLayoutApi::class, ExperimentalFoundationApi::class)
 @Composable
 fun ThreadsScreen(
     onBack: () -> Unit,
@@ -178,6 +182,12 @@ fun ThreadsScreen(
                 state.error != null && state.threads.isEmpty() ->
                     ErrorBox(message = state.error.orEmpty(), onRetry = viewModel::refresh)
                 state.threads.isEmpty() -> EmptyBox("На доске пока нет тредов")
+                // Всё, что было на доске, скрыто: пустой экран без подсказки
+                // выглядел бы как сломанная загрузка.
+                threads.isEmpty() -> EmptyBox(
+                    "Все треды на доске скрыты. Вернуть их можно в настройках — " +
+                        "раздел «Лента», пункт «Скрытые треды».",
+                )
                 else -> Box(modifier = Modifier.fillMaxSize()) {
                     // Превью следующих карточек грузим заранее: при быстром флинге
                     // список успевает уехать раньше, чем картинки попросят сами.
@@ -208,6 +218,7 @@ fun ThreadsScreen(
                                 onClick = {
                                     onThreadClick(thread.boardId, state.boardName, thread.num)
                                 },
+                                onHide = { viewModel.hide(thread) },
                                 onOpenAttachment = { file ->
                                     viewModel.prepareMedia(thread, file)
                                     onOpenMedia(file)
@@ -295,6 +306,7 @@ private fun ListFooter(
 /** Сколько превью ОП-поста показывать в списке; остальные — в плашке «+N». */
 private const val THUMBNAILS_IN_LIST = 4
 
+@OptIn(ExperimentalFoundationApi::class)
 @Composable
 private fun ThreadCard(
     thread: ThreadSummary,
@@ -307,11 +319,13 @@ private fun ThreadCard(
     relativeDates: Boolean,
     nowMillis: Long,
     onClick: () -> Unit,
+    onHide: () -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
 ) {
     val plainComment = remember(thread.commentHtml) { stripHtml(thread.commentHtml) }
     val subject = thread.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
+    var menuOpen by remember { mutableStateOf(false) }
 
     // Строка списка — плоская, во всю ширину, с разделителем снизу:
     // карточек со скруглением в старом Material не было.
@@ -323,7 +337,10 @@ private fun ThreadCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                .clickable(onClick = onClick)
+                .combinedClickable(
+                    onClick = onClick,
+                    onLongClick = { menuOpen = true },
+                )
                 .padding(start = 12.dp, end = 12.dp, top = 10.dp, bottom = 10.dp),
             verticalArrangement = Arrangement.spacedBy(6.dp),
         ) {
@@ -488,6 +505,21 @@ private fun ThreadCard(
                     }
                 }
             }
+        }
+        // Долгое нажатие на карточку: контекстное меню из одного действия.
+        // Скрытый тред пропадает из ленты доски, но остаётся в базе — вернуть
+        // его можно в настройках («Лента» → «Скрытые треды»).
+        DropdownMenu(expanded = menuOpen, onDismissRequest = { menuOpen = false }) {
+            DropdownMenuItem(
+                text = { Text("Скрыть тред") },
+                leadingIcon = {
+                    Icon(Icons.Default.VisibilityOff, contentDescription = null)
+                },
+                onClick = {
+                    menuOpen = false
+                    onHide()
+                },
+            )
         }
         HorizontalDivider(
             thickness = 1.dp,

@@ -1,0 +1,237 @@
+{
+  "formatVersion": 1,
+  "database": {
+    "version": 5,
+    "identityHash": "3d0d837da8e1e5ae9d38d6c70a244ceb",
+    "entities": [
+      {
+        "tableName": "bookmarks",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`id` INTEGER PRIMARY KEY AUTOINCREMENT NOT NULL, `board_id` TEXT NOT NULL, `thread_num` INTEGER NOT NULL, `subject` TEXT NOT NULL, `created_at` INTEGER NOT NULL)",
+        "fields": [
+          {
+            "fieldPath": "id",
+            "columnName": "id",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boardId",
+            "columnName": "board_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "threadNum",
+            "columnName": "thread_num",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subject",
+            "columnName": "subject",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": true,
+          "columnNames": [
+            "id"
+          ]
+        }
+      },
+      {
+        "tableName": "history",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`thread_key` TEXT NOT NULL, `board_id` TEXT NOT NULL, `thread_num` INTEGER NOT NULL, `subject` TEXT NOT NULL, `visited_at` INTEGER NOT NULL, PRIMARY KEY(`thread_key`))",
+        "fields": [
+          {
+            "fieldPath": "threadKey",
+            "columnName": "thread_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "boardId",
+            "columnName": "board_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "threadNum",
+            "columnName": "thread_num",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subject",
+            "columnName": "subject",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "visitedAt",
+            "columnName": "visited_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "thread_key"
+          ]
+        }
+      },
+      {
+        "tableName": "pinned_boards",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`board_id` TEXT NOT NULL, `pinned_at` INTEGER NOT NULL, PRIMARY KEY(`board_id`))",
+        "fields": [
+          {
+            "fieldPath": "boardId",
+            "columnName": "board_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "pinnedAt",
+            "columnName": "pinned_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "board_id"
+          ]
+        }
+      },
+      {
+        "tableName": "thread_scroll",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`thread_key` TEXT NOT NULL, `post_num` INTEGER NOT NULL, `scroll_index` INTEGER NOT NULL, `scroll_offset` INTEGER NOT NULL, `updated_at` INTEGER NOT NULL, PRIMARY KEY(`thread_key`))",
+        "fields": [
+          {
+            "fieldPath": "threadKey",
+            "columnName": "thread_key",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postNum",
+            "columnName": "post_num",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scrollIndex",
+            "columnName": "scroll_index",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "scrollOffset",
+            "columnName": "scroll_offset",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "updatedAt",
+            "columnName": "updated_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "thread_key"
+          ]
+        }
+      },
+      {
+        "tableName": "my_posts",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`board_id` TEXT NOT NULL, `thread_num` INTEGER NOT NULL, `post_num` INTEGER NOT NULL, `created_at` INTEGER NOT NULL, PRIMARY KEY(`board_id`, `post_num`))",
+        "fields": [
+          {
+            "fieldPath": "boardId",
+            "columnName": "board_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "threadNum",
+            "columnName": "thread_num",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "postNum",
+            "columnName": "post_num",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "createdAt",
+            "columnName": "created_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "board_id",
+            "post_num"
+          ]
+        }
+      },
+      {
+        "tableName": "hidden_threads",
+        "createSql": "CREATE TABLE IF NOT EXISTS `${TABLE_NAME}` (`board_id` TEXT NOT NULL, `thread_num` INTEGER NOT NULL, `subject` TEXT NOT NULL, `hidden_at` INTEGER NOT NULL, PRIMARY KEY(`board_id`, `thread_num`))",
+        "fields": [
+          {
+            "fieldPath": "boardId",
+            "columnName": "board_id",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "threadNum",
+            "columnName": "thread_num",
+            "affinity": "INTEGER",
+            "notNull": true
+          },
+          {
+            "fieldPath": "subject",
+            "columnName": "subject",
+            "affinity": "TEXT",
+            "notNull": true
+          },
+          {
+            "fieldPath": "hiddenAt",
+            "columnName": "hidden_at",
+            "affinity": "INTEGER",
+            "notNull": true
+          }
+        ],
+        "primaryKey": {
+          "autoGenerate": false,
+          "columnNames": [
+            "board_id",
+            "thread_num"
+          ]
+        }
+      }
+    ],
+    "setupQueries": [
+      "CREATE TABLE IF NOT EXISTS room_master_table (id INTEGER PRIMARY KEY,identity_hash TEXT)",
+      "INSERT OR REPLACE INTO room_master_table (id,identity_hash) VALUES(42, '3d0d837da8e1e5ae9d38d6c70a244ceb')"
+    ]
+  }
+}

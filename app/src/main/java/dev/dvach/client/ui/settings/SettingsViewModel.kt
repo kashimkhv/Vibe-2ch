@@ -7,10 +7,12 @@ import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
+import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
 import dev.dvach.client.data.cache.CacheManager
 import dev.dvach.client.data.cache.CacheUsage
+import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.settings.AppSettings
 import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.SettingsRepository
@@ -21,10 +23,16 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val cache: CacheManager,
+    dao: ChanDao,
 ) : ViewModel() {
 
     val settings: StateFlow<AppSettings> = repository.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
+
+    /** Сколько тредов скрыто: подпись пункта в настройках и счётчик для списка. */
+    val hiddenCount: StateFlow<Int> = dao.hiddenThreads()
+        .map { it.size }
+        .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), 0)
 
     private val _cacheUsage = MutableStateFlow(CacheUsage())
     val cacheUsage: StateFlow<CacheUsage> = _cacheUsage.asStateFlow()

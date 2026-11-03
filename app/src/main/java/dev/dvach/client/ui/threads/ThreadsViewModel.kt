@@ -11,6 +11,8 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import dev.dvach.client.data.ChanRepository
+import dev.dvach.client.data.local.ChanDao
+import dev.dvach.client.data.local.HiddenThreadEntity
 import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.domain.ThreadSort
 import dev.dvach.client.domain.sortThreads
@@ -54,14 +56,18 @@ data class ThreadsUiState(
     val sortAscending: Boolean = false,
     /** Время в карточках — словами («5 мин назад») вместо точной даты. */
     val relativeDates: Boolean = false,
+    /** Номера скрытых тредов этой доски: их карточки в ленту не попадают. */
+    val hiddenNums: Set<Int> = emptySet(),
 ) {
     /**
      * Треды в том порядке, в котором их видит человек. Исходный список
      * (`threads`) всегда в порядке движка: по нему же склеиваются страницы,
-     * поэтому сортировку считаем поверх, а не меняем сам список.
+     * поэтому сортировку считаем поверх, а не меняем сам список. Скрытые
+     * вычитаются до сортировки — иначе они занимали бы место в списке
+     * и попадали бы под правило «закреплённые сверху».
      */
     val orderedThreads: List<ThreadSummary>
-        get() = sortThreads(threads, sort, sortAscending)
+        get() = sortThreads(threads.withoutHidden(hiddenNums), sort, sortAscending)
 }
 
 @HiltViewModel
@@ -69,6 +75,7 @@ class ThreadsViewModel @Inject constructor(
     private val repository: ChanRepository,
     private val settings: SettingsRepository,
     private val mediaPlaylist: MediaPlaylist,
+    private val dao: ChanDao,
     savedStateHandle: SavedStateHandle,
 ) : ViewModel() {
 
@@ -81,6 +88,13 @@ class ThreadsViewModel @Inject constructor(
 
     init {
         loadFirstPage()
+        // Скрытые треды живут в базе: отметил — карточка пропала и после
+        // перезапуска, вернул в настройках — появилась снова.
+        viewModelScope.launch {
+            dao.hiddenThreads(route.boardId).collect { hidden ->
+                _state.update { it.copy(hiddenNums = hidden.map { h -> h.threadNum }.toSet()) }
+            }
+        }
         // Размер превью меняется в настройках — держим его в состоянии экрана,
         // чтобы список перерисовался сразу после возврата.
         viewModelScope.launch {
@@ -201,6 +215,24 @@ class ThreadsViewModel @Inject constructor(
     fun discardMediaSwipe() {
         mediaPlaylist.consumeSwiped()
     }
+
+    /**
+     * Скрыть тред: карточка уходит из ленты доски и не вернётся после
+     * «Обновить». Сама запись остаётся в базе — в настройках её видно
+     * в списке «Скрытые треды» и можно вернуть.
+     */
+    fun hide(thread: ThreadSummary) {
+        viewModelScope.launch {
+            dao.hideThread(
+                HiddenThreadEntity(
+                    boardId = route.boardId,
+                    threadNum = thread.num,
+                    subject = thread.subject,
+                    hiddenAt = System.currentTimeMillis(),
+                ),
+            )
+        }
+    }
 }
 
 /**
@@ -215,3 +247,11 @@ internal fun mergeThreads(
     loaded: List<ThreadSummary>,
     next: List<ThreadSummary>,
 ): List<ThreadSummary> = (loaded + next).distinctBy { it.num }
+
+/**
+ * Лента без скрытых тредов. Скрытые — это номера текущей доски, поэтому
+ * сравнивать достаточно по номеру: на другой доске он значил бы другой тред,
+ * но туда этот набор и не попадает.
+ */
+internal fun List<ThreadSummary>.withoutHidden(hiddenNums: Set<Int>): List<ThreadSummary> =
+    if (hiddenNums.isEmpty()) this else filterNot { it.num in hiddenNums }

@@ -32,6 +32,10 @@ data object BookmarksRoute
 @Serializable
 data object SettingsRoute
 
+/** Скрытые треды: список, из которого их можно вернуть в ленты досок. */
+@Serializable
+data object HiddenThreadsRoute
+
 /**
  * Форма поста. `threadNum = 0` — создание нового треда; `quoteNum` — пост,
  * на который отвечаем (попадёт в начало комментария as `>>123`).

@@ -30,6 +30,19 @@ data class HistoryEntity(
 )
 
 /**
+ * Скрытый тред: его карточка не показывается в ленте доски. Доску и тему
+ * храним, чтобы в списке «Скрытые треды» тред было по чему узнать и куда
+ * вернуть. Ключ составной: номер треда уникален в пределах доски.
+ */
+@Entity(tableName = "hidden_threads", primaryKeys = ["board_id", "thread_num"])
+data class HiddenThreadEntity(
+    @ColumnInfo(name = "board_id") val boardId: String,
+    @ColumnInfo(name = "thread_num") val threadNum: Int,
+    val subject: String,
+    @ColumnInfo(name = "hidden_at") val hiddenAt: Long,
+)
+
+/**
  * Место, на котором пользователь остановился в треде.
  *
  * [postNum] — первый видимый пост: при возврате прокрутка идёт к нему, а не

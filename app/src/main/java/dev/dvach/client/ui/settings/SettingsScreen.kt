@@ -17,6 +17,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -69,6 +70,7 @@ import dev.dvach.client.util.THUMBNAIL_SCALE_MAX
 import dev.dvach.client.util.THUMBNAIL_SCALE_MIN
 import dev.dvach.client.util.formatCacheSize
 import dev.dvach.client.util.formatFileSize
+import dev.dvach.client.util.plural
 import dev.dvach.client.util.THUMBNAIL_SCALE_STEP
 import kotlinx.coroutines.launch
 import kotlin.math.roundToInt
@@ -77,9 +79,11 @@ import kotlin.math.roundToInt
 @Composable
 fun SettingsScreen(
     onBack: () -> Unit,
+    onOpenHiddenThreads: () -> Unit = {},
     viewModel: SettingsViewModel = hiltViewModel(),
 ) {
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    val hiddenCount by viewModel.hiddenCount.collectAsStateWithLifecycle()
     val cacheUsage by viewModel.cacheUsage.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -297,6 +301,20 @@ fun SettingsScreen(
                 )
 
                 HorizontalDivider()
+                SectionTitle("Лента")
+
+                LinkRow(
+                    title = "Скрытые треды",
+                    subtitle = if (hiddenCount == 0) {
+                        "Ничего не скрыто: долгое нажатие на карточку треда скрывает его"
+                    } else {
+                        "Скрыто ${hiddenCount} ${plural(hiddenCount, "тред", "треда", "тредов")} — " +
+                            "здесь их можно вернуть"
+                    },
+                    onClick = onOpenHiddenThreads,
+                )
+
+                HorizontalDivider()
                 SectionTitle("Кэш")
 
                 CacheRow(usage = cacheUsage)
@@ -501,6 +519,40 @@ private fun FontRow(
             style = MaterialTheme.typography.bodyLarge.copy(fontFamily = choice.fontFamily),
             color = MaterialTheme.colorScheme.primary,
             maxLines = 1,
+            modifier = Modifier.padding(start = 12.dp),
+        )
+    }
+}
+
+/**
+ * Строка-переход в другой экран: заголовок, пояснение и шеврон справа.
+ * В старом Material так выглядели пункты, которые открывают новый список.
+ */
+@Composable
+private fun LinkRow(
+    title: String,
+    subtitle: String,
+    onClick: () -> Unit,
+) {
+    Row(
+        modifier = Modifier
+            .fillMaxWidth()
+            .clickable(onClick = onClick)
+            .padding(horizontal = 20.dp, vertical = 10.dp),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Column(modifier = Modifier.weight(1f)) {
+            Text(text = title, style = MaterialTheme.typography.bodyLarge)
+            Text(
+                text = subtitle,
+                style = MaterialTheme.typography.labelSmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
+        }
+        Icon(
+            imageVector = Icons.AutoMirrored.Filled.KeyboardArrowRight,
+            contentDescription = null,
+            tint = MaterialTheme.colorScheme.onSurfaceVariant,
             modifier = Modifier.padding(start = 12.dp),
         )
     }

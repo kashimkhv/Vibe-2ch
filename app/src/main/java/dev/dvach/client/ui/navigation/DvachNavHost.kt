@@ -13,6 +13,7 @@ import androidx.navigation.compose.composable
 import androidx.navigation.compose.rememberNavController
 import dev.dvach.client.ui.bookmarks.BookmarksScreen
 import dev.dvach.client.ui.boards.BoardsScreen
+import dev.dvach.client.ui.hidden.HiddenThreadsScreen
 import dev.dvach.client.ui.media.MediaScreen
 import dev.dvach.client.ui.posting.ComposerScreen
 import dev.dvach.client.ui.settings.SettingsScreen
@@ -121,7 +122,14 @@ fun DvachNavHost(
         }
 
         composable<SettingsRoute> {
-            SettingsScreen(onBack = navController::popBackStack)
+            SettingsScreen(
+                onBack = navController::popBackStack,
+                onOpenHiddenThreads = { navController.navigate(HiddenThreadsRoute) },
+            )
+        }
+
+        composable<HiddenThreadsRoute> {
+            HiddenThreadsScreen(onBack = navController::popBackStack)
         }
     }
 }

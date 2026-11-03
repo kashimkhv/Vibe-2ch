@@ -69,4 +69,21 @@ interface ChanDao {
             "(SELECT rowid FROM my_posts ORDER BY created_at DESC LIMIT :limit)"
     )
     suspend fun trimMyPosts(limit: Int)
+
+    /** Скрытые треды всех досок: свежие сверху — так они идут в списке настроек. */
+    @Query("SELECT * FROM hidden_threads ORDER BY hidden_at DESC")
+    fun hiddenThreads(): Flow<List<HiddenThreadEntity>>
+
+    /** Скрытые треды одной доски: по ним фильтруется её лента. */
+    @Query("SELECT * FROM hidden_threads WHERE board_id = :boardId ORDER BY hidden_at DESC")
+    fun hiddenThreads(boardId: String): Flow<List<HiddenThreadEntity>>
+
+    @Upsert
+    suspend fun hideThread(thread: HiddenThreadEntity)
+
+    @Query("DELETE FROM hidden_threads WHERE board_id = :boardId AND thread_num = :threadNum")
+    suspend fun unhideThread(boardId: String, threadNum: Int)
+
+    @Query("DELETE FROM hidden_threads")
+    suspend fun unhideAllThreads()
 }

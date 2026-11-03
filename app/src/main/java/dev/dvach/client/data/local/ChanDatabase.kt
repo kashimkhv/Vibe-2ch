@@ -12,8 +12,9 @@ import androidx.sqlite.db.SupportSQLiteDatabase
         PinnedBoardEntity::class,
         ThreadScrollEntity::class,
         MyPostEntity::class,
+        HiddenThreadEntity::class,
     ],
-    version = 4,
+    version = 5,
     exportSchema = true,
 )
 abstract class ChanDatabase : RoomDatabase() {
@@ -66,6 +67,23 @@ val MIGRATION_3_4 = object : Migration(3, 4) {
                 "`post_num` INTEGER NOT NULL, " +
                 "`created_at` INTEGER NOT NULL, " +
                 "PRIMARY KEY(`board_id`, `post_num`))",
+        )
+    }
+}
+
+/**
+ * v5: скрытые треды. Миграция ручная — без неё Room сотрёт закладки, историю,
+ * позиции чтения, свои посты и закреплённые доски.
+ */
+val MIGRATION_4_5 = object : Migration(4, 5) {
+    override fun migrate(db: SupportSQLiteDatabase) {
+        db.execSQL(
+            "CREATE TABLE IF NOT EXISTS `hidden_threads` (" +
+                "`board_id` TEXT NOT NULL, " +
+                "`thread_num` INTEGER NOT NULL, " +
+                "`subject` TEXT NOT NULL, " +
+                "`hidden_at` INTEGER NOT NULL, " +
+                "PRIMARY KEY(`board_id`, `thread_num`))",
         )
     }
 }
