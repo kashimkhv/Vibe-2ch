@@ -77,6 +77,7 @@ import dev.dvach.client.ui.components.SCROLLBAR_WIDTH
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.ui.components.PrefetchThumbnails
+import dev.dvach.client.ui.components.rememberWallClock
 import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postsLabel
@@ -97,6 +98,8 @@ fun ThreadScreen(
     val bookmarked by viewModel.isBookmarked.collectAsStateWithLifecycle()
     val myPosts by viewModel.myPosts.collectAsStateWithLifecycle()
     val settings by viewModel.settings.collectAsStateWithLifecycle()
+    // Одно время на весь тред: относительные подписи тикают вместе.
+    val nowMillis = rememberWallClock(settings.relativeDates)
 
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
@@ -424,6 +427,8 @@ fun ThreadScreen(
                                 thumbnailBackground = settings.thumbnailBackground,
                                 autoRevealSpoilers = settings.autoRevealSpoilers,
                                 textMargins = settings.textMarginsDp.dp,
+                                relativeDates = settings.relativeDates,
+                                nowMillis = nowMillis,
                                 ordinal = ordinals[post.num],
                                 depth = node.depth,
                                 onPostClick = { ref, refThread ->

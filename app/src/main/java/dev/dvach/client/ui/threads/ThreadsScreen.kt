@@ -63,13 +63,14 @@ import dev.dvach.client.ui.components.dvachTopAppBarColors
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.DvachScrollbar
 import dev.dvach.client.ui.components.PrefetchThumbnails
+import dev.dvach.client.ui.components.rememberWallClock
 import dev.dvach.client.ui.components.EmptyBox
 import dev.dvach.client.ui.components.ErrorBox
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.ui.components.LoadingBox
 import dev.dvach.client.util.filesLabel
 import dev.dvach.client.util.formatCount
-import dev.dvach.client.util.formatTimestamp
+import dev.dvach.client.util.formatPostTime
 import dev.dvach.client.util.postsLabel
 import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
 import dev.dvach.client.util.listThumbnailSide
@@ -93,6 +94,8 @@ fun ThreadsScreen(
     // Треды в выбранном порядке; сам список в состоянии всегда движковый.
     val threads = state.orderedThreads
     var sortDialog by remember { mutableStateOf(false) }
+    // Одно время на всю ленту: относительные подписи обновляются вместе.
+    val nowMillis = rememberWallClock(state.relativeDates)
 
     // Плейлист просмотрщика общий на приложение. Возврат из галереи в список
     // не должен влиять на тред, который откроют позже: забываем, до чего
@@ -199,6 +202,8 @@ fun ThreadsScreen(
                                 cropThumbnails = state.cropThumbnails,
                                 thumbnailBackground = state.thumbnailBackground,
                                 textMargins = state.textMarginsDp.dp,
+                                relativeDates = state.relativeDates,
+                                nowMillis = nowMillis,
                                 onClick = {
                                     onThreadClick(thread.boardId, state.boardName, thread.num)
                                 },
@@ -298,6 +303,8 @@ private fun ThreadCard(
     cropThumbnails: Boolean,
     thumbnailBackground: Boolean,
     textMargins: Dp,
+    relativeDates: Boolean,
+    nowMillis: Long,
     onClick: () -> Unit,
     onOpenAttachment: (Attachment) -> Unit,
 ) {
@@ -342,7 +349,12 @@ private fun ThreadCard(
                     modifier = Modifier.padding(start = 8.dp),
                 ) {
                     Text(
-                        text = formatTimestamp(thread.timestamp).ifBlank { thread.date },
+                        text = formatPostTime(
+                            timestampSeconds = thread.timestamp,
+                            fallback = thread.date,
+                            relative = relativeDates,
+                            nowMillis = nowMillis,
+                        ),
                         style = MaterialTheme.typography.labelSmall,
                         color = MaterialTheme.colorScheme.onSurfaceVariant,
                         maxLines = 1,

@@ -82,6 +82,28 @@ fun formatRelativeTime(timestampSeconds: Long, nowMillis: Long = System.currentT
     }
 }
 
+/**
+ * Время в шапке поста и карточки треда: точная дата или относительная, если
+ * настройка включена. `fallback` — строка `date` от движка (московское время),
+ * она нужна только когда `timestamp` не пришёл вовсе.
+ *
+ * @param nowMillis текущее время для относительных подписей; экран передаёт
+ *   его из одного тикера на весь список.
+ */
+fun formatPostTime(
+    timestampSeconds: Long,
+    fallback: String,
+    relative: Boolean,
+    nowMillis: Long = System.currentTimeMillis(),
+): String {
+    val formatted = if (relative) {
+        formatRelativeTime(timestampSeconds, nowMillis)
+    } else {
+        formatTimestamp(timestampSeconds)
+    }
+    return formatted.ifBlank { fallback }
+}
+
 fun postUrl(boardId: String, threadNum: Int, postNum: Int = threadNum): String =
     "${threadUrl(boardId, threadNum)}#${postNum}"
 

@@ -220,6 +220,14 @@ fun SettingsScreen(
                     onChange = viewModel::setTextMargins,
                 )
 
+                SwitchRow(
+                    title = "Относительные даты",
+                    subtitle = "«5 мин назад» вместо точного времени в тредах и списке " +
+                        "тредов; старше месяца — снова дата",
+                    checked = settings.relativeDates,
+                    onCheckedChange = viewModel::setRelativeDates,
+                )
+
                 HorizontalDivider()
                 SectionTitle("Контент")
 

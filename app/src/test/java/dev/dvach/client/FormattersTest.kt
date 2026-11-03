@@ -11,6 +11,8 @@ import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatFileSize
 import dev.dvach.client.util.imagesLabel
 import dev.dvach.client.util.postUrl
+import dev.dvach.client.util.formatPostTime
+import dev.dvach.client.util.formatTimestamp
 import dev.dvach.client.util.threadUrl
 import dev.dvach.client.util.videosLabel
 
@@ -118,5 +120,53 @@ class FormattersTest {
             "a > b & c",
             plainText("a &gt; b &amp; c"),
         )
+    }
+
+    @Test
+    fun `absolute dates keep the exact time`() {
+        val ts = 1_796_000_000L
+        // Ожидание считаем тем же форматтером: тест не должен зависеть
+        // от часового пояса машины, где он запускается.
+        assertEquals(formatTimestamp(ts), formatPostTime(ts, "01/11/26", relative = false))
+    }
+
+    @Test
+    fun `relative dates say how long ago`() {
+        val now = 1_796_000_000_000L
+        val fiveMinutes = now / 1000 - 5 * 60
+        assertEquals(
+            "5 мин назад",
+            formatPostTime(fiveMinutes, "01/11/26", relative = true, nowMillis = now),
+        )
+        assertEquals(
+            "только что",
+            formatPostTime(now / 1000 - 10, "01/11/26", relative = true, nowMillis = now),
+        )
+        assertEquals(
+            "2 ч назад",
+            formatPostTime(now / 1000 - 2 * 3600, "01/11/26", relative = true, nowMillis = now),
+        )
+        assertEquals(
+            "3 дн назад",
+            formatPostTime(now / 1000 - 3 * 86_400, "01/11/26", relative = true, nowMillis = now),
+        )
+    }
+
+    @Test
+    fun `month old posts fall back to the date without the time`() {
+        val now = 1_796_000_000_000L
+        val old = now / 1000 - 45L * 86_400
+        val expected = formatTimestamp(old).substringBefore(' ')
+        assertEquals(
+            expected,
+            formatPostTime(old, "01/11/26", relative = true, nowMillis = now),
+        )
+    }
+
+    @Test
+    fun `missing timestamp falls back to the engine date string`() {
+        // Строка движка — московское время и свой формат: показываем как есть.
+        assertEquals("01/11/26 Сб 19:33:14", formatPostTime(0, "01/11/26 Сб 19:33:14", relative = false))
+        assertEquals("01/11/26 Сб 19:33:14", formatPostTime(0, "01/11/26 Сб 19:33:14", relative = true, nowMillis = 1_796_000_000_000L))
     }
 }

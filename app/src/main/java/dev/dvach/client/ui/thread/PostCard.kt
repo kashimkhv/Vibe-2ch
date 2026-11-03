@@ -34,7 +34,7 @@ import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.HtmlText
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
-import dev.dvach.client.util.formatTimestamp
+import dev.dvach.client.util.formatPostTime
 import dev.dvach.client.util.THUMBNAIL_BASE_SIDE_DP
 import dev.dvach.client.util.scaleThumbnail
 import dev.dvach.client.util.stripHtml
@@ -63,6 +63,10 @@ fun PostCard(
     autoRevealSpoilers: Boolean = false,
     /** Поля текста: дополнительный отступ слева и справа от темы и текста поста. */
     textMargins: Dp = 0.dp,
+    /** Время в шапке — словами («5 мин назад») вместо точной даты. */
+    relativeDates: Boolean = false,
+    /** Текущее время для относительных подписей; тикер общий на весь тред. */
+    nowMillis: Long = System.currentTimeMillis(),
     /** Порядковый номер поста в треде: 1 — ОП. null — не показывать. */
     ordinal: Int? = null,
     /** Уровень вложенности в дереве ответов: 0 — корень ветки. */
@@ -212,7 +216,7 @@ fun PostCard(
                         modifier = Modifier.padding(start = 8.dp),
                     ) {
                         Text(
-                            text = formatTimestamp(post.timestamp).ifBlank { post.date },
+                            text = formatPostTime(post.timestamp, post.date, relativeDates, nowMillis),
                             style = MaterialTheme.typography.labelSmall,
                             color = MaterialTheme.colorScheme.onSurfaceVariant,
                             maxLines = 1,

@@ -52,6 +52,8 @@ data class ThreadsUiState(
     val sort: ThreadSort = ThreadSort.BUMP,
     /** Направление сортировки: по возрастанию — А→Я, старые и маленькие сверху. */
     val sortAscending: Boolean = false,
+    /** Время в карточках — словами («5 мин назад») вместо точной даты. */
+    val relativeDates: Boolean = false,
 ) {
     /**
      * Треды в том порядке, в котором их видит человек. Исходный список
@@ -93,6 +95,7 @@ class ThreadsViewModel @Inject constructor(
                         textMarginsDp = appSettings.textMarginsDp,
                         sort = appSettings.threadSort,
                         sortAscending = appSettings.threadSortAscending,
+                        relativeDates = appSettings.relativeDates,
                     )
                 }
             }

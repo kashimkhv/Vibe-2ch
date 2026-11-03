@@ -80,6 +80,10 @@ class SettingsViewModel @Inject constructor(
         repository.setAutoRevealSpoilers(enabled)
     }
 
+    fun setRelativeDates(enabled: Boolean) = viewModelScope.launch {
+        repository.setRelativeDates(enabled)
+    }
+
     fun setHeadingFont(font: FontChoice) = viewModelScope.launch {
         repository.setHeadingFont(font)
     }

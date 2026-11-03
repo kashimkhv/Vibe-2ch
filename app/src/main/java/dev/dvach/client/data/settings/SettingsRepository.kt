@@ -59,6 +59,11 @@ data class AppSettings(
     val verticalMediaPaging: Boolean = false,
     /** Скрытый текст (спойлеры) показывается сразу, без тапа по плашке. */
     val autoRevealSpoilers: Boolean = false,
+    /**
+     * Время постов и тредов — словами («5 мин назад»), а не точной датой.
+     * Старше месяца остаётся дата: «42 дн назад» уже не помогает.
+     */
+    val relativeDates: Boolean = false,
     /** Шрифт заголовков: шапки экранов, названия досок, темы постов. */
     val headingFont: FontChoice = FontChoice.SYSTEM,
     /** Шрифт мета-данных: ники, даты, номера постов, счётчики, подписи. */
@@ -112,6 +117,9 @@ class SettingsRepository @Inject constructor(
         /** Галерея листает вложения вертикально (как в TikTok). */
         val VERTICAL_MEDIA = booleanPreferencesKey("vertical_media_paging")
         val AUTO_REVEAL = booleanPreferencesKey("auto_reveal_spoilers")
+
+        /** Время словами: «5 мин назад» вместо даты. */
+        val RELATIVE_DATES = booleanPreferencesKey("relative_dates")
 
         /** Выбранные шрифты: три независимые роли. */
         val FONT_HEADINGS = stringPreferencesKey("font_headings")
@@ -178,6 +186,7 @@ class SettingsRepository @Inject constructor(
                 thumbnailBackground = prefs[Keys.THUMB_BACKGROUND] ?: true,
                 verticalMediaPaging = prefs[Keys.VERTICAL_MEDIA] ?: false,
                 autoRevealSpoilers = prefs[Keys.AUTO_REVEAL] ?: false,
+                relativeDates = prefs[Keys.RELATIVE_DATES] ?: false,
                 headingFont = prefs.fontChoice(Keys.FONT_HEADINGS),
                 metaFont = prefs.fontChoice(Keys.FONT_META),
                 bodyFont = prefs.fontChoice(Keys.FONT_BODY),
@@ -241,6 +250,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.dataStore.edit {
         it[Keys.AUTO_REVEAL] = enabled
+    }
+
+    suspend fun setRelativeDates(enabled: Boolean) = context.dataStore.edit {
+        it[Keys.RELATIVE_DATES] = enabled
     }
 
     /** Порядок тредов и направление пишем вместе: это одно состояние меню. */
