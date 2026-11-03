@@ -52,6 +52,45 @@ class RepositoryMappingTest {
     }
 
     @Test
+    fun `new thread without engine counters still counts the op files`() {
+        // Свежий тред: index.json отдаёт `files_count: 0` и `posts_count: 0`,
+        // хотя вложения в ОП уже есть. Ноль файлов — враньё, берём их из ОП.
+        val thread = ThreadDto(
+            filesCount = 0,
+            postsCount = 0,
+            posts = listOf(
+                PostDto(
+                    num = 63714054,
+                    files = listOf(
+                        FileDto(name = "a.jpg", path = "src/1.jpg"),
+                        FileDto(name = "b.jpg", path = "src/2.jpg"),
+                        FileDto(name = "c.webm", path = "src/3.webm"),
+                    ),
+                ),
+            ),
+        ).toDomain("po")
+
+        assertNotNull(thread)
+        assertEquals(3, thread!!.filesCount)
+        assertEquals(1, thread.postsCount)
+    }
+
+    @Test
+    fun `engine file counter wins when it is larger than the op`() {
+        // Обычный тред: в счётчике все файлы треда, а не только ОП-поста.
+        val thread = ThreadDto(
+            filesCount = 38,
+            postsCount = 243,
+            posts = listOf(
+                PostDto(num = 63709999, files = listOf(FileDto(name = "a.jpg", path = "src/1.jpg"))),
+                PostDto(num = 63710000, comment = "ответ"),
+            ),
+        ).toDomain("po")
+
+        assertEquals(38, thread!!.filesCount)
+    }
+
+    @Test
     fun `blank trip becomes null and blank name stays blank`() {
         val post = PostDto(num = 1, name = "", subject = "&nbsp;", trip = "&nbsp;").toDomain("b")
 

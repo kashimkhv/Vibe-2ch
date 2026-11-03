@@ -20,6 +20,7 @@ import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
+import androidx.compose.material.icons.automirrored.filled.Sort
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Refresh
 import androidx.compose.material3.CircularProgressIndicator
@@ -36,8 +37,10 @@ import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.runtime.setValue
 import androidx.compose.runtime.snapshotFlow
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
@@ -52,6 +55,7 @@ import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import kotlinx.coroutines.flow.distinctUntilChanged
 import kotlinx.coroutines.launch
+import dev.dvach.client.domain.ThreadSort
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.ui.components.dvachShadow
@@ -86,6 +90,10 @@ fun ThreadsScreen(
     val listState = rememberLazyListState()
     val scope = rememberCoroutineScope()
 
+    // Треды в выбранном порядке; сам список в состоянии всегда движковый.
+    val threads = state.orderedThreads
+    var sortDialog by remember { mutableStateOf(false) }
+
     // Плейлист просмотрщика общий на приложение. Возврат из галереи в список
     // не должен влиять на тред, который откроют позже: забываем, до чего
     // долистали, — прокрутка к «последнему файлу» нужна только в треде.
@@ -104,7 +112,7 @@ fun ThreadsScreen(
         snapshotFlow { listState.layoutInfo.visibleItemsInfo.lastOrNull()?.index ?: -1 }
             .distinctUntilChanged()
             .collect { lastVisible ->
-                if (lastVisible >= state.threads.size - LOAD_MORE_PREFETCH) {
+                if (lastVisible >= threads.size - LOAD_MORE_PREFETCH) {
                     viewModel.loadMore()
                 }
             }
@@ -134,6 +142,19 @@ fun ThreadsScreen(
                     }
                 },
                 actions = {
+                    IconButton(onClick = { sortDialog = true }) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.Sort,
+                            contentDescription = "Сортировка тредов",
+                            // Выбранный порядок, отличный от движкового, видно по цвету:
+                            // список уже отсортирован, и это не должно быть сюрпризом.
+                            tint = if (state.sort != ThreadSort.BUMP) {
+                                MaterialTheme.colorScheme.primary
+                            } else {
+                                MaterialTheme.colorScheme.onSurfaceVariant
+                            },
+                        )
+                    }
                     IconButton(onClick = onCreateThread) {
                         Icon(Icons.Default.Add, contentDescription = "Создать тред")
                     }
@@ -159,7 +180,7 @@ fun ThreadsScreen(
                     PrefetchThumbnails(
                         listState = listState,
                         urlsOf = { index ->
-                            state.threads.getOrNull(index)?.attachments
+                            threads.getOrNull(index)?.attachments
                                 ?.take(THUMBNAILS_IN_LIST)
                                 ?.map { it.thumbnailUrl }
                                 .orEmpty()
@@ -169,7 +190,7 @@ fun ThreadsScreen(
                         state = listState,
                         modifier = Modifier.fillMaxSize(),
                     ) {
-                        items(items = state.threads, key = { it.num }) { thread ->
+                        items(items = threads, key = { it.num }) { thread ->
                             ThreadCard(
                                 thread = thread,
                                 listThumbnailScalePercent = state.listThumbnailScalePercent,
@@ -207,6 +228,24 @@ fun ThreadsScreen(
                 }
             }
         }
+    }
+
+    if (sortDialog) {
+        ThreadSortDialog(
+            sort = state.sort,
+            ascending = state.sortAscending,
+            onSelect = { sort, ascending ->
+                viewModel.setSort(sort, ascending)
+                // Порядок поменялся — список переставляется целиком: остаться
+                // на прежней позиции значило бы показать середину нового порядка.
+                scope.launch { listState.scrollToItem(0) }
+            },
+            onReset = {
+                viewModel.setSort(ThreadSort.BUMP)
+                sortDialog = false
+            },
+            onDismiss = { sortDialog = false },
+        )
     }
 }
 

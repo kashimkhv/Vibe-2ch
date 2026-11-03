@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import dev.dvach.client.domain.ThreadSort
 import dev.dvach.client.util.FONT_SCALE_DEFAULT
 import dev.dvach.client.util.LINE_SPACING_DEFAULT
 import dev.dvach.client.util.TEXT_MARGIN_DEFAULT
@@ -78,6 +79,10 @@ data class AppSettings(
     val lineSpacingPercent: Int = LINE_SPACING_DEFAULT,
     /** Дополнительный отступ слева и справа у текста постов, в dp. */
     val textMarginsDp: Int = TEXT_MARGIN_DEFAULT,
+    /** Порядок тредов в списке доски: движковый бамп или своя сортировка. */
+    val threadSort: ThreadSort = ThreadSort.BUMP,
+    /** Направление сортировки: включено — по возрастанию (А→Я, старые сверху). */
+    val threadSortAscending: Boolean = false,
     val baseUrl: String = "https://2ch.hk",
 )
 
@@ -126,6 +131,10 @@ class SettingsRepository @Inject constructor(
         /** Чтение: плотность строк и боковые поля текста. */
         val FONT_LINE_SPACING = intPreferencesKey("font_line_spacing")
         val TEXT_MARGINS = intPreferencesKey("text_margins")
+
+        /** Порядок тредов в списке доски — один на всё приложение. */
+        val THREAD_SORT = stringPreferencesKey("thread_sort")
+        val THREAD_SORT_ASCENDING = booleanPreferencesKey("thread_sort_ascending")
         val BASE_URL = stringPreferencesKey("base_url")
     }
 
@@ -190,6 +199,10 @@ class SettingsRepository @Inject constructor(
                 textMarginsDp = clampTextMargin(
                     prefs[Keys.TEXT_MARGINS] ?: TEXT_MARGIN_DEFAULT,
                 ),
+                threadSort = prefs[Keys.THREAD_SORT]
+                    ?.let { saved -> runCatching { ThreadSort.valueOf(saved) }.getOrNull() }
+                    ?: ThreadSort.BUMP,
+                threadSortAscending = prefs[Keys.THREAD_SORT_ASCENDING] ?: false,
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
         }
@@ -228,6 +241,12 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.dataStore.edit {
         it[Keys.AUTO_REVEAL] = enabled
+    }
+
+    /** Порядок тредов и направление пишем вместе: это одно состояние меню. */
+    suspend fun setThreadSort(sort: ThreadSort, ascending: Boolean) = context.dataStore.edit {
+        it[Keys.THREAD_SORT] = sort.name
+        it[Keys.THREAD_SORT_ASCENDING] = ascending
     }
 
     suspend fun setHeadingFont(font: FontChoice) = context.dataStore.edit {

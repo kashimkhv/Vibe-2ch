@@ -78,7 +78,13 @@ internal fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
         date = op.date,
         timestamp = op.timestamp,
         postsCount = if (postsCount > 0) postsCount else posts.size,
-        filesCount = filesCount,
+        // У только что созданного треда движок отдаёт в index.json нулевые
+        // счётчики (`posts_count: 0`, `files_count: 0`), хотя вложения в
+        // ОП-посте уже есть: числа пересчитываются позже. Ноль файлов при
+        // непустом ОП — заведомо враньё, поэтому берём хотя бы его вложения:
+        // иначе в ленте пропадает «3 картинки», а сортировка по картинкам
+        // ставит свежие треды в самый низ.
+        filesCount = maxOf(filesCount, op.files.size),
         views = views,
         isSticky = sticky == 1,
         isClosed = closed == 1,

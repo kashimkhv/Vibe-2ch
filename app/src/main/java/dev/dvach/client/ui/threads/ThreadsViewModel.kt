@@ -12,6 +12,8 @@ import kotlinx.coroutines.flow.update
 import kotlinx.coroutines.launch
 import dev.dvach.client.data.ChanRepository
 import dev.dvach.client.data.settings.SettingsRepository
+import dev.dvach.client.domain.ThreadSort
+import dev.dvach.client.domain.sortThreads
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.ThreadSummary
 import dev.dvach.client.domain.model.ThreadsPage
@@ -46,7 +48,19 @@ data class ThreadsUiState(
     val autoRevealSpoilers: Boolean = false,
     /** Поля текста карточки — та же настройка чтения, что и в треде. */
     val textMarginsDp: Int = TEXT_MARGIN_DEFAULT,
-)
+    /** Порядок тредов: бамп движка или своя сортировка по загруженным страницам. */
+    val sort: ThreadSort = ThreadSort.BUMP,
+    /** Направление сортировки: по возрастанию — А→Я, старые и маленькие сверху. */
+    val sortAscending: Boolean = false,
+) {
+    /**
+     * Треды в том порядке, в котором их видит человек. Исходный список
+     * (`threads`) всегда в порядке движка: по нему же склеиваются страницы,
+     * поэтому сортировку считаем поверх, а не меняем сам список.
+     */
+    val orderedThreads: List<ThreadSummary>
+        get() = sortThreads(threads, sort, sortAscending)
+}
 
 @HiltViewModel
 class ThreadsViewModel @Inject constructor(
@@ -77,6 +91,8 @@ class ThreadsViewModel @Inject constructor(
                         thumbnailBackground = appSettings.thumbnailBackground,
                         autoRevealSpoilers = appSettings.autoRevealSpoilers,
                         textMarginsDp = appSettings.textMarginsDp,
+                        sort = appSettings.threadSort,
+                        sortAscending = appSettings.threadSortAscending,
                     )
                 }
             }
@@ -147,6 +163,22 @@ class ThreadsViewModel @Inject constructor(
     }
 
     fun refresh() = loadFirstPage()
+
+    /**
+     * Выбор порядка тредов. Пишется в настройки: порядок один на всё приложение
+     * и переживает перезапуск.
+     */
+    fun setSort(sort: ThreadSort, ascending: Boolean = sort.defaultAscending) {
+        _state.update { it.copy(sort = sort, sortAscending = ascending) }
+        viewModelScope.launch { settings.setThreadSort(sort, ascending) }
+    }
+
+    /** Переключение направления у текущей сортировки: А→Я или Я→А, новые или старые. */
+    fun toggleSortDirection() {
+        val current = _state.value
+        if (!current.sort.canReverse) return
+        setSort(current.sort, !current.sortAscending)
+    }
 
     /**
      * Просмотрщик из списка тредов: листать предлагаем только вложения
