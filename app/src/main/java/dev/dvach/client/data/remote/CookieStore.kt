@@ -29,6 +29,14 @@ import java.io.File
  *
  * Файл читается в конструкторе: он крошечный (единицы килобайт), а счётчик
  * кук нужен настройкам ещё до первого запроса в сеть.
+ *
+ * Отдельная забота — зеркала движка. Список тредов приходит с `2ch.hk`, а
+ * картинки тот же `2ch.hk` отдаёт редиректом (`301`) на `2ch.su`. Доступ к
+ * закрытой доске — это host-only кука, поставленная на `2ch.hk`, и по правилам
+ * браузера на другой хост она не уходит: OkHttp честно перезапрашивает картинку
+ * уже у `2ch.su`, но без куки, и получает `500` с HTML «Not found» вместо
+ * превью. Поэтому при запросе к зеркалу кука второго зеркала тоже считается
+ * подходящей — хранится при этом одна, а не две копии.
  */
 class CookieStore(private val file: File) : CookieJar {
 
@@ -51,6 +59,9 @@ class CookieStore(private val file: File) : CookieJar {
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
         val now = System.currentTimeMillis()
+        // Кука, поставленная на 2ch.hk, должна уйти и на 2ch.su: картинки
+        // приходят оттуда редиректом. Для остальных хостов зеркала нет.
+        val mirror = mirrorUrl(url)
         synchronized(lock) {
             val expired = mutableListOf<String>()
             val result = ArrayList<Cookie>(entries.size)
@@ -58,7 +69,7 @@ class CookieStore(private val file: File) : CookieJar {
                 val cookie = entry.cookie
                 if (cookie.expiresAt <= now) {
                     expired += key
-                } else if (cookie.matches(url)) {
+                } else if (cookie.matches(url) || (mirror != null && cookie.matches(mirror))) {
                     result += cookie
                 }
             }
@@ -111,6 +122,12 @@ class CookieStore(private val file: File) : CookieJar {
 
     private fun keyOf(cookie: Cookie): String =
         "${cookie.domain}|${cookie.path}|${cookie.name}"
+
+    /** Адрес того же пути на зеркале — или `null`, если хост не зеркало. */
+    private fun mirrorUrl(url: HttpUrl): HttpUrl? {
+        val mirror = MIRRORS[url.host] ?: return null
+        return url.newBuilder().host(mirror).build()
+    }
 
     private fun load() {
         entries.clear()
@@ -175,5 +192,12 @@ class CookieStore(private val file: File) : CookieJar {
 
         /** Кука длиннее этого — уже не кука, а попытка забить файл. */
         const val MAX_COOKIE_SIZE = 4096
+
+        /**
+         * Зеркала движка, между которыми ходят запросы. `2ch.hk` отвечает на
+         * картинки `301` на `2ch.su`, а доступ выдаёт host-only кукой на
+         * `2ch.hk`: без неё на зеркале превью закрытой доски приходит `500`.
+         */
+        val MIRRORS = mapOf("2ch.hk" to "2ch.su", "2ch.su" to "2ch.hk")
     }
 }
