@@ -28,6 +28,7 @@ import retrofit2.Retrofit
 import okio.Path.Companion.toOkioPath
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import dev.dvach.client.BuildConfig
+import dev.dvach.client.data.remote.CookieStore
 import dev.dvach.client.data.remote.DvachApi
 import java.io.File
 import java.util.concurrent.TimeUnit
@@ -58,7 +59,15 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideOkHttp(@ApplicationContext context: Context): OkHttpClient {
+    fun provideCookieStore(@ApplicationContext context: Context): CookieStore =
+        CookieStore(File(context.filesDir, "cookies.txt"))
+
+    @Provides
+    @Singleton
+    fun provideOkHttp(
+        @ApplicationContext context: Context,
+        cookies: CookieStore,
+    ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
                 HttpLoggingInterceptor.Level.BASIC
@@ -68,6 +77,9 @@ object NetworkModule {
         }
         return OkHttpClient.Builder()
             .cache(Cache(File(context.cacheDir, "http_cache"), 64L * 1024 * 1024))
+            // Куки движка переживают перезапуск: по ним открываются закрытые
+            // доски, а без них каждый запрос был бы новым анонимом.
+            .cookieJar(cookies)
             // Превью грузятся пачкой по всему экрану: пять соединений на хост
             // (умолчание OkHttp) — узкое место при быстром скролле.
             .dispatcher(
@@ -86,6 +98,7 @@ object NetworkModule {
             }
             .addInterceptor(logging)
             .addInterceptor(PostingLoggingInterceptor())
+            .addInterceptor(CookieLoggingInterceptor())
             .connectTimeout(20, TimeUnit.SECONDS)
             .readTimeout(30, TimeUnit.SECONDS)
             .callTimeout(45, TimeUnit.SECONDS)
@@ -99,7 +112,10 @@ object NetworkModule {
     @Provides
     @Singleton
     @MediaClient
-    fun provideMediaOkHttp(): OkHttpClient = OkHttpClient.Builder()
+    fun provideMediaOkHttp(cookies: CookieStore): OkHttpClient = OkHttpClient.Builder()
+        // Картинки и видео закрытых досок тоже требуют ту же куку, поэтому
+        // у медиа-клиента своё хранилище не заводим — оно общее.
+        .cookieJar(cookies)
         .addInterceptor { chain ->
             chain.proceed(
                 chain.request().newBuilder()
@@ -155,6 +171,28 @@ private class PostingLoggingInterceptor : Interceptor {
         if (BuildConfig.DEBUG && request.url.encodedPath.endsWith("/user/posting")) {
             val body = runCatching { response.peekBody(16L * 1024).string() }.getOrDefault("<нет тела>")
             Log.i("Posting", "← ${response.code}: $body")
+        }
+        return response
+    }
+}
+
+/**
+ * Движок ставит куки редко (доступ к закрытой доске, `cf_clearance`), поэтому
+ * пишем только когда он это сделал — и только имена: значения это по сути
+ * пароли, им не место в логе.
+ */
+private class CookieLoggingInterceptor : Interceptor {
+    override fun intercept(chain: Interceptor.Chain): Response {
+        val response = chain.proceed(chain.request())
+        if (BuildConfig.DEBUG) {
+            val setCookies = response.headers("Set-Cookie")
+            if (setCookies.isNotEmpty()) {
+                Log.i(
+                    "Cookies",
+                    "← ${chain.request().url.encodedPath} поставил ${setCookies.size}: " +
+                        setCookies.joinToString { it.substringBefore('=') },
+                )
+            }
         }
         return response
     }

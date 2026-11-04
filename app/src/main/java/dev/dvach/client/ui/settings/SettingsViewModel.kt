@@ -13,6 +13,7 @@ import kotlinx.coroutines.launch
 import dev.dvach.client.data.cache.CacheManager
 import dev.dvach.client.data.cache.CacheUsage
 import dev.dvach.client.data.local.ChanDao
+import dev.dvach.client.data.remote.CookieStore
 import dev.dvach.client.data.settings.AppSettings
 import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.SettingsRepository
@@ -23,6 +24,7 @@ import javax.inject.Inject
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val cache: CacheManager,
+    private val cookies: CookieStore,
     dao: ChanDao,
 ) : ViewModel() {
 
@@ -37,9 +39,15 @@ class SettingsViewModel @Inject constructor(
     private val _cacheUsage = MutableStateFlow(CacheUsage())
     val cacheUsage: StateFlow<CacheUsage> = _cacheUsage.asStateFlow()
 
+    /** Сколько кук движка сейчас сохранено: по ним открываются закрытые доски. */
+    val cookiesCount: StateFlow<Int> = cookies.count
+
     init {
         refreshCache()
     }
+
+    /** Стереть куки: доступ к закрытым доскам после этого выдаётся заново. */
+    fun clearCookies() = cookies.clear()
 
     /** Перечитывает размер кэшей: он меняется сам, пока экран открыт. */
     fun refreshCache() = viewModelScope.launch {

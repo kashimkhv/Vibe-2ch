@@ -85,10 +85,12 @@ fun SettingsScreen(
     val settings by viewModel.settings.collectAsStateWithLifecycle()
     val hiddenCount by viewModel.hiddenCount.collectAsStateWithLifecycle()
     val cacheUsage by viewModel.cacheUsage.collectAsStateWithLifecycle()
+    val cookiesCount by viewModel.cookiesCount.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
     var confirmClear by remember { mutableStateOf(false) }
+    var confirmClearCookies by remember { mutableStateOf(false) }
     var fontPicker by remember { mutableStateOf<FontRole?>(null) }
 
     Scaffold(
@@ -315,6 +317,47 @@ fun SettingsScreen(
                 )
 
                 HorizontalDivider()
+                SectionTitle("Сеть")
+
+                Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
+                    Row(verticalAlignment = Alignment.CenterVertically) {
+                        Text(
+                            text = "Куки",
+                            style = MaterialTheme.typography.bodyLarge,
+                            modifier = Modifier.weight(1f),
+                        )
+                        Text(
+                            text = if (cookiesCount == 0) {
+                                "нет"
+                            } else {
+                                "$cookiesCount ${plural(cookiesCount, "штука", "штуки", "штук")}"
+                            },
+                            style = MaterialTheme.typography.labelLarge,
+                            color = MaterialTheme.colorScheme.primary,
+                        )
+                    }
+                    Text(
+                        text = "Движок выдаёт их после поста и по ним открывает закрытые " +
+                            "доски. Сохраняются в файле и переживают перезапуск — без " +
+                            "них каждый запрос уходил бы как новый аноним.",
+                        style = MaterialTheme.typography.labelSmall,
+                        color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    )
+                    Button(
+                        onClick = { confirmClearCookies = true },
+                        enabled = cookiesCount > 0,
+                        // Углы задаём явно: кнопки Material3 — «пилюли», а в
+                        // остальном интерфейсе углы почти прямые.
+                        shape = RoundedCornerShape(2.dp),
+                        modifier = Modifier
+                            .padding(top = 8.dp)
+                            .dvachShadow(2.dp, RoundedCornerShape(2.dp)),
+                    ) {
+                        Text("Стереть куки")
+                    }
+                }
+
+                HorizontalDivider()
                 SectionTitle("Кэш")
 
                 CacheRow(usage = cacheUsage)
@@ -397,6 +440,35 @@ fun SettingsScreen(
             },
             dismissButton = {
                 TextButton(onClick = { confirmClear = false }) { Text("Отмена") }
+            },
+        )
+    }
+
+    if (confirmClearCookies) {
+        AlertDialog(
+            onDismissRequest = { confirmClearCookies = false },
+            shape = RoundedCornerShape(2.dp),
+            title = { Text("Стереть куки?") },
+            text = {
+                Text(
+                    "Движок забудет, что вы уже получали доступ: закрытые доски " +
+                        "снова ответят «не найдено», пока доступ не выдадут заново. " +
+                        "Закладки, настройки и кэш останутся на месте.",
+                )
+            },
+            confirmButton = {
+                TextButton(
+                    onClick = {
+                        confirmClearCookies = false
+                        viewModel.clearCookies()
+                        scope.launch { snackbarHostState.showSnackbar("Куки стёрты") }
+                    },
+                ) {
+                    Text("Стереть")
+                }
+            },
+            dismissButton = {
+                TextButton(onClick = { confirmClearCookies = false }) { Text("Отмена") }
             },
         )
     }
