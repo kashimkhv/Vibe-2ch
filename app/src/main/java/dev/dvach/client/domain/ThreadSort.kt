@@ -17,7 +17,6 @@ enum class ThreadSort(val label: String, val defaultAscending: Boolean) {
     REPLIES("По количеству ответов", false),
     CREATED("По дате создания", false),
     RATE("По скорости ответов", false),
-    LAST_REPLY("По последнему ответу", false),
     IMAGES("По количеству картинок", false),
     ALPHABET("По алфавиту", true),
     ;
@@ -52,7 +51,6 @@ fun sortThreads(
         ThreadSort.REPLIES -> compareBy<ThreadSummary> { it.postsCount }
         ThreadSort.CREATED -> compareBy<ThreadSummary> { it.timestamp }
         ThreadSort.RATE -> compareBy<ThreadSummary> { replyRate(it) }
-        ThreadSort.LAST_REPLY -> compareBy<ThreadSummary> { lastReplyAt(it) }
         ThreadSort.IMAGES -> compareBy<ThreadSummary> { it.filesCount }
         ThreadSort.ALPHABET -> Comparator { first: ThreadSummary, second: ThreadSummary ->
             String.CASE_INSENSITIVE_ORDER.compare(alphabetKey(first), alphabetKey(second))

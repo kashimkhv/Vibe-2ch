@@ -22,7 +22,6 @@ import androidx.compose.material.icons.filled.Image
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.SortByAlpha
 import androidx.compose.material.icons.filled.Speed
-import androidx.compose.material.icons.filled.Update
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
@@ -165,7 +164,6 @@ private val ThreadSort.icon: ImageVector
         ThreadSort.REPLIES -> Icons.AutoMirrored.Filled.Reply
         ThreadSort.CREATED -> Icons.Default.Schedule
         ThreadSort.RATE -> Icons.Default.Speed
-        ThreadSort.LAST_REPLY -> Icons.Default.Update
         ThreadSort.IMAGES -> Icons.Default.Image
         ThreadSort.ALPHABET -> Icons.Default.SortByAlpha
     }

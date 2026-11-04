@@ -104,8 +104,8 @@ class ThreadSortTest {
     }
 
     @Test
-    fun `last reply uses the newest reply, not the op date`() {
-        assertEquals(listOf(2, 1, 3), sortThreads(threads, ThreadSort.LAST_REPLY, false).map { it.num })
+    fun `last reply is the newest reply and falls back to the op date`() {
+        // На этом времени стоит «скорость ответов», отдельного порядка по нему нет.
         assertEquals(700L, lastReplyAt(threads[1]))
         assertEquals(300L, lastReplyAt(thread(9, createdAt = 300)))
     }
