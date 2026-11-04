@@ -86,6 +86,15 @@ class ThreadsViewModel @Inject constructor(
     )
     val state: StateFlow<ThreadsUiState> = _state.asStateFlow()
 
+    /**
+     * Когда список последний раз запрашивали. Тихий refresh после возврата из
+     * треда смотрит на это время, чтобы «туда-обратно» не долбило сервер.
+     */
+    private var lastLoadAt = 0L
+
+    /** Тихий refresh уже идёт: второй параллельный не нужен. */
+    private var quietRefreshRunning = false
+
     init {
         loadFirstPage()
         // Скрытые треды живут в базе: отметил — карточка пропала и после
@@ -122,6 +131,7 @@ class ThreadsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repository.index(route.boardId, 0) }
                 .onSuccess { result ->
+                    lastLoadAt = System.currentTimeMillis()
                     _state.update {
                         it.copy(
                             isLoading = false,
@@ -156,6 +166,7 @@ class ThreadsViewModel @Inject constructor(
         viewModelScope.launch {
             runCatching { repository.index(route.boardId, current.page + 1) }
                 .onSuccess { result ->
+                    lastLoadAt = System.currentTimeMillis()
                     _state.update { state ->
                         state.copy(
                             isLoadingMore = false,
@@ -180,6 +191,48 @@ class ThreadsViewModel @Inject constructor(
     }
 
     fun refresh() = loadFirstPage()
+
+    /**
+     * Тихий refresh при возврате из треда: подтягивает первую страницу, чтобы
+     * счётчики постов были свежими, тред встал по бампу, а удалённый на движке
+     * тред пропал из ленты.
+     *
+     * В отличие от [refresh] он ничего не показывает: нет ни спиннера в шапке,
+     * ни ошибки — при сбое сети список просто остаётся прежним. Догруженные
+     * страницы остаются под свежей первой (см. [mergeFirstPage]), а позицию
+     * держит сама лента: у карточек ключ — номер треда. Если список только что
+     * запрашивали, запрос не повторяется: быстрое «открыл тред — вернулся»
+     * ничего не меняет.
+     */
+    suspend fun refreshQuietly() {
+        if (quietRefreshRunning) return
+        if (_state.value.isLoading || _state.value.isLoadingMore) return
+        if (System.currentTimeMillis() - lastLoadAt < QUIET_REFRESH_INTERVAL_MS) return
+        // Время попытки, а не успеха: иначе при недоступной сети каждый возврат
+        // снова ходил бы в сеть.
+        lastLoadAt = System.currentTimeMillis()
+        quietRefreshRunning = true
+        try {
+            val fresh = runCatching { repository.index(route.boardId, 0) }.getOrNull() ?: return
+            // Пустая страница — скорее сбой движка, чем «доска опустела»:
+            // гасить ленту тихим обновлением нельзя, для этого есть «Обновить».
+            if (fresh.threads.isEmpty()) return
+            _state.update { state ->
+                state.copy(
+                    threads = mergeFirstPage(
+                        loaded = state.threads,
+                        fresh = fresh.threads,
+                        keepLoadedTail = state.page > 0,
+                    ),
+                    // Если догруженных страниц не было, свежая первая — это и есть
+                    // весь список: «есть ли дальше» берём из неё.
+                    canGoNext = if (state.page > 0) state.canGoNext else fresh.canGoNext(),
+                )
+            }
+        } finally {
+            quietRefreshRunning = false
+        }
+    }
 
     /**
      * Выбор порядка тредов. Пишется в настройки: порядок один на всё приложение
@@ -247,6 +300,33 @@ internal fun mergeThreads(
     loaded: List<ThreadSummary>,
     next: List<ThreadSummary>,
 ): List<ThreadSummary> = (loaded + next).distinctBy { it.num }
+
+/**
+ * Место свежей первой страницы в уже загруженном списке — тихий refresh после
+ * возврата из треда.
+ *
+ * Догруженные страницы остаются под свежей первой: возврат из треда не должен
+ * схлопывать ленту до одной страницы. Совпавшие номера берутся из свежей
+ * страницы — у неё новые счётчики и порядок по бампу. Если догруженных страниц
+ * не было, старый список заменяется целиком: иначе тред, удалённый на движке,
+ * висел бы в ленте до ручного «Обновить».
+ *
+ * Когда догруженные страницы есть, треды, удалённые не с первой страницы, так
+ * и останутся внизу — тихий refresh знает только про первую. Их уберёт полное
+ * обновление («Обновить» или повторный вход на доску).
+ */
+internal fun mergeFirstPage(
+    loaded: List<ThreadSummary>,
+    fresh: List<ThreadSummary>,
+    keepLoadedTail: Boolean,
+): List<ThreadSummary> {
+    if (!keepLoadedTail) return fresh
+    val freshNums = fresh.mapTo(HashSet(fresh.size)) { it.num }
+    return fresh + loaded.filterNot { it.num in freshNums }
+}
+
+/** Тихий refresh не чаще раза в 5 секунд: быстрый возврат не стоит запроса. */
+private const val QUIET_REFRESH_INTERVAL_MS = 5_000L
 
 /**
  * Лента без скрытых тредов. Скрытые — это номера текущей доски, поэтому
