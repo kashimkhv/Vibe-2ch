@@ -16,7 +16,7 @@ import kotlin.math.pow
 
 /**
  * Темы проверяются не «на глаз», а по контрасту WCAG: палитру легко сделать
- * красивой и нечитаемой, а тёмных тем у нас двенадцать, и глазами каждую
+ * красивой и нечитаемой, а тёмных тем у нас четырнадцать, и глазами каждую
  * после каждой правки не пересмотришь.
  *
  * Порог 7:1 — основной текст постов, 4.5:1 — ники, даты и ссылки. Разделитель
@@ -59,9 +59,9 @@ class ThemeTest {
 
     @Test
     fun `every theme has an id, a label and a hint`() {
-        // Тринадцать тем из коллажа плюс пункт «Как в системе», который
-        // разворачивается в пару Material You.
-        assertEquals(13, DvachTheme.entries.count { it != DvachTheme.SYSTEM })
+        // Двадцать тем: тринадцать из коллажа и семь из редакторов кода,
+        // плюс пункт «Как в системе», который разворачивается в пару Material You.
+        assertEquals(20, DvachTheme.entries.count { it != DvachTheme.SYSTEM })
         assertEquals(
             "id тем должны быть уникальны: по ним хранится выбор",
             DvachTheme.entries.size,
@@ -153,6 +153,8 @@ class ThemeTest {
             // Ссылки и акцентные подписи живут на строках и подложках, а не
             // прямо на холсте: на холсте бывают только разделители экранов.
             assertContrast(palette, "акцент/строка", palette.accent, palette.surface, 4.5)
+            assertContrast(palette, "акцент/подложка", palette.accent, palette.surfaceAlt, 4.5)
+            assertContrast(palette, "акцент/ОП", palette.accent, palette.op, 4.5)
             assertContrast(palette, "текст на акценте", palette.onAccent, palette.accent, 4.5)
             assertContrast(palette, "ошибка/строка", palette.error, palette.surface, 4.5)
         }

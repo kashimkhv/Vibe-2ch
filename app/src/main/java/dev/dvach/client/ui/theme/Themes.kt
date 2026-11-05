@@ -139,12 +139,14 @@ fun DvachPalette.toColorScheme(): ColorScheme {
  */
 val palettes: Map<DvachTheme, DvachPalette> = listOf(
     // Текущее светлое оформление: голубая шапка, белые строки, серый холст.
+    // Акцент — Material Blue 800 (#1565C0): Blue 700 на подложке ОП давал
+    // 4.0:1, а ссылки в ОП — обычное дело.
     DvachPalette(
         theme = DvachTheme.MATERIAL_LIGHT,
         isDark = false,
         header = Color(0xFFD3E4F4),
         onHeader = Color(0xFF0D2A44),
-        accent = Color(0xFF1976D2),
+        accent = Color(0xFF1565C0),
         onAccent = Color(0xFFFFFFFF),
         background = Color(0xFFF5F6F7),
         surface = Color(0xFFFFFFFF),
@@ -335,14 +337,15 @@ val palettes: Map<DvachTheme, DvachPalette> = listOf(
     ),
     // Классическая Yotsuba: кремовый холст и оранжевые ссылки. Текст почти
     // чёрный с коричневым оттенком — так он не спорит с тёплым фоном;
-    // оранжевый чуть темнее канонического #C7511F, иначе ссылка на белой
-    // строке не дотягивала до 4.5:1.
+    // оранжевый заметно темнее канонического #C7511F: на белой строке канон
+    // не дотягивал до 4.5:1, а на подложке своего поста и на ОП не хватало
+    // даже #C24C1A.
     DvachPalette(
         theme = DvachTheme.YOTSUBA,
         isDark = false,
         header = Color(0xFFEFD9B0),
         onHeader = Color(0xFF4A3517),
-        accent = Color(0xFFC24C1A),
+        accent = Color(0xFFAD4013),
         onAccent = Color(0xFFFFFFFF),
         background = Color(0xFFFFF6E0),
         surface = Color(0xFFFFFEF5),
@@ -358,12 +361,13 @@ val palettes: Map<DvachTheme, DvachPalette> = listOf(
         shadowTint = Color(0xFF4A3517),
     ),
     // Тёплая светлая: мягкий бежевый холст, коричневый акцент, никакого синего.
+    // Акцент темнее прежнего #A85A2A: на подложке своего поста он давал 4.0:1.
     DvachPalette(
         theme = DvachTheme.TEPLO,
         isDark = false,
         header = Color(0xFFE9D9C6),
         onHeader = Color(0xFF3E2C1B),
-        accent = Color(0xFFA85A2A),
+        accent = Color(0xFF99501F),
         onAccent = Color(0xFFFFFFFF),
         background = Color(0xFFF6F0E8),
         surface = Color(0xFFFFFDFA),
@@ -421,5 +425,164 @@ val palettes: Map<DvachTheme, DvachPalette> = listOf(
         error = Color(0xFFEE9A8A),
         onError = Color(0xFF36090A),
         shadowTint = Color(0xFF000000),
+    ),
+
+    // Dracula: канон #282A36 и фиолетовый акцент. Комментарий #6272A4 на
+    // строке даёт 3.6:1, поэтому «мета» высветлена до #97A7D4; ошибка тоже
+    // светлее канонической #FF5555 (та не дотягивала до 4.5:1).
+    DvachPalette(
+        theme = DvachTheme.DRACULA,
+        isDark = true,
+        header = Color(0xFF44475A),
+        onHeader = Color(0xFFF8F8F2),
+        accent = Color(0xFFBD93F9),
+        onAccent = Color(0xFF21222C),
+        background = Color(0xFF21222C),
+        surface = Color(0xFF282A36),
+        surfaceAlt = Color(0xFF343746),
+        text = Color(0xFFF8F8F2),
+        muted = Color(0xFF97A7D4),
+        divider = Color(0xFF44475A),
+        op = Color(0xFF33364A),
+        onOp = Color(0xFFF8F8F2),
+        quoteHighlight = Color(0xFF4A4426),
+        error = Color(0xFFFF6E6E),
+        onError = Color(0xFF2A0E0E),
+        shadowTint = Color(0xFF000000),
+    ),
+    // Nord: полярная ночь #2E3440 и ледяной #88C0D0. Тёмно-серый #4C566A
+    // из канона для подписей не годится (3.0:1), мета — светлее.
+    DvachPalette(
+        theme = DvachTheme.NORD,
+        isDark = true,
+        header = Color(0xFF3B4252),
+        onHeader = Color(0xFFECEFF4),
+        accent = Color(0xFF88C0D0),
+        onAccent = Color(0xFF2E3440),
+        background = Color(0xFF232830),
+        surface = Color(0xFF2E3440),
+        surfaceAlt = Color(0xFF3B4252),
+        text = Color(0xFFD8DEE9),
+        muted = Color(0xFFAAB7CB),
+        divider = Color(0xFF434C5E),
+        op = Color(0xFF343B49),
+        onOp = Color(0xFFE5E9F0),
+        quoteHighlight = Color(0xFF3E3F2A),
+        error = Color(0xFFE08C94),
+        onError = Color(0xFF2A0E12),
+        shadowTint = Color(0xFF000000),
+    ),
+    // Solarized Dark: base03 и синий #268BD2. Канон сознательно
+    // низкоконтрастный: base0 для текста даёт 4.7:1, поэтому текст светлее
+    // (base1-производный), а синий ссылки — на ступень светлее.
+    DvachPalette(
+        theme = DvachTheme.SOLARIZED_DARK,
+        isDark = true,
+        header = Color(0xFF0B4453),
+        onHeader = Color(0xFFD2D9D7),
+        accent = Color(0xFF4FB3E8),
+        onAccent = Color(0xFF00212B),
+        background = Color(0xFF001E26),
+        surface = Color(0xFF002B36),
+        surfaceAlt = Color(0xFF073642),
+        text = Color(0xFFC3CCCA),
+        muted = Color(0xFF93A1A1),
+        divider = Color(0xFF0F4A56),
+        op = Color(0xFF08323C),
+        onOp = Color(0xFFC9D1CF),
+        quoteHighlight = Color(0xFF2B3A22),
+        error = Color(0xFFFF6B5E),
+        onError = Color(0xFF2B0A08),
+        shadowTint = Color(0xFF000000),
+    ),
+    // Gruvbox Dark: #282828 и бежевый #EBDBB2. Канонический красный #FB4934
+    // на строке даёт 4.3:1 — ошибка чуть светлее, а аквамарин #83A598
+    // не дотягивал до 4.5:1 на подложке своего поста, поэтому он светлее.
+    DvachPalette(
+        theme = DvachTheme.GRUVBOX_DARK,
+        isDark = true,
+        header = Color(0xFF3C3836),
+        onHeader = Color(0xFFEBDBB2),
+        accent = Color(0xFF8FB0A3),
+        onAccent = Color(0xFF282828),
+        background = Color(0xFF1D2021),
+        surface = Color(0xFF282828),
+        surfaceAlt = Color(0xFF3C3836),
+        text = Color(0xFFEBDBB2),
+        muted = Color(0xFFB8A88F),
+        divider = Color(0xFF504945),
+        op = Color(0xFF32302F),
+        onOp = Color(0xFFEBDBB2),
+        quoteHighlight = Color(0xFF4A4225),
+        error = Color(0xFFFF6A55),
+        onError = Color(0xFF2A0A06),
+        shadowTint = Color(0xFF000000),
+    ),
+    // Catppuccin Mocha: base #1E1E2E, лавандовый текст и голубые ссылки.
+    // Канон проходит проверку без правок.
+    DvachPalette(
+        theme = DvachTheme.CATPPUCCIN_MOCHA,
+        isDark = true,
+        header = Color(0xFF313244),
+        onHeader = Color(0xFFCDD6F4),
+        accent = Color(0xFF89B4FA),
+        onAccent = Color(0xFF1E1E2E),
+        background = Color(0xFF181825),
+        surface = Color(0xFF1E1E2E),
+        surfaceAlt = Color(0xFF313244),
+        text = Color(0xFFCDD6F4),
+        muted = Color(0xFFA6ADC8),
+        divider = Color(0xFF45475A),
+        op = Color(0xFF292A3E),
+        onOp = Color(0xFFCDD6F4),
+        quoteHighlight = Color(0xFF3B3A2A),
+        error = Color(0xFFF38BA8),
+        onError = Color(0xFF3A0F1C),
+        shadowTint = Color(0xFF000000),
+    ),
+    // Solarized Light: base3 и тёплый кремовый. Текст и синий темнее канона:
+    // base00 на base3 даёт 4.3:1, а синий #268BD2 — 3.9:1 к строке и 3.3:1
+    // к подложке ОП.
+    DvachPalette(
+        theme = DvachTheme.SOLARIZED_LIGHT,
+        isDark = false,
+        header = Color(0xFFEEE8D5),
+        onHeader = Color(0xFF33454B),
+        accent = Color(0xFF155F99),
+        onAccent = Color(0xFFFFFFFF),
+        background = Color(0xFFF2EBD8),
+        surface = Color(0xFFFDF6E3),
+        surfaceAlt = Color(0xFFEEE8D5),
+        text = Color(0xFF36474D),
+        muted = Color(0xFF4E6369),
+        divider = Color(0xFFDDD6C1),
+        op = Color(0xFFE7DFCB),
+        onOp = Color(0xFF33454B),
+        quoteHighlight = Color(0xFFF3E3AE),
+        error = Color(0xFFC22F2A),
+        onError = Color(0xFFFFFFFF),
+        shadowTint = Color(0xFF4A3B2A),
+    ),
+    // Catppuccin Latte: светлая пара к Mocha. Канонический текст #4C4F69
+    // и синий #1E66F5 не дотягивали до порогов, оба на ступень темнее.
+    DvachPalette(
+        theme = DvachTheme.CATPPUCCIN_LATTE,
+        isDark = false,
+        header = Color(0xFFD3D7E2),
+        onHeader = Color(0xFF383B50),
+        accent = Color(0xFF1756C4),
+        onAccent = Color(0xFFFFFFFF),
+        background = Color(0xFFE6E9EF),
+        surface = Color(0xFFEFF1F5),
+        surfaceAlt = Color(0xFFDCE0E8),
+        text = Color(0xFF42455C),
+        muted = Color(0xFF5C5F75),
+        divider = Color(0xFFCCD0DA),
+        op = Color(0xFFE4E7F0),
+        onOp = Color(0xFF3E4157),
+        quoteHighlight = Color(0xFFF7E9C8),
+        error = Color(0xFFC81E43),
+        onError = Color(0xFFFFFFFF),
+        shadowTint = Color(0xFF3A3D52),
     ),
 ).associateBy { it.theme }

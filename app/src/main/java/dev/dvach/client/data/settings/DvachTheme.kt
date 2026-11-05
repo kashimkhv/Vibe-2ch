@@ -94,6 +94,49 @@ enum class DvachTheme(val id: String, val label: String, val hint: String) {
         "Autumn",
         "Янтарный акцент на тёмно-коричневом: осень без рыжины в тексте",
     ),
+
+    /**
+     * Ниже — темы редакторов кода: по ним айтишник узнаёт оформление
+     * с первого взгляда. Фон, шапка и акценты канонические, а «мету»
+     * (ники, даты) местами пришлось высветлить: канон рассчитан на код,
+     * а не на длинный текст постов.
+     */
+    DRACULA(
+        "dracula",
+        "Dracula",
+        "Фиолетовый фон и розовые ссылки — самая известная тёмная тема редакторов",
+    ),
+    NORD(
+        "nord",
+        "Nord",
+        "Холодный арктический сине-серый: тише Tomorrow, без фиолетового",
+    ),
+    SOLARIZED_DARK(
+        "solarized_dark",
+        "Solarized Dark",
+        "Тёмно-синий канон Solarized: точные цвета и мягкий контраст",
+    ),
+    GRUVBOX_DARK(
+        "gruvbox_dark",
+        "Gruvbox Dark",
+        "Тёплый ретро-терминал: бежевый текст на коричневом, как в старом vim",
+    ),
+    CATPPUCCIN_MOCHA(
+        "catppuccin_mocha",
+        "Catppuccin Mocha",
+        "Лавандовый фон и пастельные ссылки — самая свежая из тёмных",
+    ),
+
+    SOLARIZED_LIGHT(
+        "solarized_light",
+        "Solarized Light",
+        "Кремовый светлый канон Solarized: тёплая бумага для дневного чтения",
+    ),
+    CATPPUCCIN_LATTE(
+        "catppuccin_latte",
+        "Catppuccin Latte",
+        "Светлая пара к Mocha: прохладный серый холст, синие ссылки",
+    ),
     ;
 
     companion object {
