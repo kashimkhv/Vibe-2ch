@@ -6,6 +6,7 @@ import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
 import androidx.navigation.compose.NavHost
@@ -23,6 +24,8 @@ import dev.dvach.client.ui.threads.ThreadsScreen
 
 @Composable
 fun DvachNavHost(
+    deepLink: DvachLink? = null,
+    onDeepLinkHandled: () -> Unit = {},
     navController: NavHostController = rememberNavController(),
 ) {
     NavHost(
@@ -137,5 +140,25 @@ fun DvachNavHost(
         composable<HiddenThreadsRoute> {
             HiddenThreadsScreen(onBack = navController::popBackStack)
         }
+    }
+
+    // Ссылка из чужого приложения открывается поверх стартового экрана, чтобы
+    // «назад» вёл на доски, а не закрывал приложение. Эффект стоит после
+    // NavHost: до установки графа navigate() бросил бы исключение.
+    LaunchedEffect(deepLink) {
+        when (val link = deepLink) {
+            null -> Unit
+            is DvachLink.Board -> navController.navigate(
+                ThreadsRoute(link.boardId, ""),
+            ) {
+                launchSingleTop = true
+            }
+            is DvachLink.Thread -> navController.navigate(
+                ThreadRoute(link.boardId, "", link.threadNum, link.postNum),
+            ) {
+                launchSingleTop = true
+            }
+        }
+        if (deepLink != null) onDeepLinkHandled()
     }
 }

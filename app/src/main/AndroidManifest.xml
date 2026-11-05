@@ -16,11 +16,58 @@
         <activity
             android:name=".MainActivity"
             android:exported="true"
+            android:launchMode="singleTop"
             android:windowSoftInputMode="adjustResize"
             android:theme="@style/Theme.Dvach">
             <intent-filter>
                 <action android:name="android.intent.action.MAIN" />
                 <category android:name="android.intent.category.LAUNCHER" />
+            </intent-filter>
+
+            <!--
+                Ссылки движка из браузера и чужих приложений. Домен не наш,
+                поэтому autoVerify выключен: Android 12+ не отдаёт такие
+                ссылки автоматически, но приложение есть в «Открыть с помощью».
+                Фильтр ограничен путями досок и тредов, чтобы не перехватывать
+                служебные адреса движка.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.VIEW" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+                <category android:name="android.intent.category.BROWSABLE" />
+
+                <data android:scheme="https" />
+                <data android:scheme="http" />
+
+                <data android:host="2ch.hk" />
+                <data android:host="www.2ch.hk" />
+                <data android:host="2ch.su" />
+                <data android:host="www.2ch.su" />
+
+                <!-- /b/ -->
+                <data android:pathPattern="/.*/" />
+                <!-- /b/index.html и /b/catalog.html -->
+                <data android:pathPattern="/.*/index.html" />
+                <data android:pathPattern="/.*/catalog.html" />
+                <!-- /b/res/123.html -->
+                <data android:pathPattern="/.*/res/.*" />
+                <!-- старый мобильный вид: /mobile/b/res/123.html -->
+                <data android:pathPattern="/.*/.*/res/.*" />
+            </intent-filter>
+
+            <!--
+                «Поделиться» из браузера и чужих приложений. На Android 12+
+                веб-ссылки без проверки домена система по умолчанию отправляет
+                в браузер; через меню «Поделиться» пользователь выбирает наше
+                приложение сам, и тогда ссылка из текста доходит до нас.
+            -->
+            <intent-filter>
+                <action android:name="android.intent.action.SEND" />
+
+                <category android:name="android.intent.category.DEFAULT" />
+
+                <data android:mimeType="text/plain" />
             </intent-filter>
         </activity>
     </application>

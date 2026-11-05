@@ -97,6 +97,15 @@ class ThreadsViewModel @Inject constructor(
 
     init {
         loadFirstPage()
+        // Ссылка из чужого приложения знает только id доски: имя для шапки
+        // дочитываем из списка досок. Без сети останется id — экран не пустой.
+        if (route.boardName.isBlank()) {
+            viewModelScope.launch {
+                repository.board(route.boardId)?.let { board ->
+                    _state.update { it.copy(boardName = board.name) }
+                }
+            }
+        }
         // Скрытые треды живут в базе: отметил — карточка пропала и после
         // перезапуска, вернул в настройках — появилась снова.
         viewModelScope.launch {

@@ -1,5 +1,6 @@
 package dev.dvach.client
 
+import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
 import androidx.activity.ComponentActivity
@@ -8,10 +9,14 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.setValue
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dev.dvach.client.data.settings.AppSettings
 import dev.dvach.client.data.settings.SettingsRepository
+import dev.dvach.client.ui.navigation.DvachLink
+import dev.dvach.client.ui.navigation.DvachLinks
 import dev.dvach.client.ui.navigation.DvachNavHost
 import dev.dvach.client.ui.theme.DvachTheme
 import dev.dvach.client.ui.theme.rememberDarkTheme
@@ -23,8 +28,21 @@ class MainActivity : ComponentActivity() {
     @Inject
     lateinit var settingsRepository: SettingsRepository
 
+    /**
+     * Ссылка из чужого приложения, которую ещё надо открыть. Живёт в состоянии
+     * Activity: холодный старт приходит в `onCreate`, а повторный тап по ссылке
+     * при уже открытом приложении — в `onNewIntent` (`singleTop` в манифесте).
+     */
+    private var pendingLink by mutableStateOf<DvachLink?>(null)
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        // При повороте экрана Activity пересоздаётся с тем же intent: ссылку
+        // уже открыли, второй раз навигировать не нужно. Восстановленное
+        // состояние навигации вернёт тот же экран.
+        if (savedInstanceState == null) {
+            pendingLink = linkFrom(intent)
+        }
         enableEdgeToEdge()
         setContent {
             val settings by settingsRepository.settings
@@ -61,9 +79,31 @@ class MainActivity : ComponentActivity() {
                 bodyBold = settings.bodyBold,
                 bodyLineSpacingPercent = settings.lineSpacingPercent,
             ) {
-                DvachNavHost()
+                DvachNavHost(
+                    deepLink = pendingLink,
+                    onDeepLinkHandled = { pendingLink = null },
+                )
             }
         }
+    }
+
+    override fun onNewIntent(intent: Intent) {
+        super.onNewIntent(intent)
+        setIntent(intent)
+        linkFrom(intent)?.let { pendingLink = it }
+    }
+
+    /**
+     * Ссылка из intent: `VIEW` приходит с `data`, «Поделиться» — текстом
+     * в `EXTRA_TEXT` (и заголовком рядом с ним). Разбор одинаковый.
+     */
+    private fun linkFrom(intent: Intent?): DvachLink? {
+        if (intent == null) return null
+        DvachLinks.parse(intent.dataString)?.let { return it }
+        if (intent.action == Intent.ACTION_SEND) {
+            return DvachLinks.parseFromText(intent.getStringExtra(Intent.EXTRA_TEXT))
+        }
+        return null
     }
 }
 
