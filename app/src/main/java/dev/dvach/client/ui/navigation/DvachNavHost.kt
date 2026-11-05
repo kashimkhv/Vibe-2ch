@@ -17,6 +17,7 @@ import dev.dvach.client.ui.hidden.HiddenThreadsScreen
 import dev.dvach.client.ui.media.MediaScreen
 import dev.dvach.client.ui.posting.ComposerScreen
 import dev.dvach.client.ui.settings.SettingsScreen
+import dev.dvach.client.ui.settings.ThemesScreen
 import dev.dvach.client.ui.thread.ThreadScreen
 import dev.dvach.client.ui.threads.ThreadsScreen
 
@@ -125,7 +126,12 @@ fun DvachNavHost(
             SettingsScreen(
                 onBack = navController::popBackStack,
                 onOpenHiddenThreads = { navController.navigate(HiddenThreadsRoute) },
+                onOpenThemes = { navController.navigate(ThemesRoute) },
             )
+        }
+
+        composable<ThemesRoute> {
+            ThemesScreen(onBack = navController::popBackStack)
         }
 
         composable<HiddenThreadsRoute> {

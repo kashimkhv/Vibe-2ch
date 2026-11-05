@@ -29,7 +29,7 @@ class MainActivity : ComponentActivity() {
         setContent {
             val settings by settingsRepository.settings
                 .collectAsStateWithLifecycle(initialValue = AppSettings())
-            val dark = rememberDarkTheme(settings.themeMode)
+            val dark = rememberDarkTheme(settings.theme)
 
             // enableEdgeToEdge по умолчанию смотрит на ночной режим системы.
             // Если тема выбрана вручную, иконки баров нужно перекрашивать сами.
@@ -49,7 +49,7 @@ class MainActivity : ComponentActivity() {
             }
 
             DvachTheme(
-                themeMode = settings.themeMode,
+                theme = settings.theme,
                 headingFont = settings.headingFont,
                 metaFont = settings.metaFont,
                 bodyFont = settings.bodyFont,

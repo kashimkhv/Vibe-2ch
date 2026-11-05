@@ -28,10 +28,8 @@ import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
 import javax.inject.Singleton
 
-enum class ThemeMode { SYSTEM, LIGHT, DARK }
-
 data class AppSettings(
-    val themeMode: ThemeMode = ThemeMode.LIGHT,
+    val theme: DvachTheme = DvachTheme.MATERIAL_LIGHT,
     val showThumbnails: Boolean = true,
     /** Размер превью вложений в треде, в процентах от базового. */
     val thumbnailScalePercent: Int = THUMBNAIL_SCALE_DEFAULT,
@@ -98,7 +96,12 @@ class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
 ) {
     private object Keys {
-        val THEME = stringPreferencesKey("theme_mode")
+        /** Id выбранной темы (`DvachTheme.id`), а не имя enum: так выбор не сломается при переименовании. */
+        val THEME = stringPreferencesKey("theme_id")
+
+        /** Старый ключ: хранил SYSTEM/LIGHT/DARK, читается только для миграции. */
+        val LEGACY_THEME = stringPreferencesKey("theme_mode")
+
         val THUMBS = booleanPreferencesKey("show_thumbnails")
         val THUMB_SCALE = intPreferencesKey("thumbnail_scale_percent")
 
@@ -173,8 +176,8 @@ class SettingsRepository @Inject constructor(
         .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
         .map { prefs ->
             AppSettings(
-                themeMode = prefs[Keys.THEME]?.let { runCatching { ThemeMode.valueOf(it) }.getOrNull() }
-                    ?: ThemeMode.LIGHT,
+                theme = prefs[Keys.THEME]?.let(DvachTheme::fromId)
+                    ?: legacyTheme(prefs[Keys.LEGACY_THEME]),
                 showThumbnails = prefs[Keys.THUMBS] ?: true,
                 thumbnailScalePercent = (prefs[Keys.THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT)
                     .coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX),
@@ -216,8 +219,11 @@ class SettingsRepository @Inject constructor(
             )
         }
 
-    suspend fun setThemeMode(mode: ThemeMode) = context.dataStore.edit {
-        it[Keys.THEME] = mode.name
+    suspend fun setTheme(theme: DvachTheme) = context.dataStore.edit {
+        it[Keys.THEME] = theme.id
+        // Старый ключ больше не нужен: при откате на прежнюю версию тема
+        // прочитается как LIGHT/DARK по новому значению, а не потеряется.
+        it.remove(Keys.LEGACY_THEME)
     }
 
     suspend fun setShowThumbnails(enabled: Boolean) = context.dataStore.edit {
@@ -305,6 +311,18 @@ class SettingsRepository @Inject constructor(
     suspend fun setTextMargins(dp: Int) = context.dataStore.edit {
         it[Keys.TEXT_MARGINS] = clampTextMargin(dp)
     }
+}
+
+/**
+ * Старый ключ `theme_mode` хранил три значения: SYSTEM/LIGHT/DARK. Переносим
+ * их в новую тему: SYSTEM остаётся «как в системе», LIGHT и DARK — это пара
+ * Material You. Неизвестное значение (или его отсутствие) — светлая тема,
+ * как было по умолчанию.
+ */
+internal fun legacyTheme(value: String?): DvachTheme = when (value) {
+    "SYSTEM" -> DvachTheme.SYSTEM
+    "DARK" -> DvachTheme.MATERIAL_DARK
+    else -> DvachTheme.MATERIAL_LIGHT
 }
 
 /**

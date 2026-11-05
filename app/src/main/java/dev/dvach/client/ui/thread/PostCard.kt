@@ -23,8 +23,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.drawBehind
 import androidx.compose.ui.geometry.Offset
 import androidx.compose.ui.geometry.Size
-import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.luminance
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.Dp
@@ -33,6 +31,7 @@ import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.Post
 import dev.dvach.client.ui.components.AttachmentThumbsRow
 import dev.dvach.client.ui.components.HtmlText
+import dev.dvach.client.ui.theme.LocalDvachPalette
 import dev.dvach.client.util.THUMBNAIL_SCALE_DEFAULT
 import dev.dvach.client.util.formatPostTime
 import dev.dvach.client.util.THUMBNAIL_BASE_SIDE_DP
@@ -78,18 +77,16 @@ fun PostCard(
     val subject = post.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
     // Подсветка перехода по цитате — тёплый жёлтый, как выделение в старом
-    // Android. Он не путается с голубым ОП и сразу виден среди белых ответов.
-    val highlightColor = if (MaterialTheme.colorScheme.background.luminance() < 0.5f) {
-        Color(0xFF46401C)
-    } else {
-        Color(0xFFFFF2C0)
-    }
+    // Android. Он не путается с ОП-строкой и сразу виден среди ответов.
+    // В каждой теме он свой: на кремовом фоне жёлтый прозрачнее, на чёрном —
+    // приглушённый, иначе на OLED бьёт по глазам.
+    val highlightColor = LocalDvachPalette.current.quoteHighlight
 
     val container = when {
         isHighlighted -> highlightColor
-        // ОП — светло-голубая строка, ответы белые: иерархию задаёт не тень,
-        // а подложка и разделитель.
-        post.isOp -> MaterialTheme.colorScheme.primaryContainer
+        // ОП — подложка в тон шапки, но светлее неё: шапка читается как слой
+        // над строкой, а не сливается с ней.
+        post.isOp -> MaterialTheme.colorScheme.secondaryContainer
         // Свой пост — приглушённая серая строка: видно, что он твой, но
         // внимание он не оттягивает у остальных, как подсветка перехода.
         isMine -> MaterialTheme.colorScheme.surfaceVariant

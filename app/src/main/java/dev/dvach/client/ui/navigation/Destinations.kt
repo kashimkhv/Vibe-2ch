@@ -36,6 +36,10 @@ data object SettingsRoute
 @Serializable
 data object HiddenThreadsRoute
 
+/** Выбор цветовой темы: список с образцами, применяется сразу. */
+@Serializable
+data object ThemesRoute
+
 /**
  * Форма поста. `threadNum = 0` — создание нового треда; `quoteNum` — пост,
  * на который отвечаем (попадёт в начало комментария as `>>123`).

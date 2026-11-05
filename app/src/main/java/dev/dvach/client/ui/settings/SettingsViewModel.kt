@@ -15,9 +15,9 @@ import dev.dvach.client.data.cache.CacheUsage
 import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.remote.CookieStore
 import dev.dvach.client.data.settings.AppSettings
+import dev.dvach.client.data.settings.DvachTheme
 import dev.dvach.client.data.settings.FontChoice
 import dev.dvach.client.data.settings.SettingsRepository
-import dev.dvach.client.data.settings.ThemeMode
 import javax.inject.Inject
 
 @HiltViewModel
@@ -59,8 +59,8 @@ class SettingsViewModel @Inject constructor(
         _cacheUsage.value = cache.usage()
     }
 
-    fun setThemeMode(mode: ThemeMode) = viewModelScope.launch {
-        repository.setThemeMode(mode)
+    fun setTheme(theme: DvachTheme) = viewModelScope.launch {
+        repository.setTheme(theme)
     }
 
 
