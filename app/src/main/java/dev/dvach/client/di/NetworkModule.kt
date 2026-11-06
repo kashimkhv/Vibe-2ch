@@ -3,6 +3,9 @@ package dev.dvach.client.di
 import android.content.Context
 import android.os.Build
 import android.util.Log
+import androidx.media3.database.StandaloneDatabaseProvider
+import androidx.media3.datasource.cache.LeastRecentlyUsedCacheEvictor
+import androidx.media3.datasource.cache.SimpleCache
 import coil3.ImageLoader
 import coil3.PlatformContext
 import coil3.disk.DiskCache
@@ -106,8 +109,9 @@ object NetworkModule {
     }
 
     /**
-     * Тот же UA (Cloudflare), но без общего callTimeout и без дискового кэша:
-     * видео и скачивания идут потоком, а не целиком в память.
+     * Тот же UA (Cloudflare), но без общего callTimeout: видео и скачивания
+     * идут потоком, а не целиком в память. Дисковый кэш видео живёт не в
+     * OkHttp, а в ExoPlayer — см. [provideVideoCache].
      */
     @Provides
     @Singleton
@@ -148,7 +152,28 @@ object NetworkModule {
     @Provides
     @Singleton
     fun provideApi(retrofit: Retrofit): DvachApi = retrofit.create(DvachApi::class.java)
+
+    /**
+     * Дисковый кэш видеофайлов. Без него ExoPlayer каждый раз тянет файл
+     * заново: свайпнул на соседнее видео и вернулся — недавно просмотренное
+     * грузится ещё секунду-две. Кэш лежит в `cacheDir`, поэтому система может
+     * вычистить его сама, и ограничен LRU — видео не растут бесконечно.
+     */
+    @Provides
+    @Singleton
+    fun provideVideoCache(@ApplicationContext context: Context): SimpleCache =
+        SimpleCache(
+            File(context.cacheDir, "video-cache"),
+            LeastRecentlyUsedCacheEvictor(VIDEO_CACHE_BYTES),
+            StandaloneDatabaseProvider(context),
+        )
 }
+
+/**
+ * Предел дискового кэша видео. Тот же порядок, что у картинок: ролики с /b/
+ * весят единицы мегабайт, этого хватает на несколько десятков просмотренных.
+ */
+private const val VIDEO_CACHE_BYTES = 256L * 1024 * 1024
 
 /**
  * Предел дискового кэша картинок. Задаём явно, а не «сколько даст система»:

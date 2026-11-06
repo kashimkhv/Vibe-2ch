@@ -9,6 +9,8 @@ import androidx.lifecycle.SavedStateHandle
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.media3.datasource.okhttp.OkHttpDataSource
+import androidx.media3.datasource.cache.CacheDataSource
+import androidx.media3.datasource.cache.SimpleCache
 import androidx.media3.exoplayer.ExoPlayer
 import androidx.media3.exoplayer.source.DefaultMediaSourceFactory
 import androidx.media3.datasource.DefaultDataSource
@@ -53,6 +55,7 @@ sealed interface DownloadState {
 class MediaViewModel @Inject constructor(
     @ApplicationContext private val context: Context,
     @MediaClient private val client: OkHttpClient,
+    private val videoCache: SimpleCache,
     private val playlist: MediaPlaylist,
     settingsRepository: SettingsRepository,
     savedStateHandle: SavedStateHandle,
@@ -159,10 +162,15 @@ class MediaViewModel @Inject constructor(
 
     private fun createPlayer(): ExoPlayer {
         // Видео идёт через тот же OkHttp (UA для Cloudflare), но без callTimeout.
-        val dataSourceFactory = DefaultDataSource.Factory(
-            context,
-            OkHttpDataSource.Factory(client),
-        )
+        // Сверху — дисковый кэш: ExoPlayer кэширует ответы по `Range`-запросам
+        // (2ch.su их поддерживает), поэтому уже просмотренный файл при возврате
+        // читается с диска. `FLAG_IGNORE_CACHE_ON_ERROR` — страховка: если файл
+        // или сервер кэшировать нельзя, плеер просто работает как раньше.
+        val cacheSourceFactory = CacheDataSource.Factory()
+            .setCache(videoCache)
+            .setUpstreamDataSourceFactory(OkHttpDataSource.Factory(client))
+            .setFlags(CacheDataSource.FLAG_IGNORE_CACHE_ON_ERROR)
+        val dataSourceFactory = DefaultDataSource.Factory(context, cacheSourceFactory)
         return ExoPlayer.Builder(context)
             .setMediaSourceFactory(DefaultMediaSourceFactory(dataSourceFactory))
             .build()
