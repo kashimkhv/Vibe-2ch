@@ -18,8 +18,6 @@ import dev.dvach.client.util.kilobytesToBytes
 import dev.dvach.client.util.stripHtml
 import javax.inject.Inject
 import javax.inject.Singleton
-import kotlinx.coroutines.async
-import kotlinx.coroutines.coroutineScope
 
 interface ChanRepository {
     suspend fun boards(): List<Board>
@@ -45,30 +43,20 @@ class NetworkChanRepository @Inject constructor(
     override suspend fun board(boardId: String): Board? =
         api.boards().firstOrNull { it.id == boardId }?.toDomain()
 
-    override suspend fun index(boardId: String, page: Int): ThreadsPage = coroutineScope {
-        // Закрепы движок отдаёт только в index.json: в постраничных файлах
-        // (/b/1.json, /b/2.json) их нет ни одного — проверено на /b/, /d/,
-        // /soc/, /media/, /r/. Тянем их параллельно со страницей, чтобы
-        // первая загрузка не ждала два запроса подряд.
-        val pins = if (page == 0) async { loadPinned(boardId) } else null
-
-        // В приложении страницы с нуля, в API — с единицы.
-        val pageDto = api.indexPage(boardId, page + 1)
-        val threadsPage = pageDto.toDomain(boardId)
-        if (pins == null) threadsPage else threadsPage.withPinned(pins.await())
-    }
-
-    /**
-     * Закреплённые треды из `index.json`. Ошибку глотаем: без закрепов
-     * страница всё равно полезна, а падать из-за второго запроса незачем.
-     */
-    private suspend fun loadPinned(boardId: String): List<ThreadSummary> =
-        runCatching { api.index(boardId) }
-            .getOrNull()
-            ?.threads
-            ?.mapNotNull { it.toDomain(boardId) }
-            ?.filter { it.isSticky }
-            .orEmpty()
+    override suspend fun index(boardId: String, page: Int): ThreadsPage =
+        if (page == 0) {
+            // `index.json` — это и есть живая первая страница доски
+            // (`current_page: 0`), вместе с закрепами. Постраничные файлы
+            // начинаются **после** неё: `1.json` — уже вторая страница,
+            // `2.json` — третья. Раньше клиент запрашивал `page + 1`, поэтому
+            // первой страницы не показывал никогда: на /news/ не было видно
+            // четырёх свежих новостей, а на /b/ лента начиналась со второй
+            // страницы. Счётчик страниц движка это подтверждает: у index.json
+            // `current_page: 0`, у 1.json — 1.
+            api.index(boardId).toDomain(boardId)
+        } else {
+            api.indexPage(boardId, page).toDomain(boardId)
+        }
 
     override suspend fun thread(boardId: String, threadNum: Int): List<Post> =
         api.thread(boardId, threadNum)
@@ -80,7 +68,8 @@ class NetworkChanRepository @Inject constructor(
 }
 
 private fun ThreadsPageDto.toDomain(boardId: String) = ThreadsPage(
-    currentPage = (currentPage - 1).coerceAtLeast(0),
+    // Движок нумерует страницы с нуля, как и UI: index.json — 0, 1.json — 1.
+    currentPage = currentPage.coerceAtLeast(0),
     isIndex = isIndex,
     threads = threads.mapNotNull { it.toDomain(boardId) },
     threadsPerPage = board?.threadsPerPage?.takeIf { it > 0 } ?: 20,
@@ -89,16 +78,6 @@ private fun ThreadsPageDto.toDomain(boardId: String) = ThreadsPage(
     // отдельный запрос за ней не нужен.
     boardSpeed = boardSpeed,
 )
-
-/**
- * Ставит закреплённые треды перед страницей. Дубли по номеру отбрасываются:
- * `index.json` и `1.json` у движка — разные снимки, и только что закреплённый
- * тред может оказаться в обоих списках. Первым остаётся вариант из `pins`,
- * у него точно выставлен признак закрепа.
- */
-internal fun ThreadsPage.withPinned(pins: List<ThreadSummary>): ThreadsPage =
-    if (pins.isEmpty()) this
-    else copy(threads = (pins + threads).distinctBy { it.num })
 
 internal fun ThreadDto.toDomain(boardId: String): ThreadSummary? {
     val op = posts.firstOrNull() ?: return null

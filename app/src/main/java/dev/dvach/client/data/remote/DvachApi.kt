@@ -37,7 +37,10 @@ interface DvachApi {
     @GET("{board}/index.json")
     suspend fun index(@Path("board") board: String): ThreadsPageDto
 
-    /** Страница доски, `page` — с единицы, как в вебе: `/b/2.json`. */
+    /**
+     * Страница доски: `index.json` — нулевая, `1.json` — уже вторая.
+     * `page` здесь как в UI, с нуля: `page = 1` вернёт `/b/1.json`.
+     */
     @GET("{board}/{page}.json")
     suspend fun indexPage(
         @Path("board") board: String,
