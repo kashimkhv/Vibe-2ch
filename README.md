@@ -1,5 +1,7 @@
 # Двач — клиент 2ch.hk на Kotlin + Compose
 
+[![Android CI](https://github.com/kashimkhv/Vibe-2ch/actions/workflows/android.yml/badge.svg)](https://github.com/kashimkhv/Vibe-2ch/actions/workflows/android.yml)
+
 Переписанный с нуля Android-клиент двача. Оригинал — [vortexwolf/2ch-Browser](https://github.com/vortexwolf/2ch-Browser)
 (Java, MVP + Moxy, RxJava 2, support-library 27, последний коммит — июль 2019).
 Здесь тот же продукт, но на актуальном стеке 2026 года: Kotlin 2.4, Compose, корутины, Hilt, Room.
