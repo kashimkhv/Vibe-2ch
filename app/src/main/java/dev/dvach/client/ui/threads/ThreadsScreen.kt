@@ -77,6 +77,8 @@ import dev.dvach.client.util.filesLabel
 import dev.dvach.client.util.formatCount
 import dev.dvach.client.util.formatPostTime
 import dev.dvach.client.util.postsLabel
+import dev.dvach.client.util.postsPerHourExactLabel
+import dev.dvach.client.util.postsPerHourLabel
 import dev.dvach.client.util.THUMBNAIL_LIST_BASE_SIDE_DP
 import dev.dvach.client.util.listThumbnailSide
 import dev.dvach.client.util.stripHtml
@@ -141,13 +143,38 @@ fun ThreadsScreen(
                 title = {
                     Column {
                         Text("/${state.boardId}/", fontFamily = FontFamily.Monospace)
-                        Text(
-                            text = state.boardName,
-                            style = MaterialTheme.typography.labelSmall,
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            maxLines = 1,
-                            overflow = TextOverflow.Ellipsis,
-                        )
+                        Row(verticalAlignment = Alignment.CenterVertically) {
+                            if (state.boardName.isNotBlank()) {
+                                Text(
+                                    text = state.boardName,
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                    overflow = TextOverflow.Ellipsis,
+                                    // Имя ужимается первым: активность доски должна
+                                    // остаться видимой при длинном названии.
+                                    modifier = Modifier.weight(1f, fill = false),
+                                )
+                            }
+                            state.postsPerHour?.let { rate ->
+                                Text(
+                                    text = buildString {
+                                        if (state.boardName.isNotBlank()) append(" · ")
+                                        // «≈» — только у своей оценки по странице:
+                                        // число движка считается по всей доске.
+                                        if (state.postsPerHourIsEstimate) {
+                                            append("≈ ")
+                                            append(postsPerHourLabel(rate))
+                                        } else {
+                                            append(postsPerHourExactLabel(rate))
+                                        }
+                                    },
+                                    style = MaterialTheme.typography.labelSmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                    maxLines = 1,
+                                )
+                            }
+                        }
                     }
                 },
                 navigationIcon = {

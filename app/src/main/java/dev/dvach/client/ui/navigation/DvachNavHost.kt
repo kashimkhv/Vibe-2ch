@@ -7,6 +7,7 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
+import androidx.navigation.NavDestination.Companion.hasRoute
 import androidx.navigation.NavHostController
 import androidx.navigation.toRoute
 import androidx.navigation.compose.NavHost
@@ -142,23 +143,48 @@ fun DvachNavHost(
         }
     }
 
-    // Ссылка из чужого приложения открывается поверх стартового экрана, чтобы
-    // «назад» вёл на доски, а не закрывал приложение. Эффект стоит после
-    // NavHost: до установки графа navigate() бросил бы исключение.
+    // Ссылка из чужого приложения открывается поверх текущего экрана: «назад»
+    // ведёт туда, где человек был, а не закрывает приложение. Эффект стоит
+    // после NavHost: до установки графа navigate() бросил бы исключение.
     LaunchedEffect(deepLink) {
-        when (val link = deepLink) {
-            null -> Unit
-            is DvachLink.Board -> navController.navigate(
-                ThreadsRoute(link.boardId, ""),
-            ) {
-                launchSingleTop = true
+        val link = deepLink ?: return@LaunchedEffect
+        navController.open(link)
+        onDeepLinkHandled()
+    }
+}
+
+/**
+ * Открывает ссылку из чужого приложения.
+ *
+ * `launchSingleTop` здесь не годится: он переиспользует запись бэкстека вместе
+ * с её `ViewModel`, а `ViewModel` читает аргументы маршрута один раз в
+ * конструкторе. Вторая ссылка «доска → доска» или «тред → тред» показала бы
+ * старые аргументы. Поэтому такой же экран сначала снимаем с бэкстека
+ * (`popBackStack`), а потом кладём новый — с чистыми состоянием и `ViewModel`.
+ * Экран другого типа просто встаёт сверху.
+ */
+private fun NavHostController.open(link: DvachLink) {
+    val current = currentBackStackEntry
+    when (link) {
+        is DvachLink.Board -> {
+            if (current != null && current.destination.hasRoute<ThreadsRoute>()) {
+                // Эта доска уже открыта — второй такой же экран не нужен.
+                if (current.toRoute<ThreadsRoute>().boardId == link.boardId) return
+                popBackStack()
             }
-            is DvachLink.Thread -> navController.navigate(
-                ThreadRoute(link.boardId, "", link.threadNum, link.postNum),
-            ) {
-                launchSingleTop = true
-            }
+            navigate(ThreadsRoute(link.boardId, ""))
         }
-        if (deepLink != null) onDeepLinkHandled()
+
+        is DvachLink.Thread -> {
+            if (current != null && current.destination.hasRoute<ThreadRoute>()) {
+                val open = current.toRoute<ThreadRoute>()
+                val sameThread = open.boardId == link.boardId && open.threadNum == link.threadNum
+                // Тот же тред и тот же якорь: повторно открывать нечего.
+                // Другой якорь — пересоздаём экран, чтобы прокрутить к посту.
+                if (sameThread && (link.postNum == 0 || link.postNum == open.highlight)) return
+                popBackStack()
+            }
+            navigate(ThreadRoute(link.boardId, "", link.threadNum, link.postNum))
+        }
     }
 }

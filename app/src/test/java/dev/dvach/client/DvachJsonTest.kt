@@ -47,6 +47,9 @@ class DvachJsonTest {
 
         assertTrue(page.isBoard || page.isIndex)
         assertTrue(page.threads.isNotEmpty())
+        // Активность доски движок присылает в каждом файле страницы: у фикстуры
+        // `index.json` это положительное число, и оно должно дожить до UI.
+        assertTrue("board_speed должен разбираться", page.boardSpeed > 0)
         val thread = page.threads.first()
         assertTrue("у треда должен быть ОП-пост", thread.posts.isNotEmpty())
         val op = thread.posts.first()

@@ -85,6 +85,9 @@ private fun ThreadsPageDto.toDomain(boardId: String) = ThreadsPage(
     threads = threads.mapNotNull { it.toDomain(boardId) },
     threadsPerPage = board?.threadsPerPage?.takeIf { it > 0 } ?: 20,
     maxPages = board?.maxPages?.takeIf { it > 0 } ?: Int.MAX_VALUE,
+    // Метрику движок присылает в каждом файле страницы, а не только в index.json:
+    // отдельный запрос за ней не нужен.
+    boardSpeed = boardSpeed,
 )
 
 /**

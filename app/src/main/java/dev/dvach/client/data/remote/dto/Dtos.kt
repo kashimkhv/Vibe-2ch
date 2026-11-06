@@ -31,6 +31,12 @@ data class BoardDto(
 data class ThreadsPageDto(
     val board: BoardDto? = null,
     val threads: List<ThreadDto> = emptyList(),
+    /**
+     * Активность доски в постах в час, как её считает сам движок. Приходит
+     * в каждом файле страницы (`index.json`, `1.json`, `2.json`); ноль —
+     * движок метрику не отдал.
+     */
+    @SerialName("board_speed") val boardSpeed: Int = 0,
     @SerialName("current_page") val currentPage: Int = 0,
     @SerialName("is_index") val isIndex: Boolean = false,
     @SerialName("is_board") val isBoard: Boolean = false,

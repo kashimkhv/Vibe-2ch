@@ -15,6 +15,7 @@ import dev.dvach.client.data.local.ChanDao
 import dev.dvach.client.data.local.HiddenThreadEntity
 import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.domain.ThreadSort
+import dev.dvach.client.domain.boardActivity
 import dev.dvach.client.domain.sortThreads
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.domain.model.ThreadSummary
@@ -56,6 +57,14 @@ data class ThreadsUiState(
     val sortAscending: Boolean = false,
     /** Время в карточках — словами («5 мин назад») вместо точной даты. */
     val relativeDates: Boolean = false,
+    /**
+     * Активность доски: постов в час. Число движка (`board_speed`) берётся
+     * при загрузке и тихом обновлении, а не на каждый пост, — иначе оно
+     * дёргалось бы при прокрутке. `null` — ещё не посчитано.
+     */
+    val postsPerHour: Double? = null,
+    /** `postsPerHour` посчитан клиентом по странице, а не прислан движком. */
+    val postsPerHourIsEstimate: Boolean = false,
     /** Номера скрытых тредов этой доски: их карточки в ленту не попадают. */
     val hiddenNums: Set<Int> = emptySet(),
 ) {
@@ -141,6 +150,7 @@ class ThreadsViewModel @Inject constructor(
             runCatching { repository.index(route.boardId, 0) }
                 .onSuccess { result ->
                     lastLoadAt = System.currentTimeMillis()
+                    val activity = boardActivity(result)
                     _state.update {
                         it.copy(
                             isLoading = false,
@@ -148,6 +158,10 @@ class ThreadsViewModel @Inject constructor(
                             threads = result.threads,
                             page = result.currentPage,
                             canGoNext = result.canGoNext(),
+                            // Число движка — по всей доске; своя оценка — только
+                            // если он его не прислал.
+                            postsPerHour = activity.postsPerHour,
+                            postsPerHourIsEstimate = activity.isEstimate,
                         )
                     }
                 }
@@ -226,6 +240,7 @@ class ThreadsViewModel @Inject constructor(
             // Пустая страница — скорее сбой движка, чем «доска опустела»:
             // гасить ленту тихим обновлением нельзя, для этого есть «Обновить».
             if (fresh.threads.isEmpty()) return
+            val activity = boardActivity(fresh)
             _state.update { state ->
                 state.copy(
                     threads = mergeFirstPage(
@@ -236,6 +251,10 @@ class ThreadsViewModel @Inject constructor(
                     // Если догруженных страниц не было, свежая первая — это и есть
                     // весь список: «есть ли дальше» берём из неё.
                     canGoNext = if (state.page > 0) state.canGoNext else fresh.canGoNext(),
+                    // Активность обновляем вместе с лентой: по ней видно, ожил
+                    // тред или нет.
+                    postsPerHour = activity.postsPerHour,
+                    postsPerHourIsEstimate = activity.isEstimate,
                 )
             }
         } finally {

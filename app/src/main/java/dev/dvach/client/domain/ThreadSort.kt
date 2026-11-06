@@ -66,12 +66,14 @@ fun lastReplyAt(thread: ThreadSummary): Long =
     thread.replies.maxOfOrNull { it.timestamp } ?: thread.timestamp
 
 /**
- * Ответов в сутки за время жизни треда: от ОП-поста до последнего ответа.
+ * Постов в час за время жизни треда: от ОП-поста до последнего ответа.
  * Считаем не от «сейчас», а от активности треда, иначе старые обсуждения
- * с сотней постов всегда висели бы внизу.
+ * с сотней постов всегда висели бы внизу. Час — нижняя граница интервала:
+ * тред, проживший минуту, не должен раздуваться.
  */
 fun replyRate(thread: ThreadSummary): Double {
-    val spanHours = ((lastReplyAt(thread) - thread.timestamp).coerceAtLeast(0L)) / 3_600_000.0
+    // Время движка — в секундах, поэтому и делим на секунды в часе.
+    val spanHours = ((lastReplyAt(thread) - thread.timestamp).coerceAtLeast(0L)) / 3_600.0
     return thread.postsCount / spanHours.coerceAtLeast(1.0)
 }
 

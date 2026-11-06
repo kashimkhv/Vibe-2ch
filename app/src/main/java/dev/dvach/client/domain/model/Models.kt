@@ -30,6 +30,11 @@ data class ThreadsPage(
     val threads: List<ThreadSummary>,
     val threadsPerPage: Int,
     val maxPages: Int,
+    /**
+     * Активность доски в постах в час от самого движка (`board_speed`).
+     * 0 — движок число не прислал, тогда клиент считает своё приближение.
+     */
+    val boardSpeed: Int = 0,
 )
 
 data class ThreadSummary(

@@ -124,9 +124,11 @@ class ThreadSortTest {
     }
 
     @Test
-    fun `reply rate is replies per day of the thread life`() {
-        val lively = thread(num = 1, posts = 48, createdAt = 0, lastReply = 24 * 3_600_000L)
-        val dead = thread(num = 2, posts = 48, createdAt = 0, lastReply = 24 * 100 * 3_600_000L)
+    fun `reply rate is posts per hour of the thread life`() {
+        val lively = thread(num = 1, posts = 48, createdAt = 0, lastReply = 24 * 3_600L)
+        val dead = thread(num = 2, posts = 48, createdAt = 0, lastReply = 24 * 100 * 3_600L)
+        // 48 постов за сутки жизни — два в час; за сто суток — 0.02.
+        assertEquals(2.0, replyRate(lively), 0.001)
         assertTrue(replyRate(lively) > replyRate(dead))
         // Тред, проживший меньше часа, не должен делить на ноль и раздуваться.
         val instant = thread(num = 3, posts = 3, createdAt = 5_000, lastReply = 5_000)

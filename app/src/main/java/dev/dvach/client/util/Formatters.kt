@@ -130,5 +130,27 @@ fun filesLabel(count: Int): String = "${formatCount(count)} ${plural(count, "ф�
 fun imagesLabel(count: Int): String =
     "${formatCount(count)} ${plural(count, "картинка", "картинки", "картинок")}"
 
+/**
+ * Активность доски словами: «≈ 330 постов/ч». До десяти — с десятой долей
+ * («4,5 поста/ч»): у тихих досок округление до целого давало бы «4» и «5»
+ * у совсем разных досок. Дробное число в русском требует «поста», целое —
+ * обычного склонения. Выше сотни округляем до десятков: точность своей
+ * оценки всё равно в разы.
+ */
+fun postsPerHourLabel(rate: Double): String = when {
+    rate < 0.05 -> "0 постов/ч"
+    rate < 10 -> String.format(Locale.US, "%.1f", rate).replace('.', ',') + " поста/ч"
+    else -> {
+        val rounded = if (rate >= 100) (rate / 10).roundToInt() * 10 else rate.roundToInt()
+        postsLabel(rounded) + "/ч"
+    }
+}
+
+/**
+ * Число движка (`board_speed`) — точное и по всей доске, поэтому без
+ * округления до десятков: 472 так и остаётся 472.
+ */
+fun postsPerHourExactLabel(rate: Double): String = postsLabel(rate.roundToInt()) + "/ч"
+
 /** «Видео» не склоняется: 1 видео, 5 видео. */
 fun videosLabel(count: Int): String = "${formatCount(count)} видео"
