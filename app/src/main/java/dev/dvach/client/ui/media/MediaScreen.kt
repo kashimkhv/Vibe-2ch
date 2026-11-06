@@ -2,6 +2,10 @@ package dev.dvach.client.ui.media
 
 import android.content.Context
 import android.graphics.Color as AndroidColor
+import androidx.compose.animation.AnimatedVisibility
+import androidx.compose.animation.EnterTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.fadeOut
 import androidx.compose.foundation.ExperimentalFoundationApi
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.awaitEachGesture
@@ -22,6 +26,7 @@ import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.pager.HorizontalPager
 import androidx.compose.foundation.pager.VerticalPager
 import androidx.compose.foundation.pager.rememberPagerState
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.filled.FileDownload
@@ -89,6 +94,8 @@ fun MediaScreen(
     val items = viewModel.items
     val page by viewModel.page.collectAsStateWithLifecycle()
     val player by viewModel.playerFlow.collectAsStateWithLifecycle()
+    val renderedUrl by viewModel.renderedUrl.collectAsStateWithLifecycle()
+    val failedUrl by viewModel.failedUrl.collectAsStateWithLifecycle()
     val downloadState by viewModel.download.collectAsStateWithLifecycle()
     val verticalPaging by viewModel.verticalPaging.collectAsStateWithLifecycle()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -145,6 +152,8 @@ fun MediaScreen(
                     item = items[index],
                     isCurrent = index == pagerState.currentPage,
                     player = player,
+                    videoReady = renderedUrl == items[index].url,
+                    videoFailed = failedUrl == items[index].url,
                     onZoomChange = { zoom ->
                         if (index == pagerState.currentPage) zoomed = zoom
                     },
@@ -165,6 +174,8 @@ fun MediaScreen(
                     item = items[index],
                     isCurrent = index == pagerState.currentPage,
                     player = player,
+                    videoReady = renderedUrl == items[index].url,
+                    videoFailed = failedUrl == items[index].url,
                     onZoomChange = { zoom ->
                         if (index == pagerState.currentPage) zoomed = zoom
                     },
@@ -207,6 +218,8 @@ private fun MediaPage(
     item: Attachment,
     isCurrent: Boolean,
     player: ExoPlayer?,
+    videoReady: Boolean,
+    videoFailed: Boolean,
     onZoomChange: (Boolean) -> Unit,
     onTap: () -> Unit,
 ) {
@@ -218,7 +231,12 @@ private fun MediaPage(
             onZoomChange = onZoomChange,
             onTap = onTap,
         ) {
-            VideoSurface(player)
+            VideoPage(
+                item = item,
+                player = player,
+                ready = videoReady,
+                failed = videoFailed,
+            )
         }
         item.isVideo -> VideoPlaceholder(item)
         else -> ZoomableImage(
@@ -306,6 +324,72 @@ private fun VideoSurface(player: ExoPlayer) {
         update = { view -> view.player = player },
         modifier = Modifier.fillMaxSize(),
     )
+}
+
+/**
+ * Текущая видео-страница: плеер и превью поверх него, пока не отрисован
+ * первый кадр. Так свайп на видео не показывает чёрный прямоугольник —
+ * видно то же превью, что и на соседней странице, но с индикатором ожидания.
+ */
+@Composable
+private fun VideoPage(
+    item: Attachment,
+    player: ExoPlayer,
+    ready: Boolean,
+    failed: Boolean,
+) {
+    Box(modifier = Modifier.fillMaxSize()) {
+        VideoSurface(player)
+        AnimatedVisibility(
+            visible = !ready,
+            enter = EnterTransition.None,
+            exit = fadeOut(tween(150)),
+        ) {
+            VideoPreview(item = item, failed = failed)
+        }
+    }
+}
+
+/** Превью видео и индикатор ожидания (или ошибка) вместо чёрного экрана. */
+@Composable
+private fun VideoPreview(item: Attachment, failed: Boolean) {
+    Box(
+        contentAlignment = Alignment.Center,
+        modifier = Modifier.fillMaxSize().background(Color.Black),
+    ) {
+        if (item.thumbnailUrl.isNotBlank()) {
+            AsyncImage(
+                model = item.thumbnailUrl,
+                contentDescription = item.name,
+                contentScale = ContentScale.Fit,
+                modifier = Modifier.fillMaxSize(),
+            )
+        }
+        if (failed) {
+            Text(
+                text = "Не удалось воспроизвести",
+                style = MaterialTheme.typography.bodyMedium,
+                color = Color.White,
+                modifier = Modifier
+                    .background(Color.Black.copy(alpha = 0.55f))
+                    .padding(horizontal = 12.dp, vertical = 6.dp),
+            )
+        } else {
+            // Тёмная подложка: на светлом превью белый индикатор иначе терялся бы.
+            Box(
+                contentAlignment = Alignment.Center,
+                modifier = Modifier
+                    .size(56.dp)
+                    .background(Color.Black.copy(alpha = 0.45f), CircleShape),
+            ) {
+                CircularProgressIndicator(
+                    strokeWidth = 3.dp,
+                    color = Color.White,
+                    modifier = Modifier.size(36.dp),
+                )
+            }
+        }
+    }
 }
 
 /** Заглушка для соседней видео-страницы: превью и значок «play». */

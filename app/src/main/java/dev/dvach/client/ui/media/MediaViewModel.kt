@@ -15,6 +15,7 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.PlaybackException
 import androidx.media3.common.Player
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
@@ -101,6 +102,19 @@ class MediaViewModel @Inject constructor(
     private val _player = MutableStateFlow<ExoPlayer?>(null)
     val playerFlow: StateFlow<ExoPlayer?> = _player.asStateFlow()
 
+    /**
+     * Файл, для которого плеер уже отрисовал первый кадр. До этого момента
+     * экран показывает превью с индикатором: `PlayerView` до первого кадра
+     * чёрный, и при свайпе на видео было бы неприятное чёрное пятно вместо
+     * только что видимого превью.
+     */
+    private val _renderedUrl = MutableStateFlow<String?>(null)
+    val renderedUrl: StateFlow<String?> = _renderedUrl.asStateFlow()
+
+    /** Файл, который не удалось открыть: превью остаётся, индикатор сменяется ошибкой. */
+    private val _failedUrl = MutableStateFlow<String?>(null)
+    val failedUrl: StateFlow<String?> = _failedUrl.asStateFlow()
+
     private var preparedUrl: String? = null
 
     init {
@@ -134,6 +148,9 @@ class MediaViewModel @Inject constructor(
         val exo = existing ?: createPlayer().also { _player.value = it }
         if (preparedUrl != item.url) {
             preparedUrl = item.url
+            // Новый файл ещё не отрисован: превью с индикатором вернётся.
+            _renderedUrl.value = null
+            _failedUrl.value = null
             exo.setMediaItem(MediaItem.fromUri(item.url))
             exo.prepare()
         }
@@ -159,7 +176,7 @@ class MediaViewModel @Inject constructor(
                 )
                 setHandleAudioBecomingNoisy(true)
             }
-            .also { watchPlaybackEnd(it) }
+            .also { watchPlaybackEvents(it) }
     }
 
     /**
@@ -169,12 +186,23 @@ class MediaViewModel @Inject constructor(
      * Достаточно события `STATE_ENDED`: ExoPlayer переходит в него ровно
      * один раз, когда позиция дошла до конца, и сам по себе ролик заново не
      * запускает — ни тикер, ни повторный `seekTo` не нужны.
+     *
+     * Здесь же отмечаем первый отрисованный кадр и ошибку открытия: по ним
+     * экран решает, показывать превью с индикатором или само видео.
      */
-    private fun watchPlaybackEnd(player: ExoPlayer) {
+    private fun watchPlaybackEvents(player: ExoPlayer) {
         player.addListener(
             object : Player.Listener {
                 override fun onPlaybackStateChanged(playbackState: Int) {
                     if (playbackState == Player.STATE_ENDED) rewindToStart(player)
+                }
+
+                override fun onRenderedFirstFrame() {
+                    _renderedUrl.value = preparedUrl
+                }
+
+                override fun onPlayerError(error: PlaybackException) {
+                    _failedUrl.value = preparedUrl
                 }
             },
         )
