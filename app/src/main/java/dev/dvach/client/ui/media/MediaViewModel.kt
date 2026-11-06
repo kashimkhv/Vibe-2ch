@@ -15,16 +15,19 @@ import androidx.media3.datasource.DefaultDataSource
 import androidx.media3.common.AudioAttributes
 import androidx.media3.common.C
 import androidx.media3.common.MediaItem
+import androidx.media3.common.Player
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
 import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.isActive
 import kotlinx.coroutines.launch
 import kotlinx.coroutines.withContext
 import okhttp3.OkHttpClient
@@ -158,6 +161,49 @@ class MediaViewModel @Inject constructor(
                 )
                 setHandleAudioBecomingNoisy(true)
             }
+            .also { watchPlaybackEnd(it) }
+    }
+
+    /**
+     * Конец ролика: вплотную к финалу отматываем в начало и встаём на паузу,
+     * чтобы ролик не пошёл по кругу сам. Дальше воспроизведение — только по
+     * нажатию play.
+     *
+     * Ловим конец двумя способами: событие `STATE_ENDED` приходит, когда
+     * позиция уже на последнем кадре, а тикер успевает остановиться чуть
+     * раньше — по нему контролы не успевают показать финальный кадр и
+     * «прыжок» назад. Порог — доля от длительности, чтобы короткий ролик
+     * не обрывался на середине.
+     */
+    private fun watchPlaybackEnd(player: ExoPlayer) {
+        player.addListener(
+            object : Player.Listener {
+                override fun onPlaybackStateChanged(playbackState: Int) {
+                    if (playbackState == Player.STATE_ENDED) rewindToStart(player)
+                }
+            },
+        )
+        viewModelScope.launch {
+            while (isActive) {
+                rewindIfNearEnd(player)
+                delay(END_CHECK_INTERVAL_MS)
+            }
+        }
+    }
+
+    private fun rewindIfNearEnd(player: ExoPlayer) {
+        if (player.playbackState != Player.STATE_READY || !player.isPlaying) return
+        val duration = player.duration
+        if (duration <= 0) return
+        val threshold = minOf(END_THRESHOLD_MS, duration / 10)
+        if (duration - player.currentPosition <= threshold) rewindToStart(player)
+    }
+
+    private fun rewindToStart(player: ExoPlayer) {
+        // Сначала пауза, потом перемотка: `seekTo` из `STATE_ENDED` при
+        // `playWhenReady = true` снова запустил бы ролик с начала.
+        player.pause()
+        player.seekTo(0)
     }
 
     fun download() {
@@ -260,3 +306,9 @@ class MediaViewModel @Inject constructor(
             }
         }
 }
+
+/** Как часто проверяем, не подошло ли видео к концу. */
+private const val END_CHECK_INTERVAL_MS = 150L
+
+/** За сколько миллисекунд до конца отматываем в начало. */
+private const val END_THRESHOLD_MS = 400L
