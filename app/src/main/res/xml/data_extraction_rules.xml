@@ -1,0 +1,16 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 12+: отдельные правила для облака и переноса на новое устройство.
+    Куки движка не отдаём ни туда, ни туда — они привязаны к устройству и сроку,
+    а на новом телефоне доступ всё равно придётся получать заново.
+-->
+<data-extraction-rules>
+    <cloud-backup>
+        <exclude domain="file" path="cookies.txt" />
+        <exclude domain="file" path="cookies.txt.tmp" />
+    </cloud-backup>
+    <device-transfer>
+        <exclude domain="file" path="cookies.txt" />
+        <exclude domain="file" path="cookies.txt.tmp" />
+    </device-transfer>
+</data-extraction-rules>

@@ -36,4 +36,19 @@ class ProofOfWorkTest {
         assertNull(solveChallenge(real.copy(limit = 0)))
         assertNull(solveChallenge(real.copy(hash = "не-хеш")))
     }
+
+    /**
+     * Ответ с капчей приходит по сети: испорченный `limit` вроде `Int.MAX_VALUE`
+     * не должен заставлять телефон считать sha512 миллиарды раз.
+     */
+    @Test
+    fun `rejects absurd attempt limit`() {
+        assertNull(solveChallenge(real.copy(limit = Int.MAX_VALUE)))
+        assertNull(solveChallenge(real.copy(limit = 1_000_001)))
+    }
+
+    @Test
+    fun `rejects oversized template`() {
+        assertNull(solveChallenge(real.copy(template = "%d" + "x".repeat(10_000))))
+    }
 }

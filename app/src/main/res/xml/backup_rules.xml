@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Android 11 и ниже. Куки движка — это доступ к закрытым доскам и cf_clearance,
+    то есть фактически учётные данные; в облачный бэкап им попадать незачем.
+    Остальное (закладки, история, настройки) бэкапится как обычно.
+-->
+<full-backup-content>
+    <exclude domain="file" path="cookies.txt" />
+    <exclude domain="file" path="cookies.txt.tmp" />
+</full-backup-content>

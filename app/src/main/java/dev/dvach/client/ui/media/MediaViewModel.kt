@@ -37,6 +37,7 @@ import dev.dvach.client.data.settings.SettingsRepository
 import dev.dvach.client.di.MediaClient
 import dev.dvach.client.domain.model.Attachment
 import dev.dvach.client.ui.navigation.MediaRoute
+import dev.dvach.client.util.safeFileName
 import java.io.File
 import javax.inject.Inject
 
@@ -247,12 +248,15 @@ class MediaViewModel @Inject constructor(
 
     private fun fileName(item: Attachment): String {
         val name = item.name.ifBlank { route.name.ifBlank { item.url.substringAfterLast('/') } }
-        val ext = item.url.substringAfterLast('.', "")
-        return if (ext.isEmpty() || name.substringAfterLast('.', "").isNotEmpty()) {
+        // Расширение берём из адреса, но только буквы и цифры: в пути может
+        // оказаться что угодно, а имя файла уходит в MediaStore и в File().
+        val ext = item.url.substringAfterLast('.', "").filter { it.isLetterOrDigit() }.take(8)
+        val withExtension = if (ext.isEmpty() || name.substringAfterLast('.', "").isNotEmpty()) {
             name
         } else {
             "$name.$ext"
         }
+        return safeFileName(withExtension)
     }
 
     private fun mimeType(item: Attachment): String = when (item.url.substringAfterLast('.').lowercase()) {

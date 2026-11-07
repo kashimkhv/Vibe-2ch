@@ -37,6 +37,34 @@ fun attachmentFileName(fullName: String, displayName: String, name: String, path
 }
 
 /**
+ * Имя файла для записи в галерею. Имя приходит от движка (это `fullname`
+ * загрузившего), поэтому в нём может оказаться что угодно: `/`, `\`, `..`
+ * и управляющие символы. На старых версиях Android файл пишется через
+ * `File(dir, name)`, где `..` выводит за пределы папки приложения, — поэтому
+ * от имени оставляем только последний сегмент и вычищаем управляющие символы.
+ * Точки `.` и `..` заменяются запасным именем: это не файлы, а ссылки на
+ * каталоги.
+ */
+fun safeFileName(raw: String, fallback: String = "file"): String {
+    val base = raw.substringAfterLast('/').substringAfterLast('\\')
+    val cleaned = base.filterNot { it.isISOControl() }.trim()
+    if (cleaned.isEmpty() || cleaned == "." || cleaned == "..") return fallback
+    if (cleaned.length <= MAX_FILE_NAME_LENGTH) return cleaned
+
+    // Длинное имя обрезаем, но расширение сохраняем: по нему галерея выбирает,
+    // чем открывать файл.
+    val ext = cleaned.substringAfterLast('.', "")
+    return if (ext.length in 1..8 && cleaned.length > ext.length + 1) {
+        cleaned.take(MAX_FILE_NAME_LENGTH - ext.length - 1) + "." + ext
+    } else {
+        cleaned.take(MAX_FILE_NAME_LENGTH)
+    }
+}
+
+/** Предел имени файла: 255 байт в MediaStore, кириллица занимает по два. */
+private const val MAX_FILE_NAME_LENGTH = 120
+
+/**
  * Makaba отдаёт размер файла в килобайтах (632 для картинки на 610 КБ),
  * поэтому в байты переводим сами.
  */

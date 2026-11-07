@@ -16,7 +16,8 @@ import java.security.MessageDigest
  *   [CaptchaChallenge.limit] — тогда пост отправлять бессмысленно.
  */
 fun solveChallenge(challenge: CaptchaChallenge): String? {
-    if (challenge.limit <= 0 || challenge.template.isEmpty()) return null
+    if (challenge.limit !in 1..MAX_ATTEMPTS) return null
+    if (challenge.template.isEmpty() || challenge.template.length > MAX_TEMPLATE_LENGTH) return null
     if (!challenge.template.contains("%d")) return null
     val target = challenge.hash.lowercase()
     val digest = MessageDigest.getInstance("SHA-512")
@@ -27,6 +28,16 @@ fun solveChallenge(challenge: CaptchaChallenge): String? {
     }
     return null
 }
+
+/**
+ * Пределы задачи из ответа движка: `limit` — число попыток, `template` —
+ * шаблон. Обычно это 20 000 и сорок символов, но ответ приходит по сети,
+ * поэтому без потолка испорченный или подменённый ответ заставил бы телефон
+ * считать sha512 миллиарды раз. Задача всё равно решается на устройстве,
+ * так что предел должен быть разумным, а не «сколько попросит сервер».
+ */
+private const val MAX_ATTEMPTS = 1_000_000
+private const val MAX_TEMPLATE_LENGTH = 8_192
 
 private fun ByteArray.toHex(): String {
     val digits = "0123456789abcdef"
