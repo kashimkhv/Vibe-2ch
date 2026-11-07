@@ -9,5 +9,5 @@
 }
 -keepclassmembers class kotlinx.serialization.json.** { *** Companion; }
 -keepclasseswithmembers class kotlinx.serialization.json.** { kotlinx.serialization.KSerializer serializer(...); }
--keep,includedescriptorclasses class dev.dvach.client.**$$serializer { *; }
--keepclassmembers class dev.dvach.client.** { *** Companion; }
+-keep,includedescriptorclasses class io.github.kashimkhv.vibe2ch.**$$serializer { *; }
+-keepclassmembers class io.github.kashimkhv.vibe2ch.** { *** Companion; }

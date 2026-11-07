@@ -19,16 +19,16 @@ val keystoreProperties = Properties().apply {
 }
 
 android {
-    namespace = "dev.dvach.client"
+    namespace = "io.github.kashimkhv.vibe2ch"
     compileSdk = 37
     compileSdkMinor = 2
 
     defaultConfig {
-        applicationId = "dev.dvach.client"
+        applicationId = "io.github.kashimkhv.vibe2ch"
         minSdk = 26
         targetSdk = 36
-        versionCode = 1
-        versionName = "3.0.0"
+        versionCode = 2
+        versionName = "3.0.1"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

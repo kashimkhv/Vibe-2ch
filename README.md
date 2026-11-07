@@ -210,8 +210,8 @@ export JAVA_HOME=/path/to/jdk-21
 
 | | debug | release |
 |---|---|---|
-| `applicationId` | `dev.dvach.client.debug` | `dev.dvach.client` |
-| имя версии | `3.0.0-debug` | `3.0.0` |
+| `applicationId` | `io.github.kashimkhv.vibe2ch.debug` | `io.github.kashimkhv.vibe2ch` |
+| имя версии | `3.0.1-debug` | `3.0.1` |
 | подпись | отладочная | release-ключ |
 | оптимизация | без R8 | R8 + `shrinkResources` |
 | HTTP-логи | да | нет |
@@ -252,7 +252,7 @@ SHA-256 сертификата: `807ffeae4a4a303cc8366796b1c966b79a4b251760c70ec
 ## Структура
 
 ```
-app/src/main/java/dev/dvach/client/
+app/src/main/java/io/github/kashimkhv/vibe2ch/
 ├── data/
 │   ├── remote/          # Retrofit-интерфейс и DTO движка
 │   ├── local/           # Room: избранное, история, закреплённые доски

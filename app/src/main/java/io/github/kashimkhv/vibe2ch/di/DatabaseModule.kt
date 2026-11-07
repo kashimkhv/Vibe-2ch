@@ -1,0 +1,49 @@
+package io.github.kashimkhv.vibe2ch.di
+
+import android.content.Context
+import androidx.room.Room
+import dagger.Binds
+import dagger.Module
+import dagger.Provides
+import dagger.hilt.InstallIn
+import dagger.hilt.android.qualifiers.ApplicationContext
+import dagger.hilt.components.SingletonComponent
+import io.github.kashimkhv.vibe2ch.data.ChanRepository
+import io.github.kashimkhv.vibe2ch.data.NetworkChanRepository
+import io.github.kashimkhv.vibe2ch.data.NetworkPostingRepository
+import io.github.kashimkhv.vibe2ch.data.PostingRepository
+import io.github.kashimkhv.vibe2ch.data.local.ChanDao
+import io.github.kashimkhv.vibe2ch.data.local.ChanDatabase
+import io.github.kashimkhv.vibe2ch.data.local.MIGRATION_1_2
+import io.github.kashimkhv.vibe2ch.data.local.MIGRATION_2_3
+import io.github.kashimkhv.vibe2ch.data.local.MIGRATION_3_4
+import io.github.kashimkhv.vibe2ch.data.local.MIGRATION_4_5
+import javax.inject.Singleton
+
+@Module
+@InstallIn(SingletonComponent::class)
+object DatabaseModule {
+
+    @Provides
+    @Singleton
+    fun provideDatabase(@ApplicationContext context: Context): ChanDatabase =
+        Room.databaseBuilder(context, ChanDatabase::class.java, "dvach.db")
+            .addMigrations(MIGRATION_1_2, MIGRATION_2_3, MIGRATION_3_4, MIGRATION_4_5)
+            .build()
+
+    @Provides
+    fun provideDao(db: ChanDatabase): ChanDao = db.chanDao()
+}
+
+@Module
+@InstallIn(SingletonComponent::class)
+abstract class BindingsModule {
+
+    @Binds
+    @Singleton
+    abstract fun bindChanRepository(impl: NetworkChanRepository): ChanRepository
+
+    @Binds
+    @Singleton
+    abstract fun bindPostingRepository(impl: NetworkPostingRepository): PostingRepository
+}
