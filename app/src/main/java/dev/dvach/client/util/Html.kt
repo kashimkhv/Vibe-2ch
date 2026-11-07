@@ -52,6 +52,36 @@ private fun codePoint(raw: String, radix: Int): String? =
         ?.takeIf { it in 1..0x10FFFF }
         ?.let { runCatching { String(Character.toChars(it)) }.getOrNull() }
 
+/**
+ * Приводит `href` из поста к адресу, который можно отдать системе.
+ *
+ * Движок экранирует в ссылке слэши: `https:&#47;&#47;life.ru&#47;p&#47;…`.
+ * Если открыть такую строку как есть, браузер получает
+ * `https://&#47;&#47;life.ru…` и не может разрешить домен — ссылка «ломается».
+ * Поэтому сущности раскрываются до запуска `ACTION_VIEW`.
+ *
+ * Заодно отбрасываются схемы, которым не место в клиенте (`javascript:`,
+ * `data:`), протокол-относительные `//host/path` получают `https:`, а
+ * внутренние пути движка (`/b/res/123.html`) — хост `2ch.hk`.
+ */
+fun decodeLinkHref(raw: String?): String? {
+    val text = decodeHtmlEntities(raw ?: return null).trim()
+    if (text.isEmpty()) return null
+
+    val normalized = when {
+        text.startsWith("//") -> "https:$text"
+        text.startsWith("/") -> "$DVACH_ORIGIN$text"
+        else -> text
+    }
+    val scheme = normalized.substringBefore(':', missingDelimiterValue = "").lowercase()
+    return normalized.takeIf { it.contains(':') && scheme in LINK_SCHEMES }
+}
+
+private const val DVACH_ORIGIN = "https://2ch.hk"
+
+/** Схемы, которые открывает система: браузер или почтовый клиент. */
+private val LINK_SCHEMES = setOf("http", "https", "mailto")
+
 /** Убирает HTML-разметку: движок отдаёт `info` досок и часть постов с тегами. */
 fun stripHtml(html: String): String =
     decodeHtmlEntities(html.replace(TAG_REGEX, " "))

@@ -23,6 +23,7 @@ import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
 import dev.dvach.client.util.decodeHtmlEntities
+import dev.dvach.client.util.decodeLinkHref
 
 /**
  * Мини-рендерер HTML из `comment`-поля Makaba.
@@ -271,7 +272,7 @@ private fun tokenizeDvachHtml(
                 val postRef = POST_NUM_ATTR.find(attrs)?.groupValues?.get(1)?.toIntOrNull()
                 val postThread = THREAD_NUM_ATTR.find(attrs)?.groupValues?.get(1)?.toIntOrNull()
                 val isPostLink = postRef != null && attrs.contains("post-reply", ignoreCase = true)
-                val href = HREF_ATTR.find(attrs)?.groupValues?.get(1)
+                val href = decodeLinkHref(HREF_ATTR.find(attrs)?.groupValues?.get(1))
                 stack += when {
                     isPostLink -> OpenTag(
                         name = name,
