@@ -204,9 +204,48 @@ export JAVA_HOME=/path/to/jdk-21
 
 `local.properties` с `sdk.dir` создаётся Android Studio автоматически и в git не попадает.
 
-Release-сборка подписывается ключом из вашего хранилища: добавьте `signingConfigs`
-в `app/build.gradle.kts`. Оригинальный `applicationId` (`ua.in.quireg.chan`) взять
-нельзя — он занят в Google Play, поэтому здесь `dev.dvach.client`.
+### Debug и release рядом
+
+Это два разных приложения, они не конфликтуют и могут стоять одновременно:
+
+| | debug | release |
+|---|---|---|
+| `applicationId` | `dev.dvach.client.debug` | `dev.dvach.client` |
+| имя версии | `3.0.0-debug` | `3.0.0` |
+| подпись | отладочная | release-ключ |
+| оптимизация | без R8 | R8 + `shrinkResources` |
+| HTTP-логи | да | нет |
+
+Debug нужен для разработки: он остаётся в репозитории и собирается CI. Release — то,
+что публикуется в GitHub Releases.
+
+### Подпись release
+
+Ключ лежит **вне репозитория**, а путь и пароли — в `keystore.properties` в корне
+проекта (файл в `.gitignore`, как и `*.jks`):
+
+```properties
+storeFile=C:/Users/<вы>/.android-keys/vibe-2ch-release.jks
+storePassword=...
+keyAlias=vibe2ch
+keyPassword=...
+```
+
+Без этого файла release соберётся неподписанным (`signingConfig` не создаётся),
+debug и тесты это не затрагивает. Если ключ потерян, обновить уже установленное
+приложение поверх старой версии нельзя — Android не примет APK с другой подписью,
+пользователям придётся удалять приложение и ставить заново.
+
+Проверка подписи и установка:
+
+```bash
+$ANDROID_HOME/build-tools/36.0.0/apksigner verify --print-certs \
+  app/build/outputs/apk/release/app-release.apk
+adb install -r app/build/outputs/apk/release/app-release.apk
+```
+
+SHA-256 сертификата: `807ffeae4a4a303cc8366796b1c966b79a4b251760c70ec74afa7710156af36b`.
+При следующем релизе обязательно увеличивайте `versionCode` в `app/build.gradle.kts`.
 
 ## Структура
 
@@ -1491,8 +1530,9 @@ Solarized, лаванда Catppuccin — остались канонически
 - адрес вложения движок может отдать на любой `http(s)`-хост: клиент его
   загрузит (так работают зеркала и CDN). Это не даёт доступа к данным, но
   запрос уходит на чужой сервер;
-- сборка из этого репозитория — **debug**: она `debuggable` и пишет
-  HTTP-логи. Для публичного распространения нужен release-вариант.
+- сборка из репозитория по умолчанию — **debug**: она `debuggable` и пишет
+  HTTP-логи. Для публичного распространения берите release APK из GitHub
+  Releases: R8, без логов и без `debuggable`.
 
 ## Скриншоты
 

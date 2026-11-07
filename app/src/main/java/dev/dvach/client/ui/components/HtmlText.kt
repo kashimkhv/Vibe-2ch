@@ -1,5 +1,6 @@
 package dev.dvach.client.ui.components
 
+import android.util.Log
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -9,6 +10,7 @@ import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.text.AnnotatedString
 import androidx.compose.ui.text.LinkAnnotation
 import androidx.compose.ui.text.SpanStyle
@@ -22,6 +24,7 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextDecoration
 import androidx.compose.ui.text.style.TextOverflow
+import dev.dvach.client.BuildConfig
 import dev.dvach.client.util.decodeHtmlEntities
 import dev.dvach.client.util.decodeLinkHref
 
@@ -56,6 +59,7 @@ fun HtmlText(
 ) {
     var revealedSpoilers by remember(html) { mutableStateOf<Set<Int>>(emptySet()) }
     val scheme = MaterialTheme.colorScheme
+    val uriHandler = LocalUriHandler.current
 
     val annotated: AnnotatedString = remember(
         html,
@@ -64,6 +68,7 @@ fun HtmlText(
         scheme.primary,
         color,
         linksEnabled,
+        uriHandler,
     ) {
         renderDvachHtml(
             html = html,
@@ -81,6 +86,13 @@ fun HtmlText(
                 }
             },
             onPostClick = onPostClick,
+            onLinkClick = { url ->
+                if (BuildConfig.DEBUG) Log.i("Links", "tap: $url")
+                runCatching { uriHandler.openUri(url) }
+                    .onFailure {
+                        if (BuildConfig.DEBUG) Log.w("Links", "Ссылка не открылась: $url", it)
+                    }
+            },
         )
     }
 
@@ -124,6 +136,7 @@ private fun renderDvachHtml(
     spoilerBackground: Color,
     onSpoilerClick: (Int) -> Unit,
     onPostClick: ((postNum: Int, threadNum: Int?) -> Unit)?,
+    onLinkClick: ((String) -> Unit)?,
 ): AnnotatedString {
     val runs = tokenizeDvachHtml(
         html = html,
@@ -152,7 +165,15 @@ private fun renderDvachHtml(
             val postThread = run.postThread
             val spoiler = run.spoilerIndex
             when {
-                href != null -> addLink(LinkAnnotation.Url(href, linkStyles), start, end)
+                href != null -> addLink(
+                    LinkAnnotation.Url(
+                        href,
+                        linkStyles,
+                        linkInteractionListener = { onLinkClick?.invoke(href) },
+                    ),
+                    start,
+                    end,
+                )
                 postRef != null && onPostClick != null -> addLink(
                     LinkAnnotation.Clickable(
                         tag = "post:$postRef",

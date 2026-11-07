@@ -3,19 +3,15 @@ package dev.dvach.client
 import android.content.Intent
 import android.graphics.Color
 import android.os.Bundle
-import android.util.Log
 import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
-import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
-import androidx.compose.ui.platform.LocalUriHandler
-import androidx.compose.ui.platform.UriHandler
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import dev.dvach.client.data.settings.AppSettings
@@ -84,14 +80,10 @@ class MainActivity : ComponentActivity() {
                 bodyBold = settings.bodyBold,
                 bodyLineSpacingPercent = settings.lineSpacingPercent,
             ) {
-                val systemUriHandler = LocalUriHandler.current
-                val safeUriHandler = remember(systemUriHandler) { SafeUriHandler(systemUriHandler) }
-                CompositionLocalProvider(LocalUriHandler provides safeUriHandler) {
-                    DvachNavHost(
-                        deepLink = pendingLink,
-                        onDeepLinkHandled = { pendingLink = null },
-                    )
-                }
+                DvachNavHost(
+                    deepLink = pendingLink,
+                    onDeepLinkHandled = { pendingLink = null },
+                )
             }
         }
     }
@@ -119,18 +111,3 @@ class MainActivity : ComponentActivity() {
 /** Полупрозрачный светлый скрим для трёхкнопочной навигации — как в androidx.activity. */
 private val LIGHT_NAV_SCRIM = Color.argb(0xe6, 0xFF, 0xFF, 0xFF)
 private val DARK_NAV_SCRIM = Color.argb(0x80, 0x1b, 0x1b, 0x1b)
-
-/**
- * Открытие ссылок без падения приложения. Схемы уже отфильтрованы
- * (`decodeLinkHref`), но обработчика может не быть вовсе: на устройстве без
- * браузера или почтового клиента `startActivity` бросит
- * `ActivityNotFoundException`, а слишком длинный адрес — `TransactionTooLarge`.
- * Ссылка из поста не должна ронять экран треда, поэтому ошибку только пишем
- * в лог (в release-сборке логов нет).
- */
-private class SafeUriHandler(private val delegate: UriHandler) : UriHandler {
-    override fun openUri(uri: String) {
-        runCatching { delegate.openUri(uri) }
-            .onFailure { if (BuildConfig.DEBUG) Log.w("Links", "Ссылка не открылась: $uri", it) }
-    }
-}
