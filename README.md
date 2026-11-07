@@ -245,7 +245,9 @@ adb install -r app/build/outputs/apk/release/app-release.apk
 ```
 
 SHA-256 сертификата: `807ffeae4a4a303cc8366796b1c966b79a4b251760c70ec74afa7710156af36b`.
-При следующем релизе обязательно увеличивайте `versionCode` в `app/build.gradle.kts`.
+Версии — по SemVer (`3.0.x` — исправления, `3.x.0` — новые возможности,
+`x.0.0` — несовместимые изменения); `versionCode` при каждом релизе только
+растёт. Подробности — в `AGENTS.md`.
 
 ## Структура
 
