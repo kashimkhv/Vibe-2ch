@@ -81,6 +81,7 @@ import io.github.kashimkhv.vibe2ch.ui.components.rememberWallClock
 import io.github.kashimkhv.vibe2ch.util.formatCount
 import io.github.kashimkhv.vibe2ch.util.imagesLabel
 import io.github.kashimkhv.vibe2ch.util.postsLabel
+import io.github.kashimkhv.vibe2ch.util.quoteText
 import io.github.kashimkhv.vibe2ch.util.threadUrl
 import io.github.kashimkhv.vibe2ch.util.videosLabel
 
@@ -91,7 +92,7 @@ fun ThreadScreen(
     onOpenThread: (threadNum: Int, highlight: Int) -> Unit = { _, _ -> },
     onOpenMedia: (Attachment) -> Unit = {},
     /** Ответ в тред: [replyTo] — пост, на который отвечаем (0 — просто ответ). */
-    onReply: (replyTo: Int) -> Unit = {},
+    onReply: (replyTo: Int, quoteText: String) -> Unit = { _, _ -> },
     viewModel: ThreadViewModel = hiltViewModel(),
 ) {
     val state by viewModel.state.collectAsStateWithLifecycle()
@@ -326,7 +327,7 @@ fun ThreadScreen(
                             shareTitle = title,
                             onDismiss = { titleMenuOpen = false },
                             onToggle = toggleBookmark,
-                            onReply = { onReply(threadNum) },
+                            onReply = { onReply(threadNum, "") },
                         )
                     }
                 },
@@ -339,7 +340,7 @@ fun ThreadScreen(
                 // снизу вверх в конце треда), закладки — долгим нажатием на
                 // заголовок или на пост.
                 actions = {
-                    IconButton(onClick = { onReply(0) }) {
+                    IconButton(onClick = { onReply(0, "") }) {
                         Icon(
                             Icons.AutoMirrored.Filled.Reply,
                             contentDescription = "Ответить в тред",
@@ -418,7 +419,10 @@ fun ThreadScreen(
                                 isHighlighted = post.num == highlighted,
                                 bookmarked = bookmarked,
                                 onToggleBookmark = toggleBookmark,
-                                onReply = { onReply(post.num) },
+                                onReply = { onReply(post.num, "") },
+                                onReplyWithQuote = {
+                                    onReply(post.num, quoteText(post.commentHtml))
+                                },
                                 shareUrl = threadUrl(boardId, threadNum),
                                 shareTitle = title,
                                 showThumbnails = settings.showThumbnails,

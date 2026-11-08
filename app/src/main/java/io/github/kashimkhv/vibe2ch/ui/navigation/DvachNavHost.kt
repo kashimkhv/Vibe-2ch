@@ -77,7 +77,7 @@ fun DvachNavHost(
                 onOpenMedia = { file ->
                     navController.navigate(MediaRoute(file.url, file.name, file.isVideo))
                 },
-                onReply = { replyTo ->
+                onReply = { replyTo, quote ->
                     val route = it.toRoute<ThreadRoute>()
                     navController.navigate(
                         ComposerRoute(
@@ -85,6 +85,7 @@ fun DvachNavHost(
                             boardName = route.boardName,
                             threadNum = route.threadNum,
                             quoteNum = replyTo,
+                            quoteText = quote,
                         ),
                     )
                 },

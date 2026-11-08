@@ -56,6 +56,12 @@ fun HtmlText(
      * прячет — состояние в [revealedSpoilers] при этом работает «наоборот».
      */
     autoRevealSpoilers: Boolean = false,
+    /**
+     * Реагировать ли на тапы по ссылкам и спойлерам. В режиме выделения текст
+     * должен принадлежать `SelectionContainer`: кликабельные фрагменты
+     * перехватывают долгое нажатие и уводят по ссылке вместо выделения слова.
+     */
+    interactive: Boolean = true,
 ) {
     var revealedSpoilers by remember(html) { mutableStateOf<Set<Int>>(emptySet()) }
     val scheme = MaterialTheme.colorScheme
@@ -68,11 +74,13 @@ fun HtmlText(
         scheme.primary,
         color,
         linksEnabled,
+        interactive,
         uriHandler,
     ) {
         renderDvachHtml(
             html = html,
             linksEnabled = linksEnabled,
+            interactive = interactive,
             linkColor = scheme.primary,
             baseColor = color,
             revealedSpoilers = revealedSpoilers,
@@ -129,6 +137,7 @@ private class OpenTag(
 private fun renderDvachHtml(
     html: String,
     linksEnabled: Boolean,
+    interactive: Boolean,
     linkColor: Color,
     baseColor: Color,
     revealedSpoilers: Set<Int>,
@@ -165,7 +174,7 @@ private fun renderDvachHtml(
             val postThread = run.postThread
             val spoiler = run.spoilerIndex
             when {
-                href != null -> addLink(
+                href != null && interactive -> addLink(
                     LinkAnnotation.Url(
                         href,
                         linkStyles,
@@ -174,7 +183,7 @@ private fun renderDvachHtml(
                     start,
                     end,
                 )
-                postRef != null && onPostClick != null -> addLink(
+                postRef != null && onPostClick != null && interactive -> addLink(
                     LinkAnnotation.Clickable(
                         tag = "post:$postRef",
                         styles = quoteStyles,
@@ -183,7 +192,7 @@ private fun renderDvachHtml(
                     start,
                     end,
                 )
-                spoiler != null -> addLink(
+                spoiler != null && interactive -> addLink(
                     LinkAnnotation.Clickable(
                         tag = "spoiler:$spoiler",
                         styles = TextLinkStyles(),

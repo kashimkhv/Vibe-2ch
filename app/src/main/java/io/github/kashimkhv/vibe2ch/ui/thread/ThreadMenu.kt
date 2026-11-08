@@ -6,9 +6,12 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.Reply
 import androidx.compose.material.icons.filled.Bookmark
 import androidx.compose.material.icons.filled.BookmarkBorder
+import androidx.compose.material.icons.filled.FormatQuote
+import androidx.compose.material.icons.filled.SelectAll
 import androidx.compose.material.icons.filled.Share
 import androidx.compose.material3.DropdownMenu
 import androidx.compose.material3.DropdownMenuItem
+import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
@@ -23,6 +26,10 @@ import androidx.compose.ui.platform.LocalContext
  *
  * Все пункты оформлены одинаково — иконка слева, текст справа: так меню читается
  * как список действий, а не как набор случайных строк.
+ *
+ * @param onReplyWithQuote цитировать текст поста; `null` — пункт не показывать
+ *   (например, в меню заголовка треда, где цитировать нечего).
+ * @param onSelectText включить выделение текста; `null` — не показывать.
  */
 @Composable
 internal fun ThreadMenu(
@@ -33,6 +40,8 @@ internal fun ThreadMenu(
     onDismiss: () -> Unit,
     onToggle: () -> Unit,
     onReply: () -> Unit,
+    onReplyWithQuote: (() -> Unit)? = null,
+    onSelectText: (() -> Unit)? = null,
 ) {
     val context = LocalContext.current
     DropdownMenu(expanded = expanded, onDismissRequest = onDismiss) {
@@ -46,6 +55,31 @@ internal fun ThreadMenu(
                 onReply()
             },
         )
+        if (onReplyWithQuote != null) {
+            DropdownMenuItem(
+                text = { Text("Ответить с цитатой") },
+                leadingIcon = {
+                    Icon(Icons.Default.FormatQuote, contentDescription = null)
+                },
+                onClick = {
+                    onDismiss()
+                    onReplyWithQuote()
+                },
+            )
+        }
+        if (onSelectText != null) {
+            DropdownMenuItem(
+                text = { Text("Выделить текст") },
+                leadingIcon = {
+                    Icon(Icons.Default.SelectAll, contentDescription = null)
+                },
+                onClick = {
+                    onDismiss()
+                    onSelectText()
+                },
+            )
+        }
+        HorizontalDivider()
         DropdownMenuItem(
             text = { Text(if (bookmarked) "Убрать из закладок" else "Сохранить в закладки") },
             leadingIcon = {

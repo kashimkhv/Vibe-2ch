@@ -7,12 +7,15 @@ import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.text.selection.SelectionContainer
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Text
+import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -49,6 +52,8 @@ fun PostCard(
     isMine: Boolean = false,
     /** Начать ответ на этот пост: форма откроется с цитатой `>>num`. */
     onReply: () -> Unit = {},
+    /** Начать ответ с цитатой текста этого поста. */
+    onReplyWithQuote: () -> Unit = {},
     bookmarked: Boolean = false,
     onToggleBookmark: () -> Unit = {},
     /** Ссылка на тред для пункта «Поделиться» в контекстном меню. */
@@ -73,6 +78,8 @@ fun PostCard(
 ) {
     // Меню привязано к шапке поста: оно открывается под ней, а не в углу экрана.
     var menuOpen by remember { mutableStateOf(false) }
+    // Режим выделения текста: включается пунктом меню, выключается «Готово».
+    var selectingText by remember { mutableStateOf(false) }
     val plainComment = remember(post.commentHtml) { stripHtml(post.commentHtml) }
     val subject = post.subject.trim()
     val showSubject = subject.isNotBlank() && !plainComment.startsWith(subject, ignoreCase = true)
@@ -95,6 +102,20 @@ fun PostCard(
     val mineStripe = MaterialTheme.colorScheme.primary
 
     val guideColor = MaterialTheme.colorScheme.outlineVariant
+
+    val interactionSource = remember { MutableInteractionSource() }
+    // Пока идёт выделение, долгое нажатие принадлежит SelectionContainer:
+    // иначе меню перехватывало бы его и до текста было бы не добраться.
+    val postGestures = if (selectingText) {
+        Modifier
+    } else {
+        Modifier.combinedClickable(
+            interactionSource = interactionSource,
+            indication = null,
+            onClick = {},
+            onLongClick = { menuOpen = true },
+        )
+    }
 
     // Пост — плоская белая строка на всю ширину, отделённая от следующей
     // тонким разделителем. Так выглядели списки в старом Material: никаких
@@ -136,12 +157,7 @@ fun PostCard(
                     }
                 }
                 .padding(start = (depth * TREE_INDENT_DP).dp)
-                .combinedClickable(
-                    interactionSource = remember { MutableInteractionSource() },
-                    indication = null,
-                    onClick = {},
-                    onLongClick = { menuOpen = true },
-                )
+                .then(postGestures)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
             Box {
@@ -242,6 +258,16 @@ fun PostCard(
                     onDismiss = { menuOpen = false },
                     onToggle = onToggleBookmark,
                     onReply = onReply,
+                    onReplyWithQuote = if (plainComment.isNotBlank()) {
+                        onReplyWithQuote
+                    } else {
+                        null
+                    },
+                    onSelectText = if (plainComment.isNotBlank()) {
+                        { selectingText = true }
+                    } else {
+                        null
+                    },
                 )
             }
 
@@ -258,29 +284,45 @@ fun PostCard(
                 )
             }
 
-            if (showSubject) {
-                Text(
-                    text = subject,
-                    style = MaterialTheme.typography.titleSmall,
-                    modifier = Modifier.padding(
-                        top = 4.dp,
-                        start = textMargins,
-                        end = textMargins,
-                    ),
-                )
+            if (selectingText) {
+                SelectionHint(onDone = { selectingText = false })
             }
 
-            if (plainComment.isNotBlank()) {
-                HtmlText(
-                    html = post.commentHtml,
-                    onPostClick = onPostClick,
-                    autoRevealSpoilers = autoRevealSpoilers,
-                    modifier = Modifier.padding(
-                        top = 4.dp,
-                        start = textMargins,
-                        end = textMargins,
-                    ),
-                )
+            // В обычном режиме долгое нажатие открывает меню, поэтому
+            // SelectionContainer включается только пунктом «Выделить текст».
+            val message: @Composable () -> Unit = {
+                if (showSubject) {
+                    Text(
+                        text = subject,
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(
+                            top = 4.dp,
+                            start = textMargins,
+                            end = textMargins,
+                        ),
+                    )
+                }
+
+                if (plainComment.isNotBlank()) {
+                    HtmlText(
+                        html = post.commentHtml,
+                        onPostClick = onPostClick,
+                        autoRevealSpoilers = autoRevealSpoilers,
+                        // В режиме выделения ссылки и спойлеры не перехватывают
+                        // долгое нажатие: иначе вместо слова открывался пост.
+                        interactive = !selectingText,
+                        modifier = Modifier.padding(
+                            top = 4.dp,
+                            start = textMargins,
+                            end = textMargins,
+                        ),
+                    )
+                }
+            }
+            if (selectingText) {
+                SelectionContainer { message() }
+            } else {
+                message()
             }
 
             if (post.isBanned) {
@@ -313,4 +355,31 @@ private const val TREE_INDENT_DP = 16
 
 /** Ширина синей полосы у своего поста. */
 private const val MINE_STRIPE_DP = 3
+
+/**
+ * Подсказка режима выделения: объясняет, что делать дальше, и даёт выход —
+ * системное меню выделения умеет только копировать, но не закрывать режим.
+ */
+@Composable
+private fun SelectionHint(onDone: () -> Unit) {
+    Row(
+        verticalAlignment = Alignment.CenterVertically,
+        modifier = Modifier
+            .fillMaxWidth()
+            .padding(top = 2.dp),
+    ) {
+        Text(
+            text = "Выделите текст",
+            style = MaterialTheme.typography.labelSmall,
+            color = MaterialTheme.colorScheme.primary,
+            modifier = Modifier.weight(1f),
+        )
+        TextButton(
+            onClick = onDone,
+            contentPadding = PaddingValues(horizontal = 8.dp, vertical = 0.dp),
+        ) {
+            Text("Готово", style = MaterialTheme.typography.labelSmall)
+        }
+    }
+}
 

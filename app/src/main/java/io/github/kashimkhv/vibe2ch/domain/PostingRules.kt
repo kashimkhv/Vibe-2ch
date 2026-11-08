@@ -11,8 +11,33 @@ const val MAX_UPLOAD_BYTES = 32 * 1024 * 1024
 /**
  * Цитата, с которой начинается ответ на пост. `0` — обычный ответ без цитаты.
  * Движок понимает `>>123` только в начале строки, поэтому перевод строки обязателен.
+ *
+ * @param quoteText текст поста: каждая строка станет `>строкой`. Пусто —
+ *   ответ цитирует только номер, как обычный «Ответить».
+ * @param limit потолок длины цитаты в символах (0 — без потолка). Длинный пост
+ *   иначе занял бы весь лимит комментария доски, а цитата — вспомогательный текст.
  */
-fun quotePrefix(postNum: Int): String = if (postNum > 0) ">>$postNum\n" else ""
+fun quotePrefix(
+    postNum: Int,
+    quoteText: String = "",
+    limit: Int = QUOTE_TEXT_LIMIT,
+): String {
+    if (postNum <= 0) return ""
+    val head = ">>$postNum\n"
+    val text = quoteText.trim()
+    if (text.isEmpty()) return head
+    val clipped = if (limit > 0 && text.codePointCount(0, text.length) > limit) {
+        text.substring(0, text.offsetByCodePoints(0, limit)).trimEnd() + "…"
+    } else {
+        text
+    }
+    val quoted = clipped.lineSequence()
+        .joinToString("\n") { line -> if (line.isBlank()) "" else ">$line" }
+    return "$head$quoted\n\n"
+}
+
+/** Сколько символов поста попадает в цитату по умолчанию. */
+const val QUOTE_TEXT_LIMIT = 1500
 
 /**
  * Ошибка текста поста. Пустой пост допустим только с файлом: движок принимает

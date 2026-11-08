@@ -21,6 +21,23 @@ class PostingRulesTest {
     }
 
     @Test
+    fun `quote with text puts every line after a marker`() {
+        assertEquals(">>7\n>привет\n>мир\n\n", quotePrefix(7, "привет\nмир"))
+    }
+
+    @Test
+    fun `long quote is clipped and marked with an ellipsis`() {
+        assertEquals(">>1\n>" + "а".repeat(10) + "…\n\n", quotePrefix(1, "а".repeat(20), limit = 10))
+        // Режем по code points, чтобы не разорвать эмодзи на половинки.
+        assertEquals(">>1\n>😀…\n\n", quotePrefix(1, "😀😀", limit = 1))
+    }
+
+    @Test
+    fun `blank quote text leaves only the post number`() {
+        assertEquals(">>5\n", quotePrefix(5, "  \n "))
+    }
+
+    @Test
     fun `empty comment is allowed only with a file`() {
         val maxComment = 15_000
         assertEquals(

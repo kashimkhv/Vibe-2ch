@@ -87,3 +87,20 @@ fun stripHtml(html: String): String =
     decodeHtmlEntities(html.replace(TAG_REGEX, " "))
         .replace(SPACES, " ")
         .trim()
+
+private val QUOTE_BREAKS = Regex("(?i)<br\\s*/?>|</(?:p|div|blockquote|li|tr|h[1-6])\\s*>")
+private val INLINE_SPACES = Regex("[ \\t\\u00A0]+")
+private val NEWLINE_PADDING = Regex("[ \\t]*\\n[ \\t]*")
+private val EXTRA_NEWLINES = Regex("\\n{2,}")
+
+/**
+ * Текст поста для цитаты: блочные теги становятся переводами строк, остальная
+ * разметка убирается. В отличие от [stripHtml] сохраняет абзацы — иначе
+ * цитата длинного поста склеивается в одну строку.
+ */
+fun quoteText(html: String): String =
+    decodeHtmlEntities(html.replace(QUOTE_BREAKS, "\n").replace(TAG_REGEX, " "))
+        .replace(INLINE_SPACES, " ")
+        .replace(NEWLINE_PADDING, "\n")
+        .replace(EXTRA_NEWLINES, "\n")
+        .trim()

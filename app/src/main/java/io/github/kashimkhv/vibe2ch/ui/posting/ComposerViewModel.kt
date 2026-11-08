@@ -93,7 +93,7 @@ class ComposerViewModel @Inject constructor(
     val isNewThread: Boolean = route.threadNum <= 0
 
     private val _state = MutableStateFlow(
-        ComposerUiState(comment = quotePrefix(route.quoteNum)),
+        ComposerUiState(comment = quotePrefix(route.quoteNum, route.quoteText)),
     )
     val state: StateFlow<ComposerUiState> = _state.asStateFlow()
 

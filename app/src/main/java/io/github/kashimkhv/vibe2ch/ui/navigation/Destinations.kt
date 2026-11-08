@@ -42,7 +42,8 @@ data object ThemesRoute
 
 /**
  * Форма поста. `threadNum = 0` — создание нового треда; `quoteNum` — пост,
- * на который отвечаем (попадёт в начало комментария as `>>123`).
+ * на который отвечаем (попадёт в начало комментария as `>>123`), `quoteText` —
+ * его текст, который подставляется строками `>…` (пусто — цитата только номером).
  */
 @Serializable
 data class ComposerRoute(
@@ -50,4 +51,5 @@ data class ComposerRoute(
     val boardName: String,
     val threadNum: Int = 0,
     val quoteNum: Int = 0,
+    val quoteText: String = "",
 )
