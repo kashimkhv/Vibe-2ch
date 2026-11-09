@@ -1,0 +1,8 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+    Что FileProvider отдаёт наружу. Только каталог скачанных обновлений:
+    ни настройки, ни кэш картинок установщику не нужны.
+-->
+<paths>
+    <cache-path name="updates" path="updates/" />
+</paths>

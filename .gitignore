@@ -16,7 +16,7 @@ keystore.properties
 !debug.keystore
 /app/build
 
-# локальные дампы uiautomator
-ui*.xml
-u*.xml
+# локальные дампы uiautomator (только в корне репозитория)
+/ui*.xml
+/u*.xml
 screenshots/
