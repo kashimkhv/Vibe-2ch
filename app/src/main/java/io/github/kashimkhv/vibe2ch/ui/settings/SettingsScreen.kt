@@ -9,6 +9,7 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.selectable
@@ -23,6 +24,7 @@ import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
+import androidx.compose.material3.LinearProgressIndicator
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Scaffold
@@ -34,6 +36,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
@@ -41,15 +44,21 @@ import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.platform.LocalUriHandler
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.hilt.lifecycle.viewmodel.compose.hiltViewModel
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.compose.LifecycleEventEffect
 import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import io.github.kashimkhv.vibe2ch.BuildConfig
 import io.github.kashimkhv.vibe2ch.data.cache.CacheUsage
 import io.github.kashimkhv.vibe2ch.data.settings.FontChoice
+import io.github.kashimkhv.vibe2ch.data.update.UpdateInfo
+import io.github.kashimkhv.vibe2ch.domain.GITHUB_REPO_URL
 import io.github.kashimkhv.vibe2ch.ui.components.dvachShadow
 import io.github.kashimkhv.vibe2ch.ui.components.dvachTopAppBarColors
 import io.github.kashimkhv.vibe2ch.ui.components.DvachScrollbar
@@ -66,11 +75,16 @@ import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_MIN
 import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_STEP
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_MAX
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_MIN
+import io.github.kashimkhv.vibe2ch.util.canInstallPackages
 import io.github.kashimkhv.vibe2ch.util.formatCacheSize
 import io.github.kashimkhv.vibe2ch.util.formatFileSize
+import io.github.kashimkhv.vibe2ch.util.installApk
+import io.github.kashimkhv.vibe2ch.util.openInstallPermissionSettings
 import io.github.kashimkhv.vibe2ch.util.plural
+import io.github.kashimkhv.vibe2ch.util.releaseNotesText
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_STEP
 import kotlinx.coroutines.launch
+import java.io.File
 import kotlin.math.roundToInt
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -85,12 +99,35 @@ fun SettingsScreen(
     val hiddenCount by viewModel.hiddenCount.collectAsStateWithLifecycle()
     val cacheUsage by viewModel.cacheUsage.collectAsStateWithLifecycle()
     val cookiesCount by viewModel.cookiesCount.collectAsStateWithLifecycle()
+    val update by viewModel.update.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
     val scope = rememberCoroutineScope()
+    val context = LocalContext.current
+    val uriHandler = LocalUriHandler.current
     var confirmClear by remember { mutableStateOf(false) }
     var confirmClearCookies by remember { mutableStateOf(false) }
     var fontPicker by remember { mutableStateOf<FontRole?>(null) }
+    // Разрешение на установку выдаётся в системных настройках, поэтому его
+    // надо перечитывать при возврате в приложение, а не только при открытии.
+    var installAllowed by remember { mutableStateOf(canInstallPackages(context)) }
+    LifecycleEventEffect(Lifecycle.Event.ON_RESUME) {
+        installAllowed = canInstallPackages(context)
+    }
+
+    LaunchedEffect(update) {
+        when (val state = update) {
+            UpdateState.UpToDate -> {
+                snackbarHostState.showSnackbar("У вас последняя версия — ${BuildConfig.VERSION_NAME}")
+                viewModel.consumeUpdateResult()
+            }
+            is UpdateState.Failed -> {
+                snackbarHostState.showSnackbar(state.message)
+                viewModel.consumeUpdateResult()
+            }
+            else -> Unit
+        }
+    }
 
     Scaffold(
         snackbarHost = { SnackbarHost(snackbarHostState) },
@@ -380,7 +417,7 @@ fun SettingsScreen(
                     )
                     HtmlText(
                         html = "Данные: <a href=\"https://2ch.hk\">2ch.hk</a> (JSON API Makaba). " +
-                            "Код открыт: <a href=\"https://github.com/vortexwolf/2ch-Browser\">2ch-Browser</a>.",
+                            "Вдохновлён <a href=\"https://github.com/vortexwolf/2ch-Browser\">2ch-Browser</a>.",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 6.dp),
                     )
@@ -391,6 +428,22 @@ fun SettingsScreen(
                         modifier = Modifier.padding(top = 8.dp),
                     )
                 }
+
+                HorizontalDivider()
+
+                LinkRow(
+                    title = "GitHub",
+                    subtitle = "Исходный код, релизы и список изменений",
+                    onClick = { runCatching { uriHandler.openUri(GITHUB_REPO_URL) } },
+                )
+
+                HorizontalDivider()
+
+                LinkRow(
+                    title = "Проверить обновления",
+                    subtitle = updateSubtitle(update),
+                    onClick = viewModel::checkForUpdates,
+                )
             }
 
             // Полоса прокрутки поверх списка: правый край экрана.
@@ -479,6 +532,168 @@ fun SettingsScreen(
             onDismiss = { fontPicker = null },
         )
     }
+
+    UpdateDialog(
+        state = update,
+        installAllowed = installAllowed,
+        onDownload = viewModel::downloadUpdate,
+        onDismiss = viewModel::dismissUpdate,
+        onInstall = { file ->
+            if (installAllowed) {
+                runCatching { installApk(context, file) }
+                    .onSuccess { viewModel.dismissUpdate() }
+                    .onFailure {
+                        scope.launch { snackbarHostState.showSnackbar("Не удалось открыть установщик") }
+                    }
+            } else {
+                openInstallPermissionSettings(context)
+            }
+        },
+    )
+}
+
+/** Подпись пункта «Проверить обновления»: что происходит прямо сейчас. */
+private fun updateSubtitle(state: UpdateState): String = when (state) {
+    UpdateState.Idle -> "Текущая версия ${BuildConfig.VERSION_NAME}"
+    UpdateState.Checking -> "Проверяем GitHub…"
+    UpdateState.UpToDate -> "Обновлений нет — ${BuildConfig.VERSION_NAME}"
+    is UpdateState.Available -> "Доступна версия ${state.info.version}"
+    is UpdateState.Downloading -> state.progress?.let { progress ->
+        "Скачиваем ${state.info.version}: ${(progress * 100).roundToInt()}%"
+    } ?: "Скачиваем ${state.info.version}…"
+    is UpdateState.Downloaded -> "Версия ${state.info.version} скачана"
+    is UpdateState.Failed -> "Не удалось — попробуйте ещё раз"
+}
+
+/**
+ * Диалог обновления: предложение скачать, полоса загрузки и кнопка установки.
+ * Показывается только для трёх состояний — проверка и её результат живут
+ * в снекбаре и подписи пункта, чтобы не перекрывать экран на пустом месте.
+ */
+@Composable
+private fun UpdateDialog(
+    state: UpdateState,
+    installAllowed: Boolean,
+    onDownload: (UpdateInfo) -> Unit,
+    onDismiss: () -> Unit,
+    onInstall: (File) -> Unit,
+) {
+    val info = when (state) {
+        is UpdateState.Available -> state.info
+        is UpdateState.Downloading -> state.info
+        is UpdateState.Downloaded -> state.info
+        else -> return
+    }
+    AlertDialog(
+        onDismissRequest = onDismiss,
+        shape = RoundedCornerShape(2.dp),
+        title = {
+            Text(
+                when (state) {
+                    is UpdateState.Downloaded -> "Версия ${info.version} скачана"
+                    else -> "Доступна версия ${info.version}"
+                },
+            )
+        },
+        text = {
+            Column {
+                Text(
+                    text = "У вас ${BuildConfig.VERSION_NAME} · ${formatFileSize(info.sizeBytes)}",
+                    style = MaterialTheme.typography.labelSmall,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
+                when (state) {
+                    is UpdateState.Downloading -> {
+                        Text(
+                            text = state.progress?.let { "Скачиваем APK: ${(it * 100).roundToInt()}%" }
+                                ?: "Скачиваем APK…",
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 12.dp),
+                        )
+                        // Пока байты не пошли, полоса «бежит»: соединение и
+                        // редирект на CDN занимают несколько секунд, и полоска,
+                        // застывшая на нуле, выглядела бы как зависание.
+                        val progress = state.progress
+                        if (progress == null) {
+                            LinearProgressIndicator(
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp),
+                            )
+                        } else {
+                            LinearProgressIndicator(
+                                progress = { progress },
+                                modifier = Modifier
+                                    .fillMaxWidth()
+                                    .padding(top = 6.dp),
+                            )
+                        }
+                    }
+                    is UpdateState.Downloaded -> {
+                        Text(
+                            text = if (installAllowed) {
+                                "Откроется системный установщик. Настройки, закладки " +
+                                    "и история сохранятся."
+                            } else {
+                                "Android не разрешает установку из этого приложения. " +
+                                    "Разрешите её в настройках и вернитесь сюда — кнопка " +
+                                    "сменится на «Установить»."
+                            },
+                            style = MaterialTheme.typography.bodySmall,
+                            modifier = Modifier.padding(top = 10.dp),
+                        )
+                    }
+                    else -> {
+                        val notes = releaseNotesText(info.notes)
+                        if (notes.isNotBlank()) {
+                            val notesScroll = rememberScrollState()
+                            Box(
+                                modifier = Modifier
+                                    .padding(top = 10.dp)
+                                    .heightIn(max = 260.dp),
+                            ) {
+                                Text(
+                                    text = notes,
+                                    style = MaterialTheme.typography.bodySmall,
+                                    modifier = Modifier
+                                        .verticalScroll(notesScroll)
+                                        .padding(end = 12.dp),
+                                )
+                                DvachScrollbar(
+                                    state = notesScroll,
+                                    modifier = Modifier.align(Alignment.CenterEnd).fillMaxHeight(),
+                                )
+                            }
+                        }
+                    }
+                }
+            }
+        },
+        confirmButton = {
+            TextButton(
+                onClick = {
+                    when (state) {
+                        is UpdateState.Available -> onDownload(info)
+                        is UpdateState.Downloaded -> onInstall(state.file)
+                        else -> Unit
+                    }
+                },
+                enabled = state !is UpdateState.Downloading,
+            ) {
+                Text(
+                    when (state) {
+                        is UpdateState.Downloaded -> if (installAllowed) "Установить" else "Разрешить"
+                        else -> "Скачать"
+                    },
+                )
+            }
+        },
+        dismissButton = {
+            TextButton(onClick = onDismiss) {
+                Text(if (state is UpdateState.Downloading) "Отмена" else "Позже")
+            }
+        },
+    )
 }
 
 /**

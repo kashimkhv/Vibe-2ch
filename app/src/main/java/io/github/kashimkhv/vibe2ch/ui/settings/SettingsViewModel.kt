@@ -3,6 +3,8 @@ package io.github.kashimkhv.vibe2ch.ui.settings
 import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.Job
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -10,6 +12,7 @@ import kotlinx.coroutines.flow.asStateFlow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.stateIn
 import kotlinx.coroutines.launch
+import io.github.kashimkhv.vibe2ch.BuildConfig
 import io.github.kashimkhv.vibe2ch.data.cache.CacheManager
 import io.github.kashimkhv.vibe2ch.data.cache.CacheUsage
 import io.github.kashimkhv.vibe2ch.data.local.ChanDao
@@ -18,15 +21,45 @@ import io.github.kashimkhv.vibe2ch.data.settings.AppSettings
 import io.github.kashimkhv.vibe2ch.data.settings.DvachTheme
 import io.github.kashimkhv.vibe2ch.data.settings.FontChoice
 import io.github.kashimkhv.vibe2ch.data.settings.SettingsRepository
+import io.github.kashimkhv.vibe2ch.data.update.UpdateInfo
+import io.github.kashimkhv.vibe2ch.data.update.UpdateRepository
+import io.github.kashimkhv.vibe2ch.domain.isNewerVersion
+import java.io.File
 import javax.inject.Inject
+
+/**
+ * Что сейчас происходит с обновлением. Состояния взаимоисключающие: диалог
+ * показывает только Available/Downloading/Downloaded, остальное — снекбар или
+ * подпись пункта «Проверить обновления».
+ */
+sealed interface UpdateState {
+    data object Idle : UpdateState
+    data object Checking : UpdateState
+    data object UpToDate : UpdateState
+    data class Available(val info: UpdateInfo) : UpdateState
+    /**
+     * [progress] равен `null`, пока не пришёл первый байт: соединение с GitHub и
+     * редирект на CDN занимают несколько секунд, и всё это время честный
+     * прогресс — «неизвестно», а не застывшие 0%.
+     */
+    data class Downloading(val info: UpdateInfo, val progress: Float?) : UpdateState
+    data class Downloaded(val info: UpdateInfo, val file: File) : UpdateState
+    data class Failed(val message: String) : UpdateState
+}
 
 @HiltViewModel
 class SettingsViewModel @Inject constructor(
     private val repository: SettingsRepository,
     private val cache: CacheManager,
     private val cookies: CookieStore,
+    private val updates: UpdateRepository,
     dao: ChanDao,
 ) : ViewModel() {
+
+    private val _update = MutableStateFlow<UpdateState>(UpdateState.Idle)
+    val update: StateFlow<UpdateState> = _update.asStateFlow()
+
+    private var updateJob: Job? = null
 
     val settings: StateFlow<AppSettings> = repository.settings
         .stateIn(viewModelScope, SharingStarted.WhileSubscribed(5_000), AppSettings())
@@ -57,6 +90,62 @@ class SettingsViewModel @Inject constructor(
     fun clearCache() = viewModelScope.launch {
         cache.clear()
         _cacheUsage.value = cache.usage()
+    }
+
+    /** Проверка обновлений: единственное место, где спрашиваем GitHub. */
+    fun checkForUpdates() {
+        val state = _update.value
+        if (state is UpdateState.Checking || state is UpdateState.Downloading) return
+        updateJob?.cancel()
+        updateJob = viewModelScope.launch {
+            _update.value = UpdateState.Checking
+            _update.value = try {
+                val info = updates.latest()
+                when {
+                    info == null -> UpdateState.Failed("На GitHub нет релиза с APK")
+                    isNewerVersion(info.version, BuildConfig.VERSION_NAME) ->
+                        UpdateState.Available(info)
+                    else -> UpdateState.UpToDate
+                }
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UpdateState.Failed("Не удалось проверить обновления: ${e.readableMessage()}")
+            }
+        }
+    }
+
+    /** Скачивание APK: прогресс идёт прямо в состояние диалога. */
+    fun downloadUpdate(info: UpdateInfo) {
+        if (_update.value is UpdateState.Downloading) return
+        updateJob?.cancel()
+        updateJob = viewModelScope.launch {
+            _update.value = UpdateState.Downloading(info, null)
+            _update.value = try {
+                val file = updates.download(info) { progress ->
+                    _update.value = UpdateState.Downloading(info, progress)
+                }
+                UpdateState.Downloaded(info, file)
+            } catch (e: CancellationException) {
+                throw e
+            } catch (e: Exception) {
+                UpdateState.Failed("Не удалось скачать обновление: ${e.readableMessage()}")
+            }
+        }
+    }
+
+    /** Закрыть диалог или отменить скачивание. */
+    fun dismissUpdate() {
+        updateJob?.cancel()
+        _update.value = UpdateState.Idle
+    }
+
+    /** Снекбар показан — возвращаем пункт в обычное состояние. */
+    fun consumeUpdateResult() {
+        val state = _update.value
+        if (state is UpdateState.UpToDate || state is UpdateState.Failed) {
+            _update.value = UpdateState.Idle
+        }
     }
 
     fun setTheme(theme: DvachTheme) = viewModelScope.launch {
@@ -144,3 +233,7 @@ class SettingsViewModel @Inject constructor(
         repository.setTextMargins(dp)
     }
 }
+
+/** Сеть часто отвечает молчанием — тогда показываем хотя бы «ошибка сети». */
+private fun Exception.readableMessage(): String =
+    message?.takeIf { it.isNotBlank() } ?: "ошибка сети"
