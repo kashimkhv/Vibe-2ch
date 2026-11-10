@@ -42,6 +42,7 @@ import androidx.compose.material3.SnackbarHost
 import androidx.compose.material3.SnackbarHostState
 import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
@@ -75,6 +76,7 @@ import coil3.compose.AsyncImage
 import coil3.compose.SubcomposeAsyncImage
 import coil3.compose.SubcomposeAsyncImageContent
 import io.github.kashimkhv.vibe2ch.domain.model.Attachment
+import io.github.kashimkhv.vibe2ch.ui.theme.SystemBars
 import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.collect
 import java.util.Locale
@@ -125,6 +127,14 @@ fun MediaScreen(
 
     // В фоне видео не должно продолжать играть в кармане.
     LifecycleEventEffect(Lifecycle.Event.ON_STOP) { player?.pause() }
+
+    // Просмотрщик чёрный при любой теме, поэтому на время просмотра просим
+    // светлые иконки баров: в светлой теме тёмные часы на чёрном не видны.
+    // Выход любым способом (назад, свайп, поворот) возвращает иконки теме.
+    DisposableEffect(Unit) {
+        SystemBars.lightIcons = true
+        onDispose { SystemBars.lightIcons = false }
+    }
 
     val current = items.getOrNull(page) ?: items.first()
 

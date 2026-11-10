@@ -20,6 +20,7 @@ import io.github.kashimkhv.vibe2ch.ui.navigation.DvachLink
 import io.github.kashimkhv.vibe2ch.ui.navigation.DvachLinks
 import io.github.kashimkhv.vibe2ch.ui.navigation.DvachNavHost
 import io.github.kashimkhv.vibe2ch.ui.theme.DvachTheme
+import io.github.kashimkhv.vibe2ch.ui.theme.SystemBars
 import io.github.kashimkhv.vibe2ch.ui.theme.rememberDarkTheme
 import javax.inject.Inject
 
@@ -49,22 +50,32 @@ class MainActivity : ComponentActivity() {
             val settings by settingsRepository.settings
                 .collectAsStateWithLifecycle(initialValue = AppSettings())
             val dark = rememberDarkTheme(settings.theme)
+            // Просмотрщик медиа чёрный при любой теме и просит светлые иконки,
+            // пока открыт. Всё остальное время иконки красит тема.
+            val lightBars = SystemBars.lightIcons
 
             // enableEdgeToEdge по умолчанию смотрит на ночной режим системы.
             // Если тема выбрана вручную, иконки баров нужно перекрашивать сами.
-            LaunchedEffect(dark) {
-                enableEdgeToEdge(
-                    statusBarStyle = SystemBarStyle.auto(
-                        lightScrim = Color.TRANSPARENT,
-                        darkScrim = Color.TRANSPARENT,
-                        detectDarkMode = { dark },
-                    ),
-                    navigationBarStyle = SystemBarStyle.auto(
-                        lightScrim = LIGHT_NAV_SCRIM,
-                        darkScrim = DARK_NAV_SCRIM,
-                        detectDarkMode = { dark },
-                    ),
-                )
+            LaunchedEffect(dark, lightBars) {
+                if (lightBars) {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.dark(Color.TRANSPARENT),
+                        navigationBarStyle = SystemBarStyle.dark(DARK_NAV_SCRIM),
+                    )
+                } else {
+                    enableEdgeToEdge(
+                        statusBarStyle = SystemBarStyle.auto(
+                            lightScrim = Color.TRANSPARENT,
+                            darkScrim = Color.TRANSPARENT,
+                            detectDarkMode = { dark },
+                        ),
+                        navigationBarStyle = SystemBarStyle.auto(
+                            lightScrim = LIGHT_NAV_SCRIM,
+                            darkScrim = DARK_NAV_SCRIM,
+                            detectDarkMode = { dark },
+                        ),
+                    )
+                }
             }
 
             DvachTheme(
