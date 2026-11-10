@@ -138,22 +138,22 @@ fun PostCard(
         Column(
             modifier = Modifier
                 .fillMaxWidth()
-                // Направляющие в отступе: по одной линии на каждый уровень
-                // вложенности. Сами строки не рисуют ветки — линии показывают,
-                // что пост находится внутри ответа на пост выше.
+                // Направляющая в отступе — одна, вплотную к посту. Раньше линия
+                // рисовалась на каждый уровень вложенности, и на глубоких ветках
+                // отступ превращался в частокол из параллельных полос: чем
+                // глубже ответ, тем больше линий. Глубину и так видно по самому
+                // отступу, а одна линия показывает то, что нужно, — что пост
+                // стоит внутри ответа на пост выше.
                 .drawBehind {
                     if (depth > 0) {
                         val step = TREE_INDENT_DP.dp.toPx()
-                        val stroke = 1.dp.toPx()
-                        for (level in 1..depth) {
-                            val x = (level - 0.5f) * step
-                            drawLine(
-                                color = guideColor,
-                                start = Offset(x, 0f),
-                                end = Offset(x, size.height),
-                                strokeWidth = stroke,
-                            )
-                        }
+                        val x = (depth - 0.5f) * step
+                        drawLine(
+                            color = guideColor,
+                            start = Offset(x, 0f),
+                            end = Offset(x, size.height),
+                            strokeWidth = 1.dp.toPx(),
+                        )
                     }
                 }
                 .padding(start = (depth * TREE_INDENT_DP).dp)
