@@ -431,6 +431,7 @@ fun ThreadScreen(
                                 thumbnailBackground = settings.thumbnailBackground,
                                 autoRevealSpoilers = settings.autoRevealSpoilers,
                                 textMargins = settings.textMarginsDp.dp,
+                                treeIndent = settings.treeIndentDp.dp,
                                 relativeDates = settings.relativeDates,
                                 nowMillis = nowMillis,
                                 ordinal = ordinals[post.num],

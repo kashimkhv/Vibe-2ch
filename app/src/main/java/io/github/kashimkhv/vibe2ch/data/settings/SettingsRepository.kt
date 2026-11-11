@@ -17,12 +17,14 @@ import io.github.kashimkhv.vibe2ch.domain.ThreadSort
 import io.github.kashimkhv.vibe2ch.util.FONT_SCALE_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.LINE_SPACING_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_DEFAULT
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_MAX
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_MIN
 import io.github.kashimkhv.vibe2ch.util.clampFontScale
 import io.github.kashimkhv.vibe2ch.util.clampLineSpacing
 import io.github.kashimkhv.vibe2ch.util.clampTextMargin
+import io.github.kashimkhv.vibe2ch.util.clampTreeIndent
 import java.io.IOException
 import java.util.concurrent.atomic.AtomicBoolean
 import javax.inject.Inject
@@ -82,6 +84,8 @@ data class AppSettings(
     val lineSpacingPercent: Int = LINE_SPACING_DEFAULT,
     /** Дополнительный отступ слева и справа у текста постов, в dp. */
     val textMarginsDp: Int = TEXT_MARGIN_DEFAULT,
+    /** Отступ каждого уровня вложенности в дереве ответов, в dp. */
+    val treeIndentDp: Int = TREE_INDENT_DEFAULT,
     /** Порядок тредов в списке доски: движковый бамп или своя сортировка. */
     val threadSort: ThreadSort = ThreadSort.BUMP,
     /** Направление сортировки: включено — по возрастанию (А→Я, старые сверху). */
@@ -142,6 +146,9 @@ class SettingsRepository @Inject constructor(
         /** Чтение: плотность строк и боковые поля текста. */
         val FONT_LINE_SPACING = intPreferencesKey("font_line_spacing")
         val TEXT_MARGINS = intPreferencesKey("text_margins")
+
+        /** Отступ дерева ответов; 0 — ответы в один столбец, без отступа. */
+        val TREE_INDENT = intPreferencesKey("tree_indent")
 
         /** Порядок тредов в списке доски — один на всё приложение. */
         val THREAD_SORT = stringPreferencesKey("thread_sort")
@@ -210,6 +217,9 @@ class SettingsRepository @Inject constructor(
                 ),
                 textMarginsDp = clampTextMargin(
                     prefs[Keys.TEXT_MARGINS] ?: TEXT_MARGIN_DEFAULT,
+                ),
+                treeIndentDp = clampTreeIndent(
+                    prefs[Keys.TREE_INDENT] ?: TREE_INDENT_DEFAULT,
                 ),
                 threadSort = prefs[Keys.THREAD_SORT]
                     ?.let { saved -> runCatching { ThreadSort.valueOf(saved) }.getOrNull() }
@@ -310,6 +320,10 @@ class SettingsRepository @Inject constructor(
 
     suspend fun setTextMargins(dp: Int) = context.dataStore.edit {
         it[Keys.TEXT_MARGINS] = clampTextMargin(dp)
+    }
+
+    suspend fun setTreeIndent(dp: Int) = context.dataStore.edit {
+        it[Keys.TREE_INDENT] = clampTreeIndent(dp)
     }
 }
 

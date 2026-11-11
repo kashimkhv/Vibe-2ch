@@ -36,6 +36,7 @@ import io.github.kashimkhv.vibe2ch.ui.components.AttachmentThumbsRow
 import io.github.kashimkhv.vibe2ch.ui.components.HtmlText
 import io.github.kashimkhv.vibe2ch.ui.theme.LocalDvachPalette
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_DEFAULT
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.formatPostTime
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_BASE_SIDE_DP
 import io.github.kashimkhv.vibe2ch.util.scaleThumbnail
@@ -75,6 +76,8 @@ fun PostCard(
     ordinal: Int? = null,
     /** Уровень вложенности в дереве ответов: 0 — корень ветки. */
     depth: Int = 0,
+    /** Отступ одного уровня вложенности: сколько прибавляет каждый следующий. */
+    treeIndent: Dp = TREE_INDENT_DEFAULT.dp,
 ) {
     // Меню привязано к шапке поста: оно открывается под ней, а не в углу экрана.
     var menuOpen by remember { mutableStateOf(false) }
@@ -145,8 +148,10 @@ fun PostCard(
                 // отступу, а одна линия показывает то, что нужно, — что пост
                 // стоит внутри ответа на пост выше.
                 .drawBehind {
-                    if (depth > 0) {
-                        val step = TREE_INDENT_DP.dp.toPx()
+                    val step = treeIndent.toPx()
+                    // Нулевой отступ — это «всё в один столбец»: линия легла бы
+                    // на самый край экрана, поэтому её просто не рисуем.
+                    if (depth > 0 && step > 0f) {
                         val x = (depth - 0.5f) * step
                         drawLine(
                             color = guideColor,
@@ -156,7 +161,7 @@ fun PostCard(
                         )
                     }
                 }
-                .padding(start = (depth * TREE_INDENT_DP).dp)
+                .padding(start = treeIndent * depth)
                 .then(postGestures)
                 .padding(horizontal = 12.dp, vertical = 8.dp),
         ) {
@@ -346,12 +351,6 @@ fun PostCard(
         )
     }
 }
-
-/**
- * Шаг отступа на уровень вложенности. Пост сдвигается вправо, поэтому
- * дерево читается без линий-коннекторов, а глубина ограничена в [buildPostTree].
- */
-private const val TREE_INDENT_DP = 16
 
 /** Ширина синей полосы у своего поста. */
 private const val MINE_STRIPE_DP = 3

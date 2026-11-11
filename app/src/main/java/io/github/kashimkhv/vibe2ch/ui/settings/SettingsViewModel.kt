@@ -232,6 +232,10 @@ class SettingsViewModel @Inject constructor(
     fun setTextMargins(dp: Int) = viewModelScope.launch {
         repository.setTextMargins(dp)
     }
+
+    fun setTreeIndent(dp: Int) = viewModelScope.launch {
+        repository.setTreeIndent(dp)
+    }
 }
 
 /** Сеть часто отвечает молчанием — тогда показываем хотя бы «ошибка сети». */

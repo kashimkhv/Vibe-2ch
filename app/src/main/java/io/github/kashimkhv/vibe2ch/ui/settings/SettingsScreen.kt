@@ -75,6 +75,9 @@ import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_MIN
 import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_STEP
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_MAX
 import io.github.kashimkhv.vibe2ch.util.THUMBNAIL_SCALE_MIN
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_MAX
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_MIN
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_STEP
 import io.github.kashimkhv.vibe2ch.util.canInstallPackages
 import io.github.kashimkhv.vibe2ch.util.formatCacheSize
 import io.github.kashimkhv.vibe2ch.util.formatFileSize
@@ -248,6 +251,17 @@ fun SettingsScreen(
                     step = TEXT_MARGIN_STEP,
                     unit = "dp",
                     onChange = viewModel::setTextMargins,
+                )
+
+                ScaleSliderRow(
+                    title = "Отступ в дереве ответов",
+                    subtitle = "Сдвиг каждого уровня вложенности; 0 — ответы в один " +
+                        "столбец, без направляющих линий",
+                    value = settings.treeIndentDp,
+                    range = TREE_INDENT_MIN..TREE_INDENT_MAX,
+                    step = TREE_INDENT_STEP,
+                    unit = "dp",
+                    onChange = viewModel::setTreeIndent,
                 )
 
                 SwitchRow(

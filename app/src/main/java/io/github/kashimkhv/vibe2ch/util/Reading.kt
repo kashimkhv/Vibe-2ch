@@ -27,3 +27,19 @@ const val TEXT_MARGIN_MAX = 32
 const val TEXT_MARGIN_STEP = 4
 
 fun clampTextMargin(dp: Int): Int = dp.coerceIn(TEXT_MARGIN_MIN, TEXT_MARGIN_MAX)
+
+/**
+ * Отступ дерева ответов: на сколько сдвигается каждый следующий уровень
+ * вложенности, в dp.
+ *
+ * 16 dp — прежний вид. Меньше — ветки стоят плотнее, и тексту достаётся
+ * больше ширины экрана; на глубоких ветках это заметно. Больше — глубину
+ * видно издалека, но текст сжимается. Ноль выключает отступ совсем: ответы
+ * идут в один столбец, как сплошная лента, а направляющих линий нет.
+ */
+const val TREE_INDENT_DEFAULT = 16
+const val TREE_INDENT_MIN = 0
+const val TREE_INDENT_MAX = 32
+const val TREE_INDENT_STEP = 4
+
+fun clampTreeIndent(dp: Int): Int = dp.coerceIn(TREE_INDENT_MIN, TREE_INDENT_MAX)

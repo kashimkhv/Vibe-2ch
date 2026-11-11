@@ -19,7 +19,11 @@ import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_MAX
 import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_MIN
 import io.github.kashimkhv.vibe2ch.util.clampFontScale
 import io.github.kashimkhv.vibe2ch.util.clampLineSpacing
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_DEFAULT
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_MAX
+import io.github.kashimkhv.vibe2ch.util.TREE_INDENT_MIN
 import io.github.kashimkhv.vibe2ch.util.clampTextMargin
+import io.github.kashimkhv.vibe2ch.util.clampTreeIndent
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertNotEquals
 import org.junit.Assert.assertTrue
@@ -214,6 +218,17 @@ class FontsTest {
         assertEquals(TEXT_MARGIN_MIN, clampTextMargin(-8))
         assertEquals(TEXT_MARGIN_DEFAULT, clampTextMargin(0))
         assertEquals(16, clampTextMargin(16))
+    }
+
+    @Test
+    fun `tree indent is clamped and defaults to sixteen`() {
+        // Отступ дерева читается из DataStore тем же путём, что и остальные
+        // числа: мусор в файле не должен растянуть или схлопнуть дерево.
+        assertEquals(16, TREE_INDENT_DEFAULT)
+        assertEquals(TREE_INDENT_MAX, clampTreeIndent(1000))
+        assertEquals(TREE_INDENT_MIN, clampTreeIndent(-4))
+        assertEquals(TREE_INDENT_DEFAULT, clampTreeIndent(TREE_INDENT_DEFAULT))
+        assertEquals(8, clampTreeIndent(8))
     }
 
     @Test
