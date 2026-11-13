@@ -54,7 +54,8 @@ class RepositoryMappingTest {
     @Test
     fun `new thread without engine counters still counts the op files`() {
         // Свежий тред: index.json отдаёт `files_count: 0` и `posts_count: 0`,
-        // хотя вложения в ОП уже есть. Ноль файлов — враньё, берём их из ОП.
+        // хотя вложения в ОП уже есть. Счётчики движка считают посты вне
+        // блока `posts`, а в нём как раз ОП — значит, числа даёт сумма.
         val thread = ThreadDto(
             filesCount = 0,
             postsCount = 0,
@@ -76,18 +77,43 @@ class RepositoryMappingTest {
     }
 
     @Test
-    fun `engine file counter wins when it is larger than the op`() {
-        // Обычный тред: в счётчике все файлы треда, а не только ОП-поста.
+    fun `posts counter covers only posts outside the preview block`() {
+        // Настоящий ответ /test/index.json по треду 255749: `posts_count: 15`,
+        // а в блоке `posts` — ОП и три последних ответа. В треде 19 постов,
+        // и карточка должна показывать 19, а не 15.
+        val thread = ThreadDto(
+            postsCount = 15,
+            filesCount = 0,
+            posts = listOf(
+                PostDto(num = 255749, comment = "ОП"),
+                PostDto(num = 255855, comment = "ответ"),
+                PostDto(num = 255856, comment = "ответ"),
+                PostDto(num = 255858, comment = "ответ"),
+            ),
+        ).toDomain("test")
+
+        assertEquals(19, thread!!.postsCount)
+    }
+
+    @Test
+    fun `engine counters add up with the preview block`() {
+        // Обычный тред: `files_count` — вложения постов вне блока `posts`,
+        // поэтому файлы превью (в том числе ОП) прибавляются к нему.
         val thread = ThreadDto(
             filesCount = 38,
             postsCount = 243,
             posts = listOf(
                 PostDto(num = 63709999, files = listOf(FileDto(name = "a.jpg", path = "src/1.jpg"))),
-                PostDto(num = 63710000, comment = "ответ"),
+                PostDto(
+                    num = 63710000,
+                    comment = "ответ",
+                    files = listOf(FileDto(name = "b.webm", path = "src/2.webm")),
+                ),
             ),
         ).toDomain("po")
 
-        assertEquals(38, thread!!.filesCount)
+        assertEquals(40, thread!!.filesCount)
+        assertEquals(245, thread.postsCount)
     }
 
     @Test
