@@ -138,6 +138,12 @@ fun ThreadScreen(
         }
     }
 
+    // Сообщение от треда (например, что отправленный пост так и не появился
+    // в ответе движка): показываем один раз и гасим.
+    LaunchedEffect(state.notice) {
+        viewModel.consumeNotice()?.let { snackbarHostState.showSnackbar(it) }
+    }
+
     // «Потянуть вверх в конце треда» — обновление: тянем список за последний
     // пост, отпускаем — тред перезагружается.
     var endPull by remember { mutableFloatStateOf(0f) }

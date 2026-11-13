@@ -5,6 +5,7 @@ import androidx.lifecycle.ViewModel
 import androidx.lifecycle.viewModelScope
 import androidx.navigation.toRoute
 import dagger.hilt.android.lifecycle.HiltViewModel
+import kotlinx.coroutines.delay
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.SharingStarted
 import kotlinx.coroutines.flow.StateFlow
@@ -43,7 +44,20 @@ data class ThreadUiState(
     val savedScroll: SavedScroll? = null,
     /** Позиция прочитана из базы: только после этого можно решать, прокручивать ли. */
     val scrollLoaded: Boolean = false,
+    /** Строка для снекбара: экран покажет её один раз и погасит. */
+    val notice: String? = null,
 )
+
+/**
+ * Сколько раз перезапрашивать тред после отправки поста и с какой паузой.
+ *
+ * Восемь попыток по 0,6 с — около пяти секунд ожидания плюс время самих
+ * запросов. Обычно пост виден уже в первом ответе, но если запрос попал в
+ * кэш Cloudflare или движок ещё не пересобрал JSON, остальные попытки
+ * закрывают эту задержку, не заставляя человека обновлять тред руками.
+ */
+private const val POST_RELOAD_ATTEMPTS = 8
+private const val POST_RELOAD_DELAY_MS = 600L
 
 @HiltViewModel
 class ThreadViewModel @Inject constructor(
@@ -113,8 +127,56 @@ class ThreadViewModel @Inject constructor(
      */
     fun consumePosted(): Int? {
         val posted = postedStore.consume(route.boardId, route.threadNum) ?: return null
-        load()
+        reloadUntilPostAppears(posted)
         return posted
+    }
+
+    /** Забирает сообщение для снекбара: показывается один раз. */
+    fun consumeNotice(): String? {
+        val notice = _state.value.notice ?: return null
+        _state.update { it.copy(notice = null) }
+        return notice
+    }
+
+    /**
+     * Перезагрузка сразу после отправки: движок принимает пост постингом
+     * раньше, чем показывает его в JSON треда. Одного запроса поэтому мало —
+     * повторяем, пока номер не появится в ответе.
+     *
+     * `isLoading` держим включённым до конца: по нему экран понимает, что
+     * поста ещё можно ждать, и не сбрасывает прокрутку к нему (см.
+     * `ThreadScreen`, эффект ожидания `pendingScroll`).
+     */
+    private fun reloadUntilPostAppears(postNum: Int) {
+        _state.update { it.copy(isLoading = true, error = null) }
+        viewModelScope.launch {
+            var lastError: String? = null
+            repeat(POST_RELOAD_ATTEMPTS) { attempt ->
+                val posts = runCatching { repository.thread(route.boardId, route.threadNum) }
+                    .onFailure { lastError = it.message ?: "Ошибка сети" }
+                    .getOrNull()
+                if (posts != null) {
+                    lastError = null
+                    _state.update { it.copy(posts = posts) }
+                    rememberVisit(posts)
+                    if (posts.any { it.num == postNum }) {
+                        _state.update { it.copy(isLoading = false, error = null) }
+                        return@launch
+                    }
+                }
+                if (attempt < POST_RELOAD_ATTEMPTS - 1) delay(POST_RELOAD_DELAY_MS)
+            }
+            // Пост ушёл, а тред его так и не показал: бывает, что движок
+            // отдаёт старый JSON из своего кэша, бывает — пост не прошёл.
+            // Молчать нельзя, человек ждёт свой пост на экране.
+            _state.update {
+                it.copy(
+                    isLoading = false,
+                    error = lastError,
+                    notice = "Пост $postNum отправлен, но в треде его нет. Потяните вниз, чтобы обновить",
+                )
+            }
+        }
     }
 
     /**
