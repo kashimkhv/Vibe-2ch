@@ -51,7 +51,7 @@ data class ThreadsUiState(
     val autoRevealSpoilers: Boolean = false,
     /** Поля текста карточки — та же настройка чтения, что и в треде. */
     val textMarginsDp: Int = TEXT_MARGIN_DEFAULT,
-    /** Порядок тредов: бамп движка или своя сортировка по загруженным страницам. */
+    /** Порядок тредов доски: бамп движка или своя сортировка по загруженным страницам. */
     val sort: ThreadSort = ThreadSort.BUMP,
     /** Направление сортировки: по возрастанию — А→Я, старые и маленькие сверху. */
     val sortAscending: Boolean = false,
@@ -126,6 +126,7 @@ class ThreadsViewModel @Inject constructor(
         // чтобы список перерисовался сразу после возврата.
         viewModelScope.launch {
             settings.settings.collect { appSettings ->
+                val chosen = appSettings.sortFor(route.boardId)
                 _state.update {
                     it.copy(
                         listThumbnailScalePercent = appSettings.listThumbnailScalePercent,
@@ -134,8 +135,8 @@ class ThreadsViewModel @Inject constructor(
                         thumbnailBackground = appSettings.thumbnailBackground,
                         autoRevealSpoilers = appSettings.autoRevealSpoilers,
                         textMarginsDp = appSettings.textMarginsDp,
-                        sort = appSettings.threadSort,
-                        sortAscending = appSettings.threadSortAscending,
+                        sort = chosen.sort,
+                        sortAscending = chosen.ascending,
                         relativeDates = appSettings.relativeDates,
                     )
                 }
@@ -263,12 +264,13 @@ class ThreadsViewModel @Inject constructor(
     }
 
     /**
-     * Выбор порядка тредов. Пишется в настройки: порядок один на всё приложение
-     * и переживает перезапуск.
+     * Выбор порядка тредов. Запоминается для этой доски: на /b/ может быть
+     * «по дате», а на /po/ — бамп, и переключать их туда-обратно не нужно.
+     * Доска, где порядок не выбирали, берёт общий (`AppSettings.sortFor`).
      */
     fun setSort(sort: ThreadSort, ascending: Boolean = sort.defaultAscending) {
         _state.update { it.copy(sort = sort, sortAscending = ascending) }
-        viewModelScope.launch { settings.setThreadSort(sort, ascending) }
+        viewModelScope.launch { settings.setThreadSort(route.boardId, sort, ascending) }
     }
 
     /** Переключение направления у текущей сортировки: А→Я или Я→А, новые или старые. */

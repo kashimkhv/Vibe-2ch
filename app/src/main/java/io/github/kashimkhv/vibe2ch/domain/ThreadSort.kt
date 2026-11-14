@@ -26,6 +26,12 @@ enum class ThreadSort(val label: String, val defaultAscending: Boolean) {
 }
 
 /**
+ * Выбранный порядок одной доски: режим и направление. Доски не делят эту
+ * настройку: на /b/ можно держать «по дате», а на /po/ остаться на бампе.
+ */
+data class BoardSort(val sort: ThreadSort, val ascending: Boolean)
+
+/**
  * Сортировка списка тредов.
  *
  * Закреплённые треды всегда остаются сверху — так их показывает и движок,

@@ -13,6 +13,7 @@ import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import io.github.kashimkhv.vibe2ch.domain.BoardSort
 import io.github.kashimkhv.vibe2ch.domain.ThreadSort
 import io.github.kashimkhv.vibe2ch.util.FONT_SCALE_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.LINE_SPACING_DEFAULT
@@ -90,8 +91,21 @@ data class AppSettings(
     val threadSort: ThreadSort = ThreadSort.BUMP,
     /** Направление сортировки: включено — по возрастанию (А→Я, старые сверху). */
     val threadSortAscending: Boolean = false,
+    /**
+     * Порядок тредов по доскам: ключ — id доски в нижнем регистре. Сюда
+     * попадают только доски, где порядок выбирали вручную.
+     */
+    val threadSortByBoard: Map<String, BoardSort> = emptyMap(),
     val baseUrl: String = "https://2ch.hk",
-)
+) {
+    /**
+     * Порядок для конкретной доски: свой, если его выбирали, иначе общий.
+     * Общий остаётся запасным вариантом — так доска, куда зашли впервые,
+     * выглядит как раньше, а не как последняя правка на другой доске.
+     */
+    fun sortFor(boardId: String): BoardSort =
+        threadSortByBoard[boardId.lowercase()] ?: BoardSort(threadSort, threadSortAscending)
+}
 
 private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
 
@@ -153,6 +167,9 @@ class SettingsRepository @Inject constructor(
         /** Порядок тредов в списке доски — один на всё приложение. */
         val THREAD_SORT = stringPreferencesKey("thread_sort")
         val THREAD_SORT_ASCENDING = booleanPreferencesKey("thread_sort_ascending")
+
+        /** Свой порядок у отдельных досок: `b=REPLIES:0;po=BUMP:0`. */
+        val THREAD_SORT_BOARDS = stringPreferencesKey("thread_sort_boards")
         val BASE_URL = stringPreferencesKey("base_url")
     }
 
@@ -225,6 +242,7 @@ class SettingsRepository @Inject constructor(
                     ?.let { saved -> runCatching { ThreadSort.valueOf(saved) }.getOrNull() }
                     ?: ThreadSort.BUMP,
                 threadSortAscending = prefs[Keys.THREAD_SORT_ASCENDING] ?: false,
+                threadSortByBoard = decodeBoardSorts(prefs[Keys.THREAD_SORT_BOARDS]),
                 baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
             )
         }
@@ -272,10 +290,20 @@ class SettingsRepository @Inject constructor(
         it[Keys.RELATIVE_DATES] = enabled
     }
 
-    /** Порядок тредов и направление пишем вместе: это одно состояние меню. */
-    suspend fun setThreadSort(sort: ThreadSort, ascending: Boolean) = context.dataStore.edit {
-        it[Keys.THREAD_SORT] = sort.name
-        it[Keys.THREAD_SORT_ASCENDING] = ascending
+    /**
+     * Порядок тредов для одной доски. Общий ключ (`thread_sort`) не трогаем:
+     * он остаётся запасным вариантом для досок, где свой порядок не выбирали,
+     * и благодаря этому доска, куда зашли впервые, открывается как раньше.
+     */
+    suspend fun setThreadSort(
+        boardId: String,
+        sort: ThreadSort,
+        ascending: Boolean,
+    ) = context.dataStore.edit { prefs ->
+        val saved = decodeBoardSorts(prefs[Keys.THREAD_SORT_BOARDS])
+        prefs[Keys.THREAD_SORT_BOARDS] = encodeBoardSorts(
+            saved + (boardId.lowercase() to BoardSort(sort, ascending)),
+        )
     }
 
     suspend fun setHeadingFont(font: FontChoice) = context.dataStore.edit {
@@ -345,6 +373,35 @@ internal fun legacyTheme(value: String?): DvachTheme = when (value) {
  */
 internal fun Preferences.fontChoice(key: Preferences.Key<String>): FontChoice =
     this[key]?.let { runCatching { FontChoice.valueOf(it) }.getOrNull() } ?: FontChoice.SYSTEM
+
+/**
+ * Порядок тредов по доскам одной строкой: `b=REPLIES:0;po=BUMP:0`. DataStore
+ * хранит только простые типы, а отдельный ключ на каждую доску заставил бы
+ * перебирать все настройки при каждом чтении.
+ */
+internal fun encodeBoardSorts(sorts: Map<String, BoardSort>): String =
+    sorts.entries.joinToString(";") { (board, choice) ->
+        "$board=${choice.sort.name}:${if (choice.ascending) 1 else 0}"
+    }
+
+/**
+ * Разбор [encodeBoardSorts]. Терпимый: битая запись (обрезанная, с неизвестным
+ * именем порядка) пропускается, а не роняет чтение настроек — иначе одна
+ * испорченная доска оставила бы приложение без всех настроек сразу.
+ */
+internal fun decodeBoardSorts(raw: String?): Map<String, BoardSort> {
+    if (raw.isNullOrBlank()) return emptyMap()
+    return raw.split(';').mapNotNull { entry ->
+        val board = entry.substringBefore('=', "").trim().lowercase()
+        val value = entry.substringAfter('=', "")
+        // Запись без направления (старый формат) — это порядок по умолчанию.
+        val sort = runCatching {
+            ThreadSort.valueOf(value.substringBeforeLast(':', value))
+        }.getOrNull()
+        if (board.isEmpty() || sort == null) return@mapNotNull null
+        board to BoardSort(sort, value.substringAfterLast(':', "0") == "1")
+    }.toMap()
+}
 
 private fun emptyPreferences(): Preferences =
     androidx.datastore.preferences.core.emptyPreferences()
