@@ -7,6 +7,7 @@ import androidx.activity.ComponentActivity
 import androidx.activity.SystemBarStyle
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
+import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableStateOf
@@ -16,6 +17,7 @@ import androidx.lifecycle.compose.collectAsStateWithLifecycle
 import dagger.hilt.android.AndroidEntryPoint
 import io.github.kashimkhv.vibe2ch.data.settings.AppSettings
 import io.github.kashimkhv.vibe2ch.data.settings.SettingsRepository
+import io.github.kashimkhv.vibe2ch.ui.components.LocalDvachBaseUrl
 import io.github.kashimkhv.vibe2ch.ui.navigation.DvachLink
 import io.github.kashimkhv.vibe2ch.ui.navigation.DvachLinks
 import io.github.kashimkhv.vibe2ch.ui.navigation.DvachNavHost
@@ -91,10 +93,14 @@ class MainActivity : ComponentActivity() {
                 bodyBold = settings.bodyBold,
                 bodyLineSpacingPercent = settings.lineSpacingPercent,
             ) {
-                DvachNavHost(
-                    deepLink = pendingLink,
-                    onDeepLinkHandled = { pendingLink = null },
-                )
+                // Ссылки внутри постов движок отдаёт относительными путями:
+                // открывать их надо на выбранном домене, а не всегда на 2ch.hk.
+                CompositionLocalProvider(LocalDvachBaseUrl provides settings.baseUrl) {
+                    DvachNavHost(
+                        deepLink = pendingLink,
+                        onDeepLinkHandled = { pendingLink = null },
+                    )
+                }
             }
         }
     }

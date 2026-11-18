@@ -66,6 +66,9 @@ fun HtmlText(
     var revealedSpoilers by remember(html) { mutableStateOf<Set<Int>>(emptySet()) }
     val scheme = MaterialTheme.colorScheme
     val uriHandler = LocalUriHandler.current
+    // Ссылки в постах движок отдаёт и относительными путями, и абсолютными
+    // адресами зеркал: открывать их надо на выбранном домене.
+    val baseUrl = LocalDvachBaseUrl.current
 
     val annotated: AnnotatedString = remember(
         html,
@@ -76,6 +79,7 @@ fun HtmlText(
         linksEnabled,
         interactive,
         uriHandler,
+        baseUrl,
     ) {
         renderDvachHtml(
             html = html,
@@ -85,6 +89,7 @@ fun HtmlText(
             baseColor = color,
             revealedSpoilers = revealedSpoilers,
             autoRevealSpoilers = autoRevealSpoilers,
+            baseUrl = baseUrl,
             spoilerBackground = scheme.onSurface,
             onSpoilerClick = { index ->
                 revealedSpoilers = if (revealedSpoilers.contains(index)) {
@@ -143,6 +148,7 @@ private fun renderDvachHtml(
     revealedSpoilers: Set<Int>,
     autoRevealSpoilers: Boolean,
     spoilerBackground: Color,
+    baseUrl: String,
     onSpoilerClick: (Int) -> Unit,
     onPostClick: ((postNum: Int, threadNum: Int?) -> Unit)?,
     onLinkClick: ((String) -> Unit)?,
@@ -155,6 +161,7 @@ private fun renderDvachHtml(
         revealedSpoilers = revealedSpoilers,
         autoRevealSpoilers = autoRevealSpoilers,
         spoilerBackground = spoilerBackground,
+        baseUrl = baseUrl,
     )
 
     val linkStyles = TextLinkStyles(
@@ -215,6 +222,7 @@ private fun tokenizeDvachHtml(
     revealedSpoilers: Set<Int>,
     autoRevealSpoilers: Boolean,
     spoilerBackground: Color,
+    baseUrl: String,
 ): List<Run> {
     val runs = mutableListOf<Run>()
     val stack = mutableListOf<OpenTag>()
@@ -302,7 +310,7 @@ private fun tokenizeDvachHtml(
                 val postRef = POST_NUM_ATTR.find(attrs)?.groupValues?.get(1)?.toIntOrNull()
                 val postThread = THREAD_NUM_ATTR.find(attrs)?.groupValues?.get(1)?.toIntOrNull()
                 val isPostLink = postRef != null && attrs.contains("post-reply", ignoreCase = true)
-                val href = decodeLinkHref(HREF_ATTR.find(attrs)?.groupValues?.get(1))
+                val href = decodeLinkHref(HREF_ATTR.find(attrs)?.groupValues?.get(1), baseUrl)
                 stack += when {
                     isPostLink -> OpenTag(
                         name = name,

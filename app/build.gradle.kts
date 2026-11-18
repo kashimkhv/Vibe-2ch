@@ -27,8 +27,8 @@ android {
         applicationId = "io.github.kashimkhv.vibe2ch"
         minSdk = 26
         targetSdk = 36
-        versionCode = 10
-        versionName = "3.4.0"
+        versionCode = 11
+        versionName = "3.5.0"
 
         testInstrumentationRunner = "androidx.test.runner.AndroidJUnitRunner"
         vectorDrawables.useSupportLibrary = true

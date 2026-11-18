@@ -52,6 +52,19 @@ class FormattersTest {
     }
 
     @Test
+    fun `share url uses the chosen domain`() {
+        // Если 2ch.hk не открывается, «Поделиться» должно вести на рабочее зеркало.
+        assertEquals(
+            "https://2ch.life/b/res/123.html",
+            threadUrl("b", 123, "https://2ch.life"),
+        )
+        assertEquals(
+            "https://2ch.life/b/res/123.html#7",
+            postUrl("b", 123, 7, "https://2ch.life/"),
+        )
+    }
+
+    @Test
     fun `html entities decode numerically and by name`() {
         assertEquals("WebM/MP4", decodeHtmlEntities("WebM&#47;MP4"))
         assertEquals("a b", decodeHtmlEntities("a&nbsp;b"))

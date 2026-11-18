@@ -7,6 +7,7 @@ import okhttp3.Cookie
 import okhttp3.CookieJar
 import okhttp3.HttpUrl
 import okhttp3.HttpUrl.Companion.toHttpUrlOrNull
+import io.github.kashimkhv.vibe2ch.domain.DVACH_HOSTS
 import java.io.File
 
 /**
@@ -35,10 +36,22 @@ import java.io.File
  * закрытой доске — это host-only кука, поставленная на `2ch.hk`, и по правилам
  * браузера на другой хост она не уходит: OkHttp честно перезапрашивает картинку
  * уже у `2ch.su`, но без куки, и получает `500` с HTML «Not found» вместо
- * превью. Поэтому при запросе к зеркалу кука второго зеркала тоже считается
- * подходящей — хранится при этом одна, а не две копии.
+ * превью. Поэтому при запросе к домену движка куки остальных его доменов тоже
+ * считаются подходящими — хранится при этом одна, а не несколько копий.
+ *
+ * Домены движка — это известные зеркала плюс выбранный в настройках домен
+ * ([engineHosts]): переключение на зеркало не отбирает доступ к закрытым доскам
+ * и не заставляет получать его заново.
  */
-class CookieStore(private val file: File) : CookieJar {
+class CookieStore(
+    private val file: File,
+    /**
+     * Домены, которые считаются одним движком: куки между ними общие.
+     * По умолчанию — известные зеркала; приложение добавляет сюда ещё
+     * и выбранный в настройках домен.
+     */
+    private val engineHosts: () -> Set<String> = { DVACH_HOSTS },
+) : CookieJar {
 
     /** Кука и адрес, с которого она пришла: по нему [Cookie.parse] восстановит домен. */
     private class Entry(val url: String, val cookie: Cookie)
@@ -59,9 +72,10 @@ class CookieStore(private val file: File) : CookieJar {
 
     override fun loadForRequest(url: HttpUrl): List<Cookie> {
         val now = System.currentTimeMillis()
-        // Кука, поставленная на 2ch.hk, должна уйти и на 2ch.su: картинки
-        // приходят оттуда редиректом. Для остальных хостов зеркала нет.
-        val mirror = mirrorUrl(url)
+        // Кука, поставленная на одном домене движка, должна уйти и на остальные:
+        // картинки 2ch.hk отдаёт редиректом на 2ch.su, а смена домена в настройках
+        // не должна отбирать доступ к закрытым доскам.
+        val mirrors = mirrorUrls(url)
         synchronized(lock) {
             val expired = mutableListOf<String>()
             val result = ArrayList<Cookie>(entries.size)
@@ -69,7 +83,7 @@ class CookieStore(private val file: File) : CookieJar {
                 val cookie = entry.cookie
                 if (cookie.expiresAt <= now) {
                     expired += key
-                } else if (cookie.matches(url) || (mirror != null && cookie.matches(mirror))) {
+                } else if (cookie.matches(url) || mirrors.any { cookie.matches(it) }) {
                     result += cookie
                 }
             }
@@ -123,10 +137,16 @@ class CookieStore(private val file: File) : CookieJar {
     private fun keyOf(cookie: Cookie): String =
         "${cookie.domain}|${cookie.path}|${cookie.name}"
 
-    /** Адрес того же пути на зеркале — или `null`, если хост не зеркало. */
-    private fun mirrorUrl(url: HttpUrl): HttpUrl? {
-        val mirror = MIRRORS[url.host] ?: return null
-        return url.newBuilder().host(mirror).build()
+    /**
+     * Те же путь и параметры на остальных доменах движка. Пусто — хост чужой,
+     * и кука должна уходить только на него самого.
+     */
+    private fun mirrorUrls(url: HttpUrl): List<HttpUrl> {
+        val hosts = engineHosts()
+        if (url.host !in hosts) return emptyList()
+        return hosts
+            .filter { it != url.host }
+            .map { url.newBuilder().host(it).build() }
     }
 
     private fun load() {
@@ -192,12 +212,5 @@ class CookieStore(private val file: File) : CookieJar {
 
         /** Кука длиннее этого — уже не кука, а попытка забить файл. */
         const val MAX_COOKIE_SIZE = 4096
-
-        /**
-         * Зеркала движка, между которыми ходят запросы. `2ch.hk` отвечает на
-         * картинки `301` на `2ch.su`, а доступ выдаёт host-only кукой на
-         * `2ch.hk`: без неё на зеркале превью закрытой доски приходит `500`.
-         */
-        val MIRRORS = mapOf("2ch.hk" to "2ch.su", "2ch.su" to "2ch.hk")
     }
 }

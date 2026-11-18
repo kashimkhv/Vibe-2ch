@@ -329,7 +329,7 @@ fun ThreadScreen(
                         ThreadMenu(
                             expanded = titleMenuOpen,
                             bookmarked = bookmarked,
-                            shareUrl = threadUrl(boardId, threadNum),
+                            shareUrl = threadUrl(boardId, threadNum, settings.baseUrl),
                             shareTitle = title,
                             onDismiss = { titleMenuOpen = false },
                             onToggle = toggleBookmark,
@@ -429,7 +429,7 @@ fun ThreadScreen(
                                 onReplyWithQuote = {
                                     onReply(post.num, quoteText(post.commentHtml))
                                 },
-                                shareUrl = threadUrl(boardId, threadNum),
+                                shareUrl = threadUrl(boardId, threadNum, settings.baseUrl),
                                 shareTitle = title,
                                 showThumbnails = settings.showThumbnails,
                                 thumbnailScalePercent = settings.thumbnailScalePercent,

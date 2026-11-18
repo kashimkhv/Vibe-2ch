@@ -52,6 +52,40 @@ class LinkHrefTest {
     }
 
     @Test
+    fun `board relative url points to the chosen domain`() {
+        assertEquals(
+            "https://2ch.life/b/res/123.html#45",
+            decodeLinkHref("/b/res/123.html#45", "https://2ch.life"),
+        )
+    }
+
+    @Test
+    fun `absolute mirror link is moved to the chosen domain`() {
+        assertEquals(
+            "https://2ch.life/b/res/1.html?x=2#5",
+            decodeLinkHref("https://2ch.hk/b/res/1.html?x=2#5", "https://2ch.life"),
+        )
+        // Ссылка на www-зеркало — тот же движок, хост тоже подменяется.
+        assertEquals(
+            "https://2ch.life/e/index.html",
+            decodeLinkHref("https://www.2ch.su/e/index.html", "https://2ch.life"),
+        )
+    }
+
+    @Test
+    fun `foreign link keeps its host`() {
+        assertEquals(
+            "https://life.ru/p/1",
+            decodeLinkHref("https://life.ru/p/1", "https://2ch.life"),
+        )
+        // 2ch.org — не зеркало движка, а другой сайт.
+        assertEquals(
+            "https://2ch.org/b/res/1.html",
+            decodeLinkHref("https://2ch.org/b/res/1.html", "https://2ch.life"),
+        )
+    }
+
+    @Test
     fun `mailto stays`() {
         assertEquals("mailto:someone@example.com", decodeLinkHref("mailto:someone@example.com"))
     }

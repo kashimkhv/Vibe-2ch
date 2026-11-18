@@ -1,20 +1,22 @@
 package io.github.kashimkhv.vibe2ch.data.settings
 
 import android.content.Context
-import androidx.datastore.core.DataStore
 import androidx.datastore.preferences.core.Preferences
 import androidx.datastore.preferences.core.booleanPreferencesKey
 import androidx.datastore.preferences.core.edit
 import androidx.datastore.preferences.core.intPreferencesKey
 import androidx.datastore.preferences.core.stringPreferencesKey
-import androidx.datastore.preferences.preferencesDataStore
 import dagger.hilt.android.qualifiers.ApplicationContext
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.catch
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.onStart
+import io.github.kashimkhv.vibe2ch.data.remote.DvachServer
 import io.github.kashimkhv.vibe2ch.domain.BoardSort
+import io.github.kashimkhv.vibe2ch.domain.DEFAULT_DVACH_HOST
 import io.github.kashimkhv.vibe2ch.domain.ThreadSort
+import io.github.kashimkhv.vibe2ch.domain.baseUrlOf
+import io.github.kashimkhv.vibe2ch.domain.normalizeDvachHost
 import io.github.kashimkhv.vibe2ch.util.FONT_SCALE_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.LINE_SPACING_DEFAULT
 import io.github.kashimkhv.vibe2ch.util.TEXT_MARGIN_DEFAULT
@@ -96,7 +98,8 @@ data class AppSettings(
      * попадают только доски, где порядок выбирали вручную.
      */
     val threadSortByBoard: Map<String, BoardSort> = emptyMap(),
-    val baseUrl: String = "https://2ch.hk",
+    /** Домен движка, на который ходит клиент. */
+    val baseUrl: String = baseUrlOf(DEFAULT_DVACH_HOST),
 ) {
     /**
      * Порядок для конкретной доски: свой, если его выбирали, иначе общий.
@@ -107,11 +110,10 @@ data class AppSettings(
         threadSortByBoard[boardId.lowercase()] ?: BoardSort(threadSort, threadSortAscending)
 }
 
-private val Context.dataStore: DataStore<Preferences> by preferencesDataStore(name = "settings")
-
 @Singleton
 class SettingsRepository @Inject constructor(
     @ApplicationContext private val context: Context,
+    private val server: DvachServer,
 ) {
     private object Keys {
         /** Id выбранной темы (`DvachTheme.id`), а не имя enum: так выбор не сломается при переименовании. */
@@ -170,7 +172,6 @@ class SettingsRepository @Inject constructor(
 
         /** Свой порядок у отдельных досок: `b=REPLIES:0;po=BUMP:0`. */
         val THREAD_SORT_BOARDS = stringPreferencesKey("thread_sort_boards")
-        val BASE_URL = stringPreferencesKey("base_url")
     }
 
     /** Миграция запускается один раз на процесс, сколько бы экранов ни читали настройки. */
@@ -186,7 +187,7 @@ class SettingsRepository @Inject constructor(
         // Ошибка миграции не должна ронять поток настроек: останется значение
         // по умолчанию, как будто ключа ещё нет.
         runCatching {
-            context.dataStore.edit { prefs ->
+            context.settingsDataStore.edit { prefs ->
                 if (Keys.LIST_THUMB_SCALE !in prefs) {
                     prefs[Keys.LIST_THUMB_SCALE] =
                         prefs[Keys.THUMB_SCALE] ?: THUMBNAIL_SCALE_DEFAULT
@@ -195,7 +196,7 @@ class SettingsRepository @Inject constructor(
         }
     }
 
-    val settings: Flow<AppSettings> = context.dataStore.data
+    val settings: Flow<AppSettings> = context.settingsDataStore.data
         .onStart { migrateListThumbnailScale() }
         .catch { e -> if (e is IOException) emit(emptyPreferences()) else throw e }
         .map { prefs ->
@@ -243,50 +244,52 @@ class SettingsRepository @Inject constructor(
                     ?: ThreadSort.BUMP,
                 threadSortAscending = prefs[Keys.THREAD_SORT_ASCENDING] ?: false,
                 threadSortByBoard = decodeBoardSorts(prefs[Keys.THREAD_SORT_BOARDS]),
-                baseUrl = prefs[Keys.BASE_URL] ?: "https://2ch.hk",
+                baseUrl = baseUrlOf(
+                    normalizeDvachHost(prefs[BASE_URL_KEY]) ?: DEFAULT_DVACH_HOST,
+                ),
             )
         }
 
-    suspend fun setTheme(theme: DvachTheme) = context.dataStore.edit {
+    suspend fun setTheme(theme: DvachTheme) = context.settingsDataStore.edit {
         it[Keys.THEME] = theme.id
         // Старый ключ больше не нужен: при откате на прежнюю версию тема
         // прочитается как LIGHT/DARK по новому значению, а не потеряется.
         it.remove(Keys.LEGACY_THEME)
     }
 
-    suspend fun setShowThumbnails(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setShowThumbnails(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.THUMBS] = enabled
     }
 
-    suspend fun setThumbnailScale(percent: Int) = context.dataStore.edit {
+    suspend fun setThumbnailScale(percent: Int) = context.settingsDataStore.edit {
         it[Keys.THUMB_SCALE] = percent.coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX)
     }
 
-    suspend fun setListThumbnailScale(percent: Int) = context.dataStore.edit {
+    suspend fun setListThumbnailScale(percent: Int) = context.settingsDataStore.edit {
         it[Keys.LIST_THUMB_SCALE] = percent.coerceIn(THUMBNAIL_SCALE_MIN, THUMBNAIL_SCALE_MAX)
     }
 
-    suspend fun setEnlargeFewListThumbnails(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setEnlargeFewListThumbnails(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.LIST_THUMB_FEW_LARGE] = enabled
     }
 
-    suspend fun setCropThumbnails(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setCropThumbnails(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.CROP_THUMBS] = enabled
     }
 
-    suspend fun setThumbnailBackground(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setThumbnailBackground(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.THUMB_BACKGROUND] = enabled
     }
 
-    suspend fun setVerticalMediaPaging(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setVerticalMediaPaging(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.VERTICAL_MEDIA] = enabled
     }
 
-    suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setAutoRevealSpoilers(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.AUTO_REVEAL] = enabled
     }
 
-    suspend fun setRelativeDates(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setRelativeDates(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.RELATIVE_DATES] = enabled
     }
 
@@ -299,58 +302,69 @@ class SettingsRepository @Inject constructor(
         boardId: String,
         sort: ThreadSort,
         ascending: Boolean,
-    ) = context.dataStore.edit { prefs ->
+    ) = context.settingsDataStore.edit { prefs ->
         val saved = decodeBoardSorts(prefs[Keys.THREAD_SORT_BOARDS])
         prefs[Keys.THREAD_SORT_BOARDS] = encodeBoardSorts(
             saved + (boardId.lowercase() to BoardSort(sort, ascending)),
         )
     }
 
-    suspend fun setHeadingFont(font: FontChoice) = context.dataStore.edit {
+    /**
+     * Домен движка. Кроме DataStore обновляем кэш в [DvachServer]: сетевой
+     * слой читает его на каждом запросе, поэтому новый домен действует сразу,
+     * без перезапуска.
+     */
+    suspend fun setBaseUrl(host: String) {
+        val normalized = normalizeDvachHost(host) ?: return
+        context.settingsDataStore.edit { it[BASE_URL_KEY] = baseUrlOf(normalized) }
+        server.set(normalized)
+    }
+
+    suspend fun setHeadingFont(font: FontChoice) = context.settingsDataStore.edit {
         it[Keys.FONT_HEADINGS] = font.name
     }
 
-    suspend fun setMetaFont(font: FontChoice) = context.dataStore.edit {
+    suspend fun setMetaFont(font: FontChoice) = context.settingsDataStore.edit {
         it[Keys.FONT_META] = font.name
     }
 
-    suspend fun setBodyFont(font: FontChoice) = context.dataStore.edit {
+    suspend fun setBodyFont(font: FontChoice) = context.settingsDataStore.edit {
         it[Keys.FONT_BODY] = font.name
     }
 
-    suspend fun setHeadingScale(percent: Int) = context.dataStore.edit {
+    suspend fun setHeadingScale(percent: Int) = context.settingsDataStore.edit {
         it[Keys.FONT_SCALE_HEADINGS] = clampFontScale(percent)
     }
 
-    suspend fun setMetaScale(percent: Int) = context.dataStore.edit {
+    suspend fun setMetaScale(percent: Int) = context.settingsDataStore.edit {
         it[Keys.FONT_SCALE_META] = clampFontScale(percent)
     }
 
-    suspend fun setBodyScale(percent: Int) = context.dataStore.edit {
+    suspend fun setBodyScale(percent: Int) = context.settingsDataStore.edit {
         it[Keys.FONT_SCALE_BODY] = clampFontScale(percent)
     }
 
-    suspend fun setHeadingBold(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setHeadingBold(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.FONT_BOLD_HEADINGS] = enabled
     }
 
-    suspend fun setMetaBold(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setMetaBold(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.FONT_BOLD_META] = enabled
     }
 
-    suspend fun setBodyBold(enabled: Boolean) = context.dataStore.edit {
+    suspend fun setBodyBold(enabled: Boolean) = context.settingsDataStore.edit {
         it[Keys.FONT_BOLD_BODY] = enabled
     }
 
-    suspend fun setLineSpacing(percent: Int) = context.dataStore.edit {
+    suspend fun setLineSpacing(percent: Int) = context.settingsDataStore.edit {
         it[Keys.FONT_LINE_SPACING] = clampLineSpacing(percent)
     }
 
-    suspend fun setTextMargins(dp: Int) = context.dataStore.edit {
+    suspend fun setTextMargins(dp: Int) = context.settingsDataStore.edit {
         it[Keys.TEXT_MARGINS] = clampTextMargin(dp)
     }
 
-    suspend fun setTreeIndent(dp: Int) = context.dataStore.edit {
+    suspend fun setTreeIndent(dp: Int) = context.settingsDataStore.edit {
         it[Keys.TREE_INDENT] = clampTreeIndent(dp)
     }
 }

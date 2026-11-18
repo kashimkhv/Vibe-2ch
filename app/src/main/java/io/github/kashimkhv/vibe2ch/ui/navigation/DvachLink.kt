@@ -2,6 +2,7 @@ package io.github.kashimkhv.vibe2ch.ui.navigation
 
 import java.net.URI
 import java.net.URISyntaxException
+import io.github.kashimkhv.vibe2ch.domain.DVACH_HOSTS
 
 /**
  * Ссылка двача, открытая из другого приложения. Понимаем только то, что умеем
@@ -24,7 +25,8 @@ sealed interface DvachLink {
  * Разбор веб-ссылок движка. Работает на чистом `java.net.URI`, без
  * `android.net.Uri`, чтобы правила проверялись обычными unit-тестами.
  *
- * Поддерживаются адреса `2ch.hk` и зеркала `2ch.su` (в том числе с `www.`):
+ * Поддерживаются адреса `2ch.hk` и зеркал (`2ch.life`, `2ch.su`), в том числе
+ * с `www.`:
  *
  * - `/{доска}/` и `/{доска}/index.html` — список тредов;
  * - `/{доска}/catalog.html` — тоже список: каталога в клиенте пока нет;
@@ -38,8 +40,8 @@ sealed interface DvachLink {
  */
 object DvachLinks {
 
-    /** Домены движка, которые клиент умеет открывать. */
-    private val hosts = setOf("2ch.hk", "2ch.su")
+    /** Домены движка, которые клиент умеет открывать: основной и зеркала. */
+    private val hosts = DVACH_HOSTS
 
     private val boardId = Regex("[a-z0-9]{1,16}")
 

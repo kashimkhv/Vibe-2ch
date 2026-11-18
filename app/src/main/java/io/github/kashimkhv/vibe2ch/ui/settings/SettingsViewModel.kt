@@ -17,12 +17,14 @@ import io.github.kashimkhv.vibe2ch.data.cache.CacheManager
 import io.github.kashimkhv.vibe2ch.data.cache.CacheUsage
 import io.github.kashimkhv.vibe2ch.data.local.ChanDao
 import io.github.kashimkhv.vibe2ch.data.remote.CookieStore
+import io.github.kashimkhv.vibe2ch.data.remote.DomainProbe
 import io.github.kashimkhv.vibe2ch.data.settings.AppSettings
 import io.github.kashimkhv.vibe2ch.data.settings.DvachTheme
 import io.github.kashimkhv.vibe2ch.data.settings.FontChoice
 import io.github.kashimkhv.vibe2ch.data.settings.SettingsRepository
 import io.github.kashimkhv.vibe2ch.data.update.UpdateInfo
 import io.github.kashimkhv.vibe2ch.data.update.UpdateRepository
+import io.github.kashimkhv.vibe2ch.domain.DomainCheck
 import io.github.kashimkhv.vibe2ch.domain.isNewerVersion
 import java.io.File
 import javax.inject.Inject
@@ -53,6 +55,7 @@ class SettingsViewModel @Inject constructor(
     private val cache: CacheManager,
     private val cookies: CookieStore,
     private val updates: UpdateRepository,
+    private val probe: DomainProbe,
     dao: ChanDao,
 ) : ViewModel() {
 
@@ -74,6 +77,12 @@ class SettingsViewModel @Inject constructor(
 
     /** Сколько кук движка сейчас сохранено: по ним открываются закрытые доски. */
     val cookiesCount: StateFlow<Int> = cookies.count
+
+    /** Проверка домена из диалога: идёт, ответила или не ответила. */
+    private val _domainCheck = MutableStateFlow<DomainCheck>(DomainCheck.Idle)
+    val domainCheck: StateFlow<DomainCheck> = _domainCheck.asStateFlow()
+
+    private var domainCheckJob: Job? = null
 
     init {
         refreshCache()
@@ -150,6 +159,26 @@ class SettingsViewModel @Inject constructor(
 
     fun setTheme(theme: DvachTheme) = viewModelScope.launch {
         repository.setTheme(theme)
+    }
+
+    /** Новый домен движка: действует со следующего запроса, без перезапуска. */
+    fun setBaseUrl(host: String) = viewModelScope.launch {
+        repository.setBaseUrl(host)
+    }
+
+    /** Проверка домена: отдельный клиент, без подмены хоста на выбранный. */
+    fun checkDomain(host: String) {
+        domainCheckJob?.cancel()
+        domainCheckJob = viewModelScope.launch {
+            _domainCheck.value = DomainCheck.Checking(host)
+            _domainCheck.value = probe.probe(host)
+        }
+    }
+
+    /** Диалог закрыли — прошлый результат не должен всплыть при следующем открытии. */
+    fun resetDomainCheck() {
+        domainCheckJob?.cancel()
+        _domainCheck.value = DomainCheck.Idle
     }
 
 

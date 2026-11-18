@@ -191,6 +191,43 @@ class CookieStoreTest {
         assertTrue(store.loadForRequest("https://2ch.hk/e/index.json".toHttpUrl()).isEmpty())
     }
 
+    /**
+     * Переключение домена в настройках не должно отбирать доступ к закрытым
+     * доскам: кука, полученная на `2ch.hk`, уходит и на `2ch.life`.
+     */
+    @Test
+    fun `cookie saved on 2ch hk is sent to another engine mirror`() {
+        val store = CookieStore(file())
+        store.saveFromResponse(
+            "https://2ch.hk/user/posting?nc=1".toHttpUrl(),
+            listOf(cookie("usercode_auth=abc; Path=/; Max-Age=31536000", "https://2ch.hk")),
+        )
+
+        assertEquals(
+            "abc",
+            store.loadForRequest("https://2ch.life/e/index.json".toHttpUrl()).single().value,
+        )
+        assertEquals(1, store.count.value)
+    }
+
+    /** Свой домен из настроек — такой же домен движка, как и известные зеркала. */
+    @Test
+    fun `custom engine host shares cookies with the mirrors`() {
+        val custom = "2ch.example"
+        val store = CookieStore(file()) { setOf("2ch.hk", custom) }
+        store.saveFromResponse(
+            "https://2ch.hk/user/posting?nc=1".toHttpUrl(),
+            listOf(cookie("usercode_auth=abc; Path=/; Max-Age=31536000", "https://2ch.hk")),
+        )
+
+        assertEquals(
+            1,
+            store.loadForRequest("https://$custom/b/index.json".toHttpUrl()).size,
+        )
+        // Чужой домен по-прежнему куку не получает.
+        assertTrue(store.loadForRequest("https://example.com/b/index.json".toHttpUrl()).isEmpty())
+    }
+
     private fun file(): File = File(tmp.root, "cookies.txt")
 
     private fun cookie(header: String, url: String = "https://board.test"): Cookie =

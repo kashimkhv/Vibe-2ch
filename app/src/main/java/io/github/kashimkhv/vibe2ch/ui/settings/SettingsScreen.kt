@@ -58,7 +58,9 @@ import io.github.kashimkhv.vibe2ch.BuildConfig
 import io.github.kashimkhv.vibe2ch.data.cache.CacheUsage
 import io.github.kashimkhv.vibe2ch.data.settings.FontChoice
 import io.github.kashimkhv.vibe2ch.data.update.UpdateInfo
+import io.github.kashimkhv.vibe2ch.domain.DVACH_MIRRORS
 import io.github.kashimkhv.vibe2ch.domain.GITHUB_REPO_URL
+import io.github.kashimkhv.vibe2ch.domain.hostOfBaseUrl
 import io.github.kashimkhv.vibe2ch.ui.components.dvachShadow
 import io.github.kashimkhv.vibe2ch.ui.components.dvachTopAppBarColors
 import io.github.kashimkhv.vibe2ch.ui.components.DvachScrollbar
@@ -102,6 +104,7 @@ fun SettingsScreen(
     val hiddenCount by viewModel.hiddenCount.collectAsStateWithLifecycle()
     val cacheUsage by viewModel.cacheUsage.collectAsStateWithLifecycle()
     val cookiesCount by viewModel.cookiesCount.collectAsStateWithLifecycle()
+    val domainCheck by viewModel.domainCheck.collectAsStateWithLifecycle()
     val update by viewModel.update.collectAsStateWithLifecycle()
     val scrollState = rememberScrollState()
     val snackbarHostState = remember { SnackbarHostState() }
@@ -110,6 +113,7 @@ fun SettingsScreen(
     val uriHandler = LocalUriHandler.current
     var confirmClear by remember { mutableStateOf(false) }
     var confirmClearCookies by remember { mutableStateOf(false) }
+    var domainDialog by remember { mutableStateOf(false) }
     var fontPicker by remember { mutableStateOf<FontRole?>(null) }
     // Разрешение на установку выдаётся в системных настройках, поэтому его
     // надо перечитывать при возврате в приложение, а не только при открытии.
@@ -357,6 +361,15 @@ fun SettingsScreen(
                 HorizontalDivider()
                 SectionTitle("Сеть")
 
+                LinkRow(
+                    title = "Домен",
+                    subtitle = domainSubtitle(settings.baseUrl),
+                    onClick = {
+                        viewModel.resetDomainCheck()
+                        domainDialog = true
+                    },
+                )
+
                 Column(modifier = Modifier.fillMaxWidth().padding(horizontal = 20.dp, vertical = 10.dp)) {
                     Row(verticalAlignment = Alignment.CenterVertically) {
                         Text(
@@ -430,7 +443,8 @@ fun SettingsScreen(
                         style = MaterialTheme.typography.bodyMedium,
                     )
                     HtmlText(
-                        html = "Данные: <a href=\"https://2ch.hk\">2ch.hk</a> (JSON API Makaba). " +
+                        html = "Данные: <a href=\"https://2ch.hk\">2ch.hk</a> и зеркала " +
+                            "(JSON API Makaba); домен меняется в «Сеть → Домен». " +
                             "Вдохновлён <a href=\"https://github.com/vortexwolf/2ch-Browser\">2ch-Browser</a>.",
                         style = MaterialTheme.typography.bodySmall,
                         modifier = Modifier.padding(top = 6.dp),
@@ -527,6 +541,31 @@ fun SettingsScreen(
         )
     }
 
+    if (domainDialog) {
+        DomainDialog(
+            currentHost = hostOfBaseUrl(settings.baseUrl),
+            check = domainCheck,
+            onCheck = viewModel::checkDomain,
+            onSave = { host ->
+                domainDialog = false
+                viewModel.resetDomainCheck()
+                val previous = hostOfBaseUrl(settings.baseUrl)
+                if (host != previous) {
+                    viewModel.setBaseUrl(host)
+                    scope.launch {
+                        snackbarHostState.showSnackbar(
+                            "Теперь $host — обновите список, чтобы загрузить с него",
+                        )
+                    }
+                }
+            },
+            onDismiss = {
+                domainDialog = false
+                viewModel.resetDomainCheck()
+            },
+        )
+    }
+
     fontPicker?.let { role ->
         FontPickerDialog(
             role = role,
@@ -564,6 +603,13 @@ fun SettingsScreen(
             }
         },
     )
+}
+
+/** Подпись пункта «Домен»: выбранный домен и что это за зеркало. */
+private fun domainSubtitle(baseUrl: String): String {
+    val host = hostOfBaseUrl(baseUrl)
+    val note = DVACH_MIRRORS.firstOrNull { it.host == host }?.note ?: "свой домен"
+    return "$host — $note"
 }
 
 /** Подпись пункта «Проверить обновления»: что происходит прямо сейчас. */

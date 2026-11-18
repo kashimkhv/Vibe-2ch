@@ -32,20 +32,15 @@ import okio.Path.Companion.toOkioPath
 import retrofit2.converter.kotlinx.serialization.asConverterFactory
 import io.github.kashimkhv.vibe2ch.BuildConfig
 import io.github.kashimkhv.vibe2ch.data.remote.CookieStore
+import io.github.kashimkhv.vibe2ch.data.remote.DVACH_USER_AGENT
 import io.github.kashimkhv.vibe2ch.data.remote.DvachApi
+import io.github.kashimkhv.vibe2ch.data.remote.DvachHostInterceptor
+import io.github.kashimkhv.vibe2ch.data.remote.DvachServer
 import java.io.File
 import java.util.concurrent.TimeUnit
 import javax.inject.Singleton
 
 const val BASE_URL = "https://2ch.hk/"
-
-/**
- * 2ch.hk за Cloudflare режет запросы без внятного User-Agent, поэтому подставляем
- * UA десктопного браузера — как это делал старый клиент.
- */
-private const val USER_AGENT =
-    "Mozilla/5.0 (Linux; Android 14) AppleWebKit/537.36 (KHTML, like Gecko) " +
-        "Chrome/131.0.0.0 Mobile Safari/537.36"
 
 @Module
 @InstallIn(SingletonComponent::class)
@@ -62,14 +57,22 @@ object NetworkModule {
 
     @Provides
     @Singleton
-    fun provideCookieStore(@ApplicationContext context: Context): CookieStore =
-        CookieStore(File(context.filesDir, "cookies.txt"))
+    fun provideCookieStore(
+        @ApplicationContext context: Context,
+        server: DvachServer,
+    ): CookieStore = CookieStore(
+        file = File(context.filesDir, "cookies.txt"),
+        // Домены движка: известные зеркала и выбранный в настройках домен.
+        // Куки между ними общие, поэтому смена зеркала не отбирает доступ.
+        engineHosts = server::aliases,
+    )
 
     @Provides
     @Singleton
     fun provideOkHttp(
         @ApplicationContext context: Context,
         cookies: CookieStore,
+        server: DvachServer,
     ): OkHttpClient {
         val logging = HttpLoggingInterceptor().apply {
             level = if (BuildConfig.DEBUG) {
@@ -83,6 +86,9 @@ object NetworkModule {
             // Куки движка переживают перезапуск: по ним открываются закрытые
             // доски, а без них каждый запрос был бы новым анонимом.
             .cookieJar(cookies)
+            // Домен — до всего остального: куки, кэш и лог должны видеть
+            // настоящий адрес, а не 2ch.hk из Retrofit.
+            .addInterceptor(DvachHostInterceptor(server))
             // Превью грузятся пачкой по всему экрану: пять соединений на хост
             // (умолчание OkHttp) — узкое место при быстром скролле.
             .dispatcher(
@@ -94,7 +100,7 @@ object NetworkModule {
             .addInterceptor { chain ->
                 chain.proceed(
                     chain.request().newBuilder()
-                        .header("User-Agent", USER_AGENT)
+                        .header("User-Agent", DVACH_USER_AGENT)
                         .header("Accept", "application/json, text/plain, */*")
                         .build(),
                 )
@@ -116,18 +122,22 @@ object NetworkModule {
     @Provides
     @Singleton
     @MediaClient
-    fun provideMediaOkHttp(cookies: CookieStore): OkHttpClient = OkHttpClient.Builder()
-        // Картинки и видео закрытых досок тоже требуют ту же куку, поэтому
-        // у медиа-клиента своё хранилище не заводим — оно общее.
-        .cookieJar(cookies)
-        .addInterceptor { chain ->
-            chain.proceed(
-                chain.request().newBuilder()
-                    .header("User-Agent", USER_AGENT)
-                    .header("Accept", "*/*")
-                    .build(),
-            )
-        }
+    fun provideMediaOkHttp(cookies: CookieStore, server: DvachServer): OkHttpClient =
+        OkHttpClient.Builder()
+            // Картинки и видео закрытых досок тоже требуют ту же куку, поэтому
+            // у медиа-клиента своё хранилище не заводим — оно общее.
+            .cookieJar(cookies)
+            // Медиа — те же домены движка: картинки и видео идут с выбранного
+            // зеркала, а не с 2ch.hk из адресов в JSON.
+            .addInterceptor(DvachHostInterceptor(server))
+            .addInterceptor { chain ->
+                chain.proceed(
+                    chain.request().newBuilder()
+                        .header("User-Agent", DVACH_USER_AGENT)
+                        .header("Accept", "*/*")
+                        .build(),
+                )
+            }
         .addInterceptor(
             HttpLoggingInterceptor().apply {
                 level = if (BuildConfig.DEBUG) {

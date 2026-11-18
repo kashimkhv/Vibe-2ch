@@ -132,12 +132,22 @@ fun formatPostTime(
     return formatted.ifBlank { fallback }
 }
 
-fun postUrl(boardId: String, threadNum: Int, postNum: Int = threadNum): String =
-    "${threadUrl(boardId, threadNum)}#${postNum}"
+/**
+ * Ссылка на тред целиком — для «Поделиться». [baseUrl] — выбранный домен
+ * движка: если 2ch.hk не открывается, ссылка на него бесполезна.
+ */
+fun threadUrl(
+    boardId: String,
+    threadNum: Int,
+    baseUrl: String = "https://2ch.hk",
+): String = "${baseUrl.trimEnd('/')}/$boardId/res/$threadNum.html"
 
-/** Ссылка на тред целиком — для «Поделиться». */
-fun threadUrl(boardId: String, threadNum: Int): String =
-    "https://2ch.hk/$boardId/res/$threadNum.html"
+fun postUrl(
+    boardId: String,
+    threadNum: Int,
+    postNum: Int = threadNum,
+    baseUrl: String = "https://2ch.hk",
+): String = "${threadUrl(boardId, threadNum, baseUrl)}#$postNum"
 
 /** Русские склонения: 1 пост, 2 поста, 11 постов. */
 fun plural(count: Int, one: String, few: String, many: String): String {

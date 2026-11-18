@@ -1,5 +1,8 @@
 package io.github.kashimkhv.vibe2ch.util
 
+import io.github.kashimkhv.vibe2ch.domain.DVACH_HOSTS
+import java.net.URI
+
 private val TAG_REGEX = Regex("<[^>]+>")
 private val SPACES = Regex("\\s+")
 private val ENTITY_REGEX = Regex("&(#x?[0-9a-fA-F]+|[a-zA-Z][a-zA-Z0-9]*);")
@@ -62,19 +65,51 @@ private fun codePoint(raw: String, radix: Int): String? =
  *
  * Заодно отбрасываются схемы, которым не место в клиенте (`javascript:`,
  * `data:`), протокол-относительные `//host/path` получают `https:`, а
- * внутренние пути движка (`/b/res/123.html`) — хост `2ch.hk`.
+ * внутренние пути движка (`/b/res/123.html`) — хост выбранного домена.
+ *
+ * [baseUrl] — домен из настроек: если `2ch.hk` не открывается, ссылки из постов
+ * должны вести на рабочее зеркало.
  */
-fun decodeLinkHref(raw: String?): String? {
+fun decodeLinkHref(raw: String?, baseUrl: String = DVACH_ORIGIN): String? {
     val text = decodeHtmlEntities(raw ?: return null).trim()
     if (text.isEmpty()) return null
 
+    val origin = baseUrl.trimEnd('/').ifBlank { DVACH_ORIGIN }
     val normalized = when {
         text.startsWith("//") -> "https:$text"
-        text.startsWith("/") -> "$DVACH_ORIGIN$text"
+        text.startsWith("/") -> "$origin$text"
         else -> text
     }
     val scheme = normalized.substringBefore(':', missingDelimiterValue = "").lowercase()
-    return normalized.takeIf { it.contains(':') && scheme in LINK_SCHEMES }
+    val url = normalized.takeIf { it.contains(':') && scheme in LINK_SCHEMES } ?: return null
+    return rewriteEngineLink(url, origin)
+}
+
+/**
+ * Переводит ссылку на известное зеркало движка на выбранный домен.
+ *
+ * Движок в постах ссылается на себя абсолютно (`https://2ch.hk/b/res/1.html`)
+ * и часто на то зеркало, через которое пост писали. Если основной домен не
+ * открывается, такая ссылка ведёт в никуда, поэтому её хост подменяется на
+ * выбранный. Чужие адреса (новости, GitHub, внешние картинки) не трогаются:
+ * решение принимается только по [DVACH_HOSTS].
+ */
+fun rewriteEngineLink(url: String, baseUrl: String): String {
+    val uri = runCatching { URI(url) }.getOrNull() ?: return url
+    val host = uri.host?.lowercase()?.removePrefix("www.") ?: return url
+    if (host !in DVACH_HOSTS) return url
+    val target = runCatching { URI(baseUrl.trimEnd('/')) }.getOrNull()?.host
+        ?.lowercase()?.removePrefix("www.")
+        ?: return url
+    if (host == target) return url
+    val scheme = uri.scheme ?: return url
+
+    return buildString {
+        append(scheme).append("://").append(target)
+        append(uri.rawPath.orEmpty())
+        uri.rawQuery?.let { append('?').append(it) }
+        uri.rawFragment?.let { append('#').append(it) }
+    }
 }
 
 private const val DVACH_ORIGIN = "https://2ch.hk"
